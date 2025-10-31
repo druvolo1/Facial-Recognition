@@ -21,9 +21,15 @@
         .container {
             width: 100vw;
             height: 100vh;
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .main-section {
             display: flex;
             flex-direction: column;
-            padding: 20px;
         }
 
         .header {
@@ -41,11 +47,18 @@
         .video-section {
             flex: 1;
             display: flex;
-            justify-content: center;
-            align-items: center;
+            flex-direction: column;
             background: rgba(0, 0, 0, 0.3);
             border-radius: 10px;
             padding: 20px;
+        }
+
+        .video-container {
+            position: relative;
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         video {
@@ -53,6 +66,14 @@
             max-height: 100%;
             border-radius: 10px;
             background: #000;
+        }
+
+        #canvas {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
         }
 
         .status {
@@ -99,27 +120,147 @@
             margin-top: 10px;
             font-size: 12px;
         }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .detected-faces {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .detected-faces h2 {
+            font-size: 20px;
+            margin-bottom: 15px;
+            color: white;
+        }
+
+        .face-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .face-card h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .face-card p {
+            margin: 5px 0 0 0;
+            opacity: 0.9;
+            font-size: 13px;
+        }
+
+        .confidence-badge {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-weight: 600;
+            font-size: 14px;
+            margin-top: 8px;
+            display: inline-block;
+        }
+
+        .no-faces {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.6);
+            padding: 40px 20px;
+            font-size: 14px;
+        }
+
+        .stats-panel {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            opacity: 0.8;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            font-size: 13px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>Face Recognition Monitor</h1>
-            <div>Display ID: <strong id="displayId">Loading...</strong></div>
-            <div>Server: <strong id="serverUrl">-</strong></div>
+        <div class="main-section">
+            <div class="header">
+                <h1>Face Recognition Monitor</h1>
+                <div>Display ID: <strong id="displayId">Loading...</strong></div>
+                <div>Server: <strong id="serverUrl">-</strong></div>
+            </div>
+
+            <div class="video-section">
+                <div class="video-container">
+                    <video id="video" autoplay playsinline></video>
+                    <canvas id="canvas"></canvas>
+                </div>
+
+                <div class="status">
+                    <span class="status-indicator" id="statusIndicator"></span>
+                    <span id="statusText">Initializing...</span>
+
+                    <div class="info-panel">
+                        <div>Camera: <span id="cameraStatus">Not started</span></div>
+                        <div>Server: <span id="serverStatus">Not connected</span></div>
+                        <div>Recognition: <span id="recognitionStatus">Inactive</span></div>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <div class="video-section">
-            <video id="video" autoplay playsinline></video>
-        </div>
+        <div class="sidebar">
+            <div class="stats-panel">
+                <div class="stat-row">
+                    <span class="stat-label">Faces Detected:</span>
+                    <span class="stat-value" id="faceCount">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Last Check:</span>
+                    <span class="stat-value" id="lastCheck">Never</span>
+                </div>
+            </div>
 
-        <div class="status">
-            <span class="status-indicator" id="statusIndicator"></span>
-            <span id="statusText">Initializing...</span>
-
-            <div class="info-panel">
-                <div>Camera: <span id="cameraStatus">Not started</span></div>
-                <div>Server: <span id="serverStatus">Not connected</span></div>
+            <div class="detected-faces" id="detectedFaces">
+                <h2>Detected Faces</h2>
+                <div class="no-faces">Waiting for recognition to start...</div>
             </div>
         </div>
     </div>
@@ -133,6 +274,14 @@
 
         // Elements
         const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // State
+        let stream = null;
+        let recognitionInterval = null;
+        let heartbeatInterval = null;
+        let isRecognizing = false;
 
         // Update display
         document.getElementById('displayId').textContent = displayId;
@@ -148,6 +297,9 @@
 
             // Test server connection
             await testServer();
+
+            // Start recognition and heartbeat
+            startRecognition();
         }
 
         // Start camera - Try multiple methods
@@ -168,6 +320,10 @@
                             console.log('[CAMERA] ✓ Camera started:', video.videoWidth, 'x', video.videoHeight);
                             document.getElementById('cameraStatus').textContent = '✓ Active (' + video.videoWidth + 'x' + video.videoHeight + ')';
                             updateStatus('connected', 'Camera active');
+
+                            // Set canvas size to match video
+                            canvas.width = video.videoWidth;
+                            canvas.height = video.videoHeight;
                         };
                     })
                     .catch(function(error) {
@@ -202,6 +358,10 @@
                                 console.log('[CAMERA] ✓ Camera started:', video.videoWidth, 'x', video.videoHeight);
                                 document.getElementById('cameraStatus').textContent = '✓ Active (' + video.videoWidth + 'x' + video.videoHeight + ')';
                                 updateStatus('connected', 'Camera active');
+
+                                // Set canvas size to match video
+                                canvas.width = video.videoWidth;
+                                canvas.height = video.videoHeight;
                             };
                         },
                         function logError(error) {
@@ -274,6 +434,183 @@
                 }
             } catch (error) {
                 console.error('[REGISTER] ✗ Error:', error);
+            }
+        }
+
+        // Start recognition
+        function startRecognition() {
+            if (isRecognizing) return;
+
+            console.log('[RECOGNITION] Starting...');
+            isRecognizing = true;
+            document.getElementById('recognitionStatus').textContent = 'Active';
+
+            // Run recognition every 2 seconds
+            recognitionInterval = setInterval(recognizeFaces, 2000);
+
+            // Send heartbeat every 30 seconds
+            heartbeatInterval = setInterval(sendHeartbeat, 30000);
+
+            // Run immediately
+            recognizeFaces();
+        }
+
+        // Recognize faces in current frame
+        async function recognizeFaces() {
+            if (!video.videoWidth) return;
+
+            try {
+                // Capture current frame to canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                // Convert to base64
+                const imageData = canvas.toDataURL('image/jpeg', 0.8);
+
+                // Send to server
+                const response = await fetch(SERVER_URL + '/api/displays/recognize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        display_id: displayId,
+                        location: 'Test Location',
+                        image: imageData
+                    })
+                });
+
+                const result = await response.json();
+
+                // Update last check time
+                const now = new Date();
+                document.getElementById('lastCheck').textContent = now.toLocaleTimeString();
+
+                if (result.success) {
+                    const faces = result.faces || [];
+                    document.getElementById('faceCount').textContent = faces.length;
+
+                    // Display detected faces in sidebar
+                    displayDetectedFaces(faces);
+
+                    // Draw bounding boxes on canvas
+                    drawBoundingBoxes(faces);
+
+                    console.log('[RECOGNITION] ✓ Detected', faces.length, 'face(s)');
+                } else {
+                    console.error('[RECOGNITION] ✗ Error:', result.error);
+                }
+
+            } catch (error) {
+                console.error('[RECOGNITION] ✗ Exception:', error);
+            }
+        }
+
+        // Display detected faces in sidebar
+        function displayDetectedFaces(faces) {
+            const container = document.getElementById('detectedFaces');
+            const header = '<h2>Detected Faces</h2>';
+
+            if (faces.length === 0) {
+                container.innerHTML = header + '<div class="no-faces">No faces detected</div>';
+                return;
+            }
+
+            let facesHTML = header;
+
+            faces.forEach((face, index) => {
+                const confidencePercent = (face.confidence * 100).toFixed(1);
+                const userName = face.userid === 'unknown' ? 'Unknown Person' : face.userid;
+
+                facesHTML += `
+                    <div class="face-card">
+                        <h3>${userName}</h3>
+                        <p>Face #${index + 1}</p>
+                        <div class="confidence-badge">${confidencePercent}%</div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = facesHTML;
+        }
+
+        // Draw bounding boxes on canvas overlay
+        function drawBoundingBoxes(faces) {
+            // Clear previous drawings
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            faces.forEach((face) => {
+                // Get actual video dimensions
+                const actualWidth = canvas.width;
+                const actualHeight = canvas.height;
+
+                // CodeProject.AI received a resized image (max 640x480)
+                const maxWidth = 640;
+                const maxHeight = 480;
+
+                // Calculate the scale ratio
+                let sentWidth, sentHeight;
+                const aspectRatio = actualWidth / actualHeight;
+
+                if (actualWidth > maxWidth || actualHeight > maxHeight) {
+                    // Image was resized
+                    if (aspectRatio > maxWidth / maxHeight) {
+                        sentWidth = maxWidth;
+                        sentHeight = maxWidth / aspectRatio;
+                    } else {
+                        sentHeight = maxHeight;
+                        sentWidth = maxHeight * aspectRatio;
+                    }
+                } else {
+                    // Image was not resized
+                    sentWidth = actualWidth;
+                    sentHeight = actualHeight;
+                }
+
+                // Calculate scale factors
+                const scaleX = actualWidth / sentWidth;
+                const scaleY = actualHeight / sentHeight;
+
+                // Scale coordinates from resized image to actual canvas size
+                const x = face.x_min * scaleX;
+                const y = face.y_min * scaleY;
+                const width = (face.x_max - face.x_min) * scaleX;
+                const height = (face.y_max - face.y_min) * scaleY;
+
+                // Draw rectangle
+                ctx.strokeStyle = face.userid === 'unknown' ? '#ff4444' : '#48bb78';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(x, y, width, height);
+
+                // Draw label background
+                const label = face.userid === 'unknown' ? 'Unknown' : face.userid;
+                const confidence = (face.confidence * 100).toFixed(0) + '%';
+                const labelText = `${label} (${confidence})`;
+
+                ctx.font = 'bold 16px "Segoe UI"';
+                const textWidth = ctx.measureText(labelText).width;
+
+                ctx.fillStyle = face.userid === 'unknown' ? '#ff4444' : '#48bb78';
+                ctx.fillRect(x, y - 30, textWidth + 20, 30);
+
+                // Draw label text
+                ctx.fillStyle = 'white';
+                ctx.fillText(labelText, x + 10, y - 10);
+            });
+        }
+
+        // Send heartbeat to server
+        async function sendHeartbeat() {
+            try {
+                await fetch(SERVER_URL + '/api/displays/heartbeat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        display_id: displayId,
+                        location: 'Test Location'
+                    })
+                });
+                console.log('[HEARTBEAT] Sent');
+            } catch (error) {
+                console.error('[HEARTBEAT] Error:', error);
             }
         }
 
