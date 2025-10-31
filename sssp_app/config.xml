@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns="http://www.w3.org/ns/widgets"
+    xmlns:tizen="http://tizen.org/ns/widgets"
+    id="http://yourdomain.com/FaceRecognitionMonitor"
+    version="1.0.0">
+
+    <tizen:application id="FaceRecMonitor.main" package="FaceRecMonitor" required_version="2.3"/>
+
+    <content src="index.html"/>
+
+    <name>Face Recognition Monitor</name>
+    <description>Real-time face recognition monitoring for signage displays</description>
+
+    <author email="your@email.com" href="http://yourdomain.com">
+        Your Company Name
+    </author>
+
+    <icon src="icon.png"/>
+
+    <tizen:privilege name="http://tizen.org/privilege/internet"/>
+    <tizen:privilege name="http://tizen.org/privilege/camera"/>
+    <tizen:privilege name="http://tizen.org/privilege/mediacapture"/>
+
+    <tizen:setting screen-orientation="landscape" context-menu="disable"/>
+</widget>

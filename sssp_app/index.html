@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Recognition Monitor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header .info {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .video-section {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        video {
+            width: 100%;
+            max-width: 800px;
+            border-radius: 10px;
+            background: #000;
+        }
+
+        .video-overlay {
+            position: relative;
+            display: inline-block;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        .detection-info {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .detection-info h2 {
+            font-size: 24px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .detection-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .detection-item .name {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .detection-item .confidence {
+            font-size: 16px;
+            opacity: 0.8;
+        }
+
+        .detection-item .time {
+            font-size: 14px;
+            opacity: 0.6;
+            margin-top: 5px;
+        }
+
+        .status {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-indicator.connected {
+            background: #48bb78;
+            box-shadow: 0 0 10px #48bb78;
+        }
+
+        .status-indicator.disconnected {
+            background: #f56565;
+            box-shadow: 0 0 10px #f56565;
+        }
+
+        .no-detections {
+            text-align: center;
+            padding: 40px;
+            opacity: 0.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Face Recognition Monitor</h1>
+            <div class="info">
+                <div>Display ID: <strong id="displayId">Loading...</strong></div>
+                <div>Location: <strong id="displayLocation">Not set</strong></div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="video-section">
+                <div class="video-overlay">
+                    <video id="video" autoplay playsinline></video>
+                    <canvas id="overlay"></canvas>
+                </div>
+            </div>
+
+            <div class="detection-info">
+                <h2>Recent Detections</h2>
+                <div id="detectionList">
+                    <div class="no-detections">No faces detected yet...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="status">
+            <span class="status-indicator" id="statusIndicator"></span>
+            <span id="statusText">Initializing...</span>
+        </div>
+    </div>
+
+    <script>
+        // Configuration - CHANGE THESE TO YOUR SERVER SETTINGS
+        const SERVER_URL = 'http://YOUR_SERVER_IP:5000'; // Change to your Flask server IP
+        const RECOGNITION_INTERVAL = 3000; // Check every 3 seconds
+        const MAX_DETECTION_HISTORY = 10;
+
+        // Display information
+        let displayId = 'unknown';
+        let displayLocation = 'Unknown Location';
+        let isConnected = false;
+
+        // WebRTC elements
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('overlay');
+        const ctx = canvas.getContext('2d');
+
+        // Detection history
+        const detectionHistory = [];
+
+        // Initialize the application
+        async function init() {
+            console.log('[INIT] Starting Face Recognition Monitor');
+
+            // Get display information
+            getDisplayInfo();
+
+            // Register display with server
+            await registerDisplay();
+
+            // Start camera
+            await startCamera();
+
+            // Start periodic recognition
+            startRecognitionLoop();
+
+            // Send heartbeat every 30 seconds
+            setInterval(sendHeartbeat, 30000);
+        }
+
+        // Get display information (tries Tizen API, falls back to generated ID)
+        function getDisplayInfo() {
+            try {
+                // Try to get Tizen device info
+                if (typeof tizen !== 'undefined' && tizen.systeminfo) {
+                    tizen.systeminfo.getPropertyValue('BUILD', (build) => {
+                        displayId = build.model || generateDisplayId();
+                        document.getElementById('displayId').textContent = displayId;
+                    }, (error) => {
+                        console.warn('[DISPLAY] Could not get Tizen info:', error);
+                        displayId = generateDisplayId();
+                        document.getElementById('displayId').textContent = displayId;
+                    });
+                } else {
+                    console.log('[DISPLAY] Tizen API not available, generating ID');
+                    displayId = generateDisplayId();
+                    document.getElementById('displayId').textContent = displayId;
+                }
+            } catch (error) {
+                console.error('[DISPLAY] Error getting display info:', error);
+                displayId = generateDisplayId();
+                document.getElementById('displayId').textContent = displayId;
+            }
+
+            // Try to get location from URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const location = urlParams.get('location');
+            if (location) {
+                displayLocation = location;
+                document.getElementById('displayLocation').textContent = displayLocation;
+            }
+        }
+
+        // Generate a unique display ID
+        function generateDisplayId() {
+            const storedId = localStorage.getItem('displayId');
+            if (storedId) return storedId;
+
+            const newId = 'display_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('displayId', newId);
+            return newId;
+        }
+
+        // Register display with server
+        async function registerDisplay() {
+            try {
+                const response = await fetch(`${SERVER_URL}/api/displays/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        display_id: displayId,
+                        location: displayLocation,
+                        capabilities: {
+                            camera: true,
+                            screen_size: `${screen.width}x${screen.height}`
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    console.log('[REGISTER] Display registered successfully');
+                    updateStatus(true, 'Connected to server');
+                } else {
+                    console.error('[REGISTER] Failed to register:', data.error);
+                    updateStatus(false, 'Registration failed');
+                }
+            } catch (error) {
+                console.error('[REGISTER] Error:', error);
+                updateStatus(false, 'Cannot connect to server');
+            }
+        }
+
+        // Start camera
+        async function startCamera() {
+            try {
+                console.log('[CAMERA] Requesting camera access...');
+
+                const constraints = {
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'user'
+                    }
+                };
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+
+                video.onloadedmetadata = () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    console.log('[CAMERA] Camera started:', video.videoWidth, 'x', video.videoHeight);
+                };
+
+            } catch (error) {
+                console.error('[CAMERA] Error accessing camera:', error);
+                updateStatus(false, 'Camera access denied');
+            }
+        }
+
+        // Capture frame from video
+        function captureFrame() {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = video.videoWidth;
+            tempCanvas.height = video.videoHeight;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(video, 0, 0);
+            return tempCanvas.toDataURL('image/jpeg', 0.8);
+        }
+
+        // Start recognition loop
+        function startRecognitionLoop() {
+            setInterval(async () => {
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    await recognizeFaces();
+                }
+            }, RECOGNITION_INTERVAL);
+        }
+
+        // Recognize faces in current frame
+        async function recognizeFaces() {
+            try {
+                const imageData = captureFrame();
+
+                const response = await fetch(`${SERVER_URL}/api/displays/recognize`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        display_id: displayId,
+                        location: displayLocation,
+                        image: imageData
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.faces && data.faces.length > 0) {
+                    console.log('[RECOGNITION] Detected', data.faces.length, 'face(s)');
+                    handleDetections(data.faces);
+                    drawBoundingBoxes(data.faces);
+                } else {
+                    clearOverlay();
+                }
+
+                updateStatus(true, `Monitoring - Last check: ${new Date().toLocaleTimeString()}`);
+
+            } catch (error) {
+                console.error('[RECOGNITION] Error:', error);
+                updateStatus(false, 'Recognition failed');
+            }
+        }
+
+        // Handle face detections
+        function handleDetections(faces) {
+            faces.forEach(face => {
+                const detection = {
+                    name: face.userid || 'Unknown',
+                    confidence: face.confidence,
+                    timestamp: new Date()
+                };
+
+                detectionHistory.unshift(detection);
+                if (detectionHistory.length > MAX_DETECTION_HISTORY) {
+                    detectionHistory.pop();
+                }
+            });
+
+            updateDetectionList();
+        }
+
+        // Update detection list display
+        function updateDetectionList() {
+            const listEl = document.getElementById('detectionList');
+
+            if (detectionHistory.length === 0) {
+                listEl.innerHTML = '<div class="no-detections">No faces detected yet...</div>';
+                return;
+            }
+
+            listEl.innerHTML = detectionHistory.map(det => `
+                <div class="detection-item">
+                    <div class="name">${det.name}</div>
+                    <div class="confidence">Confidence: ${(det.confidence * 100).toFixed(1)}%</div>
+                    <div class="time">${det.timestamp.toLocaleTimeString()}</div>
+                </div>
+            `).join('');
+        }
+
+        // Draw bounding boxes on canvas overlay
+        function drawBoundingBoxes(faces) {
+            clearOverlay();
+
+            const scaleX = canvas.width / video.videoWidth;
+            const scaleY = canvas.height / video.videoHeight;
+
+            faces.forEach(face => {
+                const x = face.x_min * scaleX;
+                const y = face.y_min * scaleY;
+                const width = (face.x_max - face.x_min) * scaleX;
+                const height = (face.y_max - face.y_min) * scaleY;
+
+                // Draw bounding box
+                ctx.strokeStyle = '#48bb78';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(x, y, width, height);
+
+                // Draw label
+                const label = `${face.userid} (${(face.confidence * 100).toFixed(0)}%)`;
+                ctx.fillStyle = '#48bb78';
+                ctx.fillRect(x, y - 30, ctx.measureText(label).width + 20, 30);
+                ctx.fillStyle = 'white';
+                ctx.font = '16px Arial';
+                ctx.fillText(label, x + 10, y - 10);
+            });
+        }
+
+        // Clear overlay canvas
+        function clearOverlay() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // Send heartbeat to server
+        async function sendHeartbeat() {
+            try {
+                await fetch(`${SERVER_URL}/api/displays/heartbeat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        display_id: displayId,
+                        location: displayLocation
+                    })
+                });
+            } catch (error) {
+                console.error('[HEARTBEAT] Error:', error);
+            }
+        }
+
+        // Update status display
+        function updateStatus(connected, message) {
+            isConnected = connected;
+            const indicator = document.getElementById('statusIndicator');
+            const text = document.getElementById('statusText');
+
+            indicator.className = 'status-indicator ' + (connected ? 'connected' : 'disconnected');
+            text.textContent = message;
+        }
+
+        // Start the application
+        window.addEventListener('load', init);
+
+        // Handle Tizen back key
+        if (typeof tizen !== 'undefined') {
+            window.addEventListener('tizenhwkey', (e) => {
+                if (e.keyName === 'back') {
+                    try {
+                        tizen.application.getCurrentApplication().exit();
+                    } catch (ignore) {}
+                }
+            });
+        }
+    </script>
+</body>
+</html>

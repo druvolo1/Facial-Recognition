@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Registration - Video Capture</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 900px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .tips-section {
+            background: #f0f7ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 30px;
+            border-radius: 5px;
+        }
+
+        .tips-section h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .tips-section ul {
+            margin-left: 20px;
+            color: #555;
+        }
+
+        .tips-section li {
+            margin: 5px 0;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .camera-section {
+            text-align: center;
+            margin: 30px 0;
+            position: relative;
+        }
+
+        #videoElement {
+            width: 100%;
+            max-width: 640px;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            background: #000;
+        }
+
+        .video-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+
+        .guidance-indicator {
+            background: rgba(102, 126, 234, 0.9);
+            color: white;
+            padding: 20px 40px;
+            border-radius: 10px;
+            font-size: 24px;
+            font-weight: 600;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            display: none;
+        }
+
+        .guidance-indicator.active {
+            display: block;
+        }
+
+        .countdown {
+            font-size: 48px;
+            color: #48bb78;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #48bb78);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .photo-item {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .photo-item img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .photo-item .photo-label {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        button {
+            padding: 12px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #38a169;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #e53e3e;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .success-message {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .info-message {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        #canvas {
+            display: none;
+        }
+
+        .recording-indicator {
+            display: none;
+            background: #ff4444;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            margin: 10px auto;
+            width: fit-content;
+            animation: pulse 1.5s infinite;
+        }
+
+        .recording-indicator.active {
+            display: block;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Face Registration</h1>
+        <p class="subtitle">Automated video-based face capture</p>
+
+        <div class="tips-section">
+            <h3>Tips for Better Face Recognition</h3>
+            <ul>
+                <li><strong>Lighting:</strong> Ensure good, even lighting on your face. Avoid backlighting or harsh shadows.</li>
+                <li><strong>Position:</strong> Keep your face centered in the frame throughout the process.</li>
+                <li><strong>Distance:</strong> Stay 1-2 feet from the camera.</li>
+                <li><strong>Follow guidance:</strong> The system will guide you through different head positions automatically.</li>
+                <li><strong>Move smoothly:</strong> Turn your head slowly and smoothly when prompted.</li>
+                <li><strong>Remove obstacles:</strong> Take off sunglasses. Minimize glare if wearing glasses.</li>
+                <li><strong>Stay still:</strong> Hold each position steady when capturing.</li>
+            </ul>
+        </div>
+
+        <div class="form-group">
+            <label for="userName">Full Name:</label>
+            <input type="text" id="userName" placeholder="Enter your full name" required>
+        </div>
+
+        <div class="camera-section">
+            <div class="video-overlay">
+                <div class="guidance-indicator" id="guidanceIndicator"></div>
+            </div>
+            <video id="videoElement" autoplay playsinline></video>
+            <canvas id="canvas"></canvas>
+
+            <div class="recording-indicator" id="recordingIndicator">RECORDING</div>
+
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+
+            <div class="button-group">
+                <button id="startCamera" class="btn-primary">Start Camera</button>
+                <button id="startCapture" class="btn-secondary" disabled>Begin Video Capture</button>
+                <button id="stopCamera" class="btn-danger" disabled>Stop Camera</button>
+            </div>
+
+            <div class="info-message">
+                The process takes about 10-15 seconds. Follow the on-screen instructions to move your head to different angles.
+            </div>
+        </div>
+
+        <div class="photo-grid" id="photoGrid"></div>
+
+        <div class="button-group">
+            <button id="completeRegistration" class="btn-primary" disabled>Complete Registration</button>
+            <button id="resetForm" class="btn-danger">Reset</button>
+        </div>
+
+        <div class="success-message" id="successMessage"></div>
+        <div class="error-message" id="errorMessage"></div>
+    </div>
+
+    <script>
+        const video = document.getElementById('videoElement');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const photoGrid = document.getElementById('photoGrid');
+        const guidanceIndicator = document.getElementById('guidanceIndicator');
+        const recordingIndicator = document.getElementById('recordingIndicator');
+        const progressFill = document.getElementById('progressFill');
+
+        const startCameraBtn = document.getElementById('startCamera');
+        const startCaptureBtn = document.getElementById('startCapture');
+        const stopCameraBtn = document.getElementById('stopCamera');
+        const completeRegistrationBtn = document.getElementById('completeRegistration');
+        const resetFormBtn = document.getElementById('resetForm');
+
+        const userNameInput = document.getElementById('userName');
+        const successMessage = document.getElementById('successMessage');
+        const errorMessage = document.getElementById('errorMessage');
+
+        let stream = null;
+        let capturedPhotos = [];
+        let isCapturing = false;
+
+        // Capture sequence with timing
+        const captureSequence = [
+            { delay: 2000, instruction: "Get ready...", label: "preparation" },
+            { delay: 1000, instruction: "Look straight ahead", label: "Front" },
+            { delay: 2500, instruction: "Turn slightly LEFT", label: "Left angle" },
+            { delay: 2500, instruction: "Back to CENTER", label: "Center" },
+            { delay: 2500, instruction: "Turn slightly RIGHT", label: "Right angle" },
+            { delay: 2500, instruction: "Look slightly DOWN", label: "Down angle" },
+            { delay: 2500, instruction: "Back to CENTER", label: "Final center" }
+        ];
+
+        // Start camera
+        startCameraBtn.addEventListener('click', async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'user'
+                    }
+                });
+                video.srcObject = stream;
+
+                startCameraBtn.disabled = true;
+                startCaptureBtn.disabled = false;
+                stopCameraBtn.disabled = false;
+
+                hideMessages();
+            } catch (error) {
+                showError('Unable to access camera. Please ensure camera permissions are granted.');
+                console.error('Camera error:', error);
+            }
+        });
+
+        // Start capture sequence
+        startCaptureBtn.addEventListener('click', async () => {
+            const userName = userNameInput.value.trim();
+
+            if (!userName) {
+                showError('Please enter your name before starting capture.');
+                return;
+            }
+
+            if (isCapturing) return;
+
+            isCapturing = true;
+            capturedPhotos = [];
+            photoGrid.innerHTML = '';
+            startCaptureBtn.disabled = true;
+            stopCameraBtn.disabled = true;
+            recordingIndicator.classList.add('active');
+            hideMessages();
+
+            await runCaptureSequence();
+
+            recordingIndicator.classList.remove('active');
+            isCapturing = false;
+            startCaptureBtn.disabled = false;
+            stopCameraBtn.disabled = false;
+
+            if (capturedPhotos.length > 0) {
+                completeRegistrationBtn.disabled = false;
+                showSuccess(`Successfully captured ${capturedPhotos.length} images!`);
+            }
+        });
+
+        // Run the capture sequence
+        async function runCaptureSequence() {
+            let totalTime = captureSequence.reduce((sum, step) => sum + step.delay, 0);
+            let elapsedTime = 0;
+
+            for (let i = 0; i < captureSequence.length; i++) {
+                const step = captureSequence[i];
+
+                // Show guidance
+                showGuidance(step.instruction);
+
+                // Update progress
+                await animateProgress(step.delay, elapsedTime, totalTime);
+                elapsedTime += step.delay;
+
+                // Capture frame (skip first preparation step)
+                if (step.label !== "preparation") {
+                    captureFrame(step.label);
+                }
+            }
+
+            hideGuidance();
+            progressFill.style.width = '100%';
+        }
+
+        // Animate progress bar
+        function animateProgress(duration, currentTime, totalTime) {
+            return new Promise(resolve => {
+                const startProgress = (currentTime / totalTime) * 100;
+                const endProgress = ((currentTime + duration) / totalTime) * 100;
+                const startTime = Date.now();
+
+                function updateProgress() {
+                    const elapsed = Date.now() - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    const currentProgress = startProgress + (endProgress - startProgress) * progress;
+
+                    progressFill.style.width = currentProgress + '%';
+
+                    if (progress < 1) {
+                        requestAnimationFrame(updateProgress);
+                    } else {
+                        resolve();
+                    }
+                }
+
+                updateProgress();
+            });
+        }
+
+        // Show guidance text
+        function showGuidance(text) {
+            guidanceIndicator.textContent = text;
+            guidanceIndicator.classList.add('active');
+        }
+
+        // Hide guidance text
+        function hideGuidance() {
+            guidanceIndicator.classList.remove('active');
+        }
+
+        // Capture a frame from video
+        function captureFrame(label) {
+            // Set canvas size to match video
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            // Draw the video frame to canvas
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Convert to data URL
+            const photoData = canvas.toDataURL('image/jpeg', 0.9);
+            capturedPhotos.push({ data: photoData, label: label });
+
+            // Display thumbnail
+            displayPhoto(photoData, label);
+        }
+
+        // Display captured photo
+        function displayPhoto(photoData, label) {
+            const photoItem = document.createElement('div');
+            photoItem.className = 'photo-item';
+
+            const img = document.createElement('img');
+            img.src = photoData;
+
+            const labelDiv = document.createElement('div');
+            labelDiv.className = 'photo-label';
+            labelDiv.textContent = label;
+
+            photoItem.appendChild(img);
+            photoItem.appendChild(labelDiv);
+            photoGrid.appendChild(photoItem);
+        }
+
+        // Stop camera
+        stopCameraBtn.addEventListener('click', () => {
+            stopCamera();
+        });
+
+        // Complete registration
+        completeRegistrationBtn.addEventListener('click', () => {
+            const userName = userNameInput.value.trim();
+
+            if (!userName) {
+                showError('Please enter your name.');
+                return;
+            }
+
+            if (capturedPhotos.length === 0) {
+                showError('No photos captured. Please run the video capture first.');
+                return;
+            }
+
+            // Create downloads
+            downloadPhotos(userName);
+
+            showSuccess(`Registration complete! ${capturedPhotos.length} photos have been downloaded for ${userName}.`);
+
+            // Stop camera
+            stopCamera();
+        });
+
+        // Download photos
+        function downloadPhotos(userName) {
+            const sanitizedName = userName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+
+            capturedPhotos.forEach((photo, index) => {
+                const link = document.createElement('a');
+                link.href = photo.data;
+                const sanitizedLabel = photo.label.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                link.download = `${sanitizedName}_${timestamp}_${sanitizedLabel}_${index + 1}.jpg`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            });
+        }
+
+        // Reset form
+        resetFormBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to reset? All captured photos will be lost.')) {
+                stopCamera();
+                capturedPhotos = [];
+                photoGrid.innerHTML = '';
+                userNameInput.value = '';
+                completeRegistrationBtn.disabled = true;
+                progressFill.style.width = '0%';
+                hideMessages();
+
+                startCameraBtn.disabled = false;
+                startCaptureBtn.disabled = true;
+                stopCameraBtn.disabled = true;
+            }
+        });
+
+        // Stop camera stream
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                stream = null;
+            }
+
+            startCameraBtn.disabled = false;
+            startCaptureBtn.disabled = true;
+            stopCameraBtn.disabled = true;
+            recordingIndicator.classList.remove('active');
+        }
+
+        // Show success message
+        function showSuccess(message) {
+            hideMessages();
+            successMessage.textContent = message;
+            successMessage.style.display = 'block';
+        }
+
+        // Show error message
+        function showError(message) {
+            hideMessages();
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+        }
+
+        // Hide messages
+        function hideMessages() {
+            successMessage.style.display = 'none';
+            errorMessage.style.display = 'none';
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            stopCamera();
+        });
+    </script>
+</body>
+</html>

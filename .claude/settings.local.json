@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir \"C:\\Users\\Dave\\Documents\\Programming\\Facial Recognition\")",
+      "Bash(dir \"C:\\Users\\Dave\\Documents\\Programming\\Facial Recognition\\claude\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

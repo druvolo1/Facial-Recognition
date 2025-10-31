@@ -1,0 +1,26 @@
+[
+  {
+    "userid": "david_ruvolo",
+    "name": "David Ruvolo",
+    "photo_path": "uploads\\david_ruvolo_20251031_170240.jpg",
+    "source": "linkedin",
+    "registered_at": "2025-10-31T17:02:40.544004",
+    "photo_count": 1
+  },
+  {
+    "userid": "michael_smith",
+    "name": "Michael Smith",
+    "photo_path": "uploads\\michael_smith_20251031_171812.jpg",
+    "source": "linkedin",
+    "registered_at": "2025-10-31T17:18:12.901813",
+    "photo_count": 1
+  },
+  {
+    "userid": "dave",
+    "name": "dave",
+    "photo_path": "uploads\\dave_profile.jpg",
+    "source": "manual",
+    "registered_at": "2025-10-31T17:33:45.306530",
+    "photo_count": 1
+  }
+]

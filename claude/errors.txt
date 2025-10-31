@@ -1,0 +1,8 @@
+127.0.0.1 - - [31/Oct/2025 17:13:43] "GET /manage HTTP/1.1" 200 -
+127.0.0.1 - - [31/Oct/2025 17:13:43] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 -
+127.0.0.1 - - [31/Oct/2025 17:13:43] "GET /api/users HTTP/1.1" 200 -
+127.0.0.1 - - [31/Oct/2025 17:13:44] "GET /uploads/david_ruvolo_20251031_170240.jpg HTTP/1.1" 304 -
+[LINKEDIN] Fetching profile from: https://www.linkedin.com/in/linda-ruvolo-40a1303/
+[LINKEDIN] Page fetch status: 999
+[LINKEDIN] Failed to fetch LinkedIn page (status 999)
+127.0.0.1 - - [31/Oct/2025 17:13:55] "POST /api/users/linkedin HTTP/1.1" 400 -
