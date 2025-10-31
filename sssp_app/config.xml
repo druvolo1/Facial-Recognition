@@ -15,9 +15,10 @@
         Your Company Name
     </author>
 
-    <!-- Minimal privileges -->
+    <!-- Standard Tizen privileges (no certificate required) -->
     <tizen:privilege name="http://tizen.org/privilege/internet"/>
     <tizen:privilege name="http://tizen.org/privilege/camera"/>
+    <tizen:privilege name="http://tizen.org/privilege/mediacapture"/>
 
     <!-- Settings -->
     <tizen:setting screen-orientation="landscape" context-menu="disable"/>

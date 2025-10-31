@@ -1202,6 +1202,43 @@ def list_displays():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route('/api/displays/<display_id>', methods=['DELETE'])
+def delete_display(display_id):
+    """Delete a display from the database"""
+    try:
+        print(f"[DISPLAY] Deleting display: {display_id}")
+
+        # Load displays
+        displays = load_displays()
+
+        # Find display
+        display_found = False
+        for display in displays:
+            if display['display_id'] == display_id:
+                display_found = True
+                break
+
+        if not display_found:
+            return jsonify({"success": False, "error": "Display not found"}), 404
+
+        # Remove from list
+        displays = [d for d in displays if d['display_id'] != display_id]
+
+        # Save updated list
+        save_displays(displays)
+
+        print(f"[DISPLAY] ✓ Display deleted successfully")
+
+        return jsonify({
+            "success": True,
+            "message": f"Display {display_id} deleted successfully"
+        })
+
+    except Exception as e:
+        print(f"[DISPLAY] ✗ Error deleting display: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route('/api/health-check', methods=['GET'])
 def health_check():
     """

@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' http: https: ws: wss:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: http: https:; media-src 'self' blob: http: https:; connect-src 'self' http: https: ws: wss:;">
     <title>Face Recognition Monitor</title>
     <style>
         * {
@@ -39,83 +38,21 @@
             margin-bottom: 10px;
         }
 
-        .header .info {
-            font-size: 18px;
-            opacity: 0.9;
-        }
-
-        .main-content {
-            flex: 1;
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 20px;
-        }
-
         .video-section {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             background: rgba(0, 0, 0, 0.3);
             border-radius: 10px;
             padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
         }
 
         video {
-            width: 100%;
-            max-width: 800px;
+            max-width: 100%;
+            max-height: 100%;
             border-radius: 10px;
             background: #000;
-        }
-
-        .video-overlay {
-            position: relative;
-            display: inline-block;
-        }
-
-        canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            pointer-events: none;
-        }
-
-        .detection-info {
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 10px;
-            padding: 20px;
-            overflow-y: auto;
-        }
-
-        .detection-info h2 {
-            font-size: 24px;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid rgba(255, 255, 255, 0.3);
-        }
-
-        .detection-item {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-        }
-
-        .detection-item .name {
-            font-size: 20px;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        .detection-item .confidence {
-            font-size: 16px;
-            opacity: 0.8;
-        }
-
-        .detection-item .time {
-            font-size: 14px;
-            opacity: 0.6;
-            margin-top: 5px;
         }
 
         .status {
@@ -132,18 +69,11 @@
             height: 12px;
             border-radius: 50%;
             margin-right: 8px;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
         }
 
         .status-indicator.connected {
             background: #48bb78;
             box-shadow: 0 0 10px #48bb78;
-            animation: none;
         }
 
         .status-indicator.disconnected {
@@ -154,43 +84,20 @@
         .status-indicator.connecting {
             background: #f6ad55;
             box-shadow: 0 0 10px #f6ad55;
+            animation: pulse 2s infinite;
         }
 
-        .connection-details {
-            margin-top: 10px;
-            padding: 10px;
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .info-panel {
             background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
             border-radius: 5px;
-            font-size: 12px;
-        }
-
-        .connection-details div {
-            margin: 3px 0;
-        }
-
-        .connection-test {
             margin-top: 10px;
-        }
-
-        .test-btn {
-            padding: 8px 16px;
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 5px;
-            color: white;
-            cursor: pointer;
             font-size: 12px;
-            transition: all 0.3s;
-        }
-
-        .test-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-
-        .no-detections {
-            text-align: center;
-            padding: 40px;
-            opacity: 0.6;
         }
     </style>
 </head>
@@ -198,579 +105,188 @@
     <div class="container">
         <div class="header">
             <h1>Face Recognition Monitor</h1>
-            <div class="info">
-                <div>Display ID: <strong id="displayId">Loading...</strong></div>
-                <div>Location: <strong id="displayLocation">Not set</strong></div>
-            </div>
+            <div>Display ID: <strong id="displayId">Loading...</strong></div>
+            <div>Server: <strong id="serverUrl">-</strong></div>
         </div>
 
-        <div class="main-content">
-            <div class="video-section">
-                <div class="video-overlay">
-                    <video id="video" autoplay playsinline></video>
-                    <canvas id="overlay"></canvas>
-                </div>
-            </div>
-
-            <div class="detection-info">
-                <h2>Recent Detections</h2>
-                <div id="detectionList">
-                    <div class="no-detections">No faces detected yet...</div>
-                </div>
-            </div>
+        <div class="video-section">
+            <video id="video" autoplay playsinline></video>
         </div>
 
         <div class="status">
             <span class="status-indicator" id="statusIndicator"></span>
             <span id="statusText">Initializing...</span>
 
-            <div class="connection-details" id="connectionDetails">
-                <div><strong>Server:</strong> <span id="serverUrl">-</span></div>
-                <div><strong>Connection Status:</strong> <span id="connectionStatus">Not tested</span></div>
-                <div><strong>Last Heartbeat:</strong> <span id="lastHeartbeat">Never</span></div>
-                <div><strong>Recognition Count:</strong> <span id="recognitionCount">0</span></div>
-            </div>
-
-            <div class="connection-test">
-                <button class="test-btn" onclick="testConnection()">Test Server Connection</button>
-                <button class="test-btn" onclick="retryConnection()">Retry Connection</button>
+            <div class="info-panel">
+                <div>Camera: <span id="cameraStatus">Not started</span></div>
+                <div>Server: <span id="serverStatus">Not connected</span></div>
             </div>
         </div>
     </div>
 
     <script>
-        // Configuration - CHANGE THESE TO YOUR SERVER SETTINGS
-        const SERVER_URL = 'http://172.16.1.102:5000'; // Change to your Flask server IP
-        const RECOGNITION_INTERVAL = 3000; // Check every 3 seconds
-        const MAX_DETECTION_HISTORY = 10;
+        // Configuration
+        const SERVER_URL = 'http://172.16.1.102:5000';
 
-        // Display information
-        let displayId = 'unknown';
-        let displayLocation = 'Unknown Location';
-        let isConnected = false;
-        let recognitionCounter = 0;
-        let lastHeartbeatTime = null;
-        let connectionAttempts = 0;
+        // Display info
+        let displayId = 'display_' + Date.now();
 
-        // WebRTC elements
+        // Elements
         const video = document.getElementById('video');
-        const canvas = document.getElementById('overlay');
-        const ctx = canvas.getContext('2d');
 
-        // Detection history
-        const detectionHistory = [];
-
-        // Update server URL display on load
+        // Update display
+        document.getElementById('displayId').textContent = displayId;
         document.getElementById('serverUrl').textContent = SERVER_URL;
 
-        // Initialize the application
+        // Initialize
         async function init() {
-            console.log('[INIT] Starting Face Recognition Monitor');
+            console.log('[INIT] Starting application');
+            updateStatus('connecting', 'Initializing...');
 
-            // Get display information
-            getDisplayInfo();
+            // Start camera (not async anymore)
+            startCamera();
 
-            // Request Tizen permissions first (for commercial displays)
-            await requestTizenPermissions();
-
-            // Register display with server
-            await registerDisplay();
-
-            // Start camera
-            await startCamera();
-
-            // Start periodic recognition
-            startRecognitionLoop();
-
-            // Send heartbeat every 30 seconds
-            setInterval(sendHeartbeat, 30000);
+            // Test server connection
+            await testServer();
         }
 
-        // Request Tizen runtime permissions (for SSSP 6.5 commercial displays)
-        async function requestTizenPermissions() {
-            try {
-                console.log('[PERMISSIONS] Requesting Tizen runtime permissions...');
+        // Start camera - Try multiple methods
+        function startCamera() {
+            console.log('[CAMERA] Requesting camera access...');
+            document.getElementById('cameraStatus').textContent = 'Requesting...';
 
-                // Check if Tizen Permission API is available
-                if (typeof tizen !== 'undefined' && tizen.ppm) {
-                    const permissions = [
-                        'http://tizen.org/privilege/camera',
-                        'http://tizen.org/privilege/mediacapture'
-                    ];
+            // Method 1: Try modern API first
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                console.log('[CAMERA] Trying modern getUserMedia API');
 
-                    // Request each permission
-                    for (const permission of permissions) {
-                        try {
-                            console.log(`[PERMISSIONS] Requesting: ${permission}`);
+                navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+                    .then(function(stream) {
+                        console.log('[CAMERA] ✓ Got stream (modern API)');
+                        video.srcObject = stream;
 
-                            // Check current permission status
-                            const status = tizen.ppm.checkPermission(permission);
-                            console.log(`[PERMISSIONS] Status for ${permission}: ${status}`);
-
-                            if (status === 'ASK') {
-                                // Permission needs to be requested
-                                await new Promise((resolve, reject) => {
-                                    tizen.ppm.requestPermission(
-                                        permission,
-                                        function() {
-                                            console.log(`[PERMISSIONS] Granted: ${permission}`);
-                                            resolve();
-                                        },
-                                        function(error) {
-                                            console.error(`[PERMISSIONS] Denied: ${permission}`, error);
-                                            reject(error);
-                                        }
-                                    );
-                                });
-                            } else if (status === 'GRANT') {
-                                console.log(`[PERMISSIONS] Already granted: ${permission}`);
-                            } else if (status === 'DENY') {
-                                console.error(`[PERMISSIONS] Previously denied: ${permission}`);
-                                updateStatus(false, 'Camera permission denied - reset app permissions');
-                            }
-                        } catch (error) {
-                            console.error(`[PERMISSIONS] Error requesting ${permission}:`, error);
-                        }
-                    }
-
-                    console.log('[PERMISSIONS] All permissions processed');
-                } else {
-                    console.log('[PERMISSIONS] Tizen PPM API not available (may be in browser mode)');
-                }
-            } catch (error) {
-                console.error('[PERMISSIONS] Error in permission request:', error);
-            }
-        }
-
-        // Get display information (tries Tizen API, falls back to generated ID)
-        function getDisplayInfo() {
-            try {
-                // Try to get Tizen device info
-                if (typeof tizen !== 'undefined' && tizen.systeminfo) {
-                    tizen.systeminfo.getPropertyValue('BUILD', (build) => {
-                        displayId = build.model || generateDisplayId();
-                        document.getElementById('displayId').textContent = displayId;
-                    }, (error) => {
-                        console.warn('[DISPLAY] Could not get Tizen info:', error);
-                        displayId = generateDisplayId();
-                        document.getElementById('displayId').textContent = displayId;
+                        video.onloadedmetadata = () => {
+                            console.log('[CAMERA] ✓ Camera started:', video.videoWidth, 'x', video.videoHeight);
+                            document.getElementById('cameraStatus').textContent = '✓ Active (' + video.videoWidth + 'x' + video.videoHeight + ')';
+                            updateStatus('connected', 'Camera active');
+                        };
+                    })
+                    .catch(function(error) {
+                        console.error('[CAMERA] Modern API failed:', error.name, error.message);
+                        console.log('[CAMERA] Falling back to legacy API...');
+                        tryLegacyGetUserMedia();
                     });
-                } else {
-                    console.log('[DISPLAY] Tizen API not available, generating ID');
-                    displayId = generateDisplayId();
-                    document.getElementById('displayId').textContent = displayId;
-                }
-            } catch (error) {
-                console.error('[DISPLAY] Error getting display info:', error);
-                displayId = generateDisplayId();
-                document.getElementById('displayId').textContent = displayId;
-            }
-
-            // Try to get location from URL parameters
-            const urlParams = new URLSearchParams(window.location.search);
-            const location = urlParams.get('location');
-            if (location) {
-                displayLocation = location;
-                document.getElementById('displayLocation').textContent = displayLocation;
+            } else {
+                console.log('[CAMERA] Modern API not available, trying legacy...');
+                tryLegacyGetUserMedia();
             }
         }
 
-        // Generate a unique display ID
-        function generateDisplayId() {
-            const storedId = localStorage.getItem('displayId');
-            if (storedId) return storedId;
+        // Method 2: Try legacy getUserMedia API
+        function tryLegacyGetUserMedia() {
+            navigator.getUserMedia = navigator.getUserMedia ||
+                                   navigator.webkitGetUserMedia ||
+                                   navigator.mozGetUserMedia ||
+                                   navigator.msGetUserMedia;
 
-            const newId = 'display_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-            localStorage.setItem('displayId', newId);
-            return newId;
+            if (navigator.getUserMedia) {
+                console.log('[CAMERA] Using legacy getUserMedia API');
+
+                try {
+                    navigator.getUserMedia(
+                        { 'audio': false, 'video': true },
+                        function gotStream(stream) {
+                            console.log('[CAMERA] ✓ Got stream (legacy API)');
+                            video.srcObject = stream;
+
+                            video.onloadedmetadata = () => {
+                                console.log('[CAMERA] ✓ Camera started:', video.videoWidth, 'x', video.videoHeight);
+                                document.getElementById('cameraStatus').textContent = '✓ Active (' + video.videoWidth + 'x' + video.videoHeight + ')';
+                                updateStatus('connected', 'Camera active');
+                            };
+                        },
+                        function logError(error) {
+                            console.error('[CAMERA] ✗ Legacy API error:', error);
+                            document.getElementById('cameraStatus').textContent = '✗ ' + error.name;
+                            updateStatus('disconnected', 'Camera failed: ' + error.message);
+                        }
+                    );
+                } catch (error) {
+                    console.error('[CAMERA] ✗ Exception calling getUserMedia:', error);
+                    document.getElementById('cameraStatus').textContent = '✗ Exception: ' + error.message;
+                    updateStatus('disconnected', 'Camera exception: ' + error.message);
+                }
+            } else {
+                console.error('[CAMERA] No getUserMedia API available');
+                document.getElementById('cameraStatus').textContent = '✗ API not available';
+                updateStatus('disconnected', 'getUserMedia not supported');
+            }
+        }
+
+        // Test server connection
+        async function testServer() {
+            try {
+                console.log('[SERVER] Testing connection...');
+                document.getElementById('serverStatus').textContent = 'Testing...';
+
+                const response = await fetch(SERVER_URL + '/api/health-check');
+
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('[SERVER] ✓ Connected:', data);
+                    document.getElementById('serverStatus').textContent = '✓ Connected';
+
+                    // Register display
+                    await registerDisplay();
+                } else {
+                    console.error('[SERVER] ✗ Status:', response.status);
+                    document.getElementById('serverStatus').textContent = '✗ Error ' + response.status;
+                }
+            } catch (error) {
+                console.error('[SERVER] ✗ Error:', error);
+                document.getElementById('serverStatus').textContent = '✗ Cannot connect';
+            }
         }
 
         // Register display with server
         async function registerDisplay() {
-            connectionAttempts++;
-            updateConnectionStatus('connecting', `Connecting to server (attempt ${connectionAttempts})...`);
-
             try {
-                console.log('[REGISTER] Attempting to connect to:', SERVER_URL);
-                console.log('[REGISTER] Display ID:', displayId);
-                console.log('[REGISTER] Location:', displayLocation);
+                console.log('[REGISTER] Registering display...');
 
-                const response = await fetch(`${SERVER_URL}/api/displays/register`, {
+                const response = await fetch(SERVER_URL + '/api/displays/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         display_id: displayId,
-                        location: displayLocation,
+                        location: 'Test Location',
                         capabilities: {
                             camera: true,
-                            screen_size: `${screen.width}x${screen.height}`
+                            screen_size: screen.width + 'x' + screen.height
                         }
-                    }),
-                    timeout: 10000
-                });
-
-                console.log('[REGISTER] Response status:', response.status);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                const data = await response.json();
-                console.log('[REGISTER] Response data:', data);
-
-                if (data.success) {
-                    console.log('[REGISTER] ✓ Display registered successfully');
-                    updateStatus(true, `Connected to server`);
-                    updateConnectionStatus('connected', `✓ Connected (${new Date().toLocaleTimeString()})`);
-                    connectionAttempts = 0; // Reset counter on success
-                } else {
-                    console.error('[REGISTER] ✗ Failed to register:', data.error);
-                    updateStatus(false, 'Registration failed: ' + data.error);
-                    updateConnectionStatus('disconnected', '✗ Registration failed');
-                }
-            } catch (error) {
-                console.error('[REGISTER] ✗ Connection error:', error);
-                console.error('[REGISTER] Error details:', error.message);
-
-                let errorMsg = 'Cannot connect to server';
-                if (error.message.includes('Failed to fetch')) {
-                    errorMsg = `Cannot reach ${SERVER_URL} - check network`;
-                } else if (error.message.includes('timeout')) {
-                    errorMsg = 'Connection timeout - server not responding';
-                } else {
-                    errorMsg = `Connection error: ${error.message}`;
-                }
-
-                updateStatus(false, errorMsg);
-                updateConnectionStatus('disconnected', '✗ ' + errorMsg);
-            }
-        }
-
-        // Start camera
-        async function startCamera() {
-            try {
-                console.log('[CAMERA] Requesting camera access...');
-
-                // Check if getUserMedia is available
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    console.error('[CAMERA] getUserMedia not supported');
-                    updateStatus(false, 'Camera API not supported');
-                    return;
-                }
-
-                // For Tizen, try different constraint combinations
-                const constraintOptions = [
-                    // Option 1: Ideal resolution with facingMode
-                    {
-                        video: {
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 },
-                            facingMode: 'user'
-                        }
-                    },
-                    // Option 2: Simple video constraint (Tizen fallback)
-                    {
-                        video: {
-                            width: 1280,
-                            height: 720
-                        }
-                    },
-                    // Option 3: Just video true (most permissive)
-                    {
-                        video: true
-                    },
-                    // Option 4: Environment camera (for USB cameras)
-                    {
-                        video: {
-                            facingMode: { exact: 'environment' }
-                        }
-                    }
-                ];
-
-                let stream = null;
-                let lastError = null;
-
-                // Try each constraint option until one works
-                for (let i = 0; i < constraintOptions.length; i++) {
-                    try {
-                        console.log(`[CAMERA] Trying constraint option ${i + 1}...`);
-                        stream = await navigator.mediaDevices.getUserMedia(constraintOptions[i]);
-                        console.log(`[CAMERA] Success with option ${i + 1}`);
-                        break;
-                    } catch (error) {
-                        console.warn(`[CAMERA] Option ${i + 1} failed:`, error.name, error.message);
-                        lastError = error;
-                    }
-                }
-
-                if (!stream) {
-                    console.error('[CAMERA] All constraint options failed:', lastError);
-
-                    // Provide specific error messages
-                    let errorMessage = 'Camera access denied';
-                    if (lastError) {
-                        if (lastError.name === 'NotFoundError') {
-                            errorMessage = 'No camera found - connect USB camera';
-                        } else if (lastError.name === 'NotAllowedError') {
-                            errorMessage = 'Camera permission denied - check settings';
-                        } else if (lastError.name === 'NotReadableError') {
-                            errorMessage = 'Camera in use by another app';
-                        }
-                    }
-
-                    updateStatus(false, errorMessage);
-                    return;
-                }
-
-                // Successfully got stream
-                video.srcObject = stream;
-
-                video.onloadedmetadata = () => {
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    console.log('[CAMERA] Camera started:', video.videoWidth, 'x', video.videoHeight);
-                    updateStatus(true, 'Camera active');
-                };
-
-            } catch (error) {
-                console.error('[CAMERA] Unexpected error:', error);
-                updateStatus(false, 'Camera error: ' + error.message);
-            }
-        }
-
-        // Capture frame from video
-        function captureFrame() {
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = video.videoWidth;
-            tempCanvas.height = video.videoHeight;
-            const tempCtx = tempCanvas.getContext('2d');
-            tempCtx.drawImage(video, 0, 0);
-            return tempCanvas.toDataURL('image/jpeg', 0.8);
-        }
-
-        // Start recognition loop
-        function startRecognitionLoop() {
-            setInterval(async () => {
-                if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                    await recognizeFaces();
-                }
-            }, RECOGNITION_INTERVAL);
-        }
-
-        // Recognize faces in current frame
-        async function recognizeFaces() {
-            try {
-                const imageData = captureFrame();
-
-                const response = await fetch(`${SERVER_URL}/api/displays/recognize`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        display_id: displayId,
-                        location: displayLocation,
-                        image: imageData
                     })
                 });
-
-                const data = await response.json();
-
-                recognitionCounter++;
-                document.getElementById('recognitionCount').textContent = recognitionCounter;
-
-                if (data.success && data.faces && data.faces.length > 0) {
-                    console.log('[RECOGNITION] Detected', data.faces.length, 'face(s)');
-                    handleDetections(data.faces);
-                    drawBoundingBoxes(data.faces);
-                    updateStatus(true, `Active - ${data.faces.length} face(s) detected`);
-                } else {
-                    clearOverlay();
-                    updateStatus(true, `Monitoring - Last check: ${new Date().toLocaleTimeString()}`);
-                }
-
-                updateConnectionStatus('connected', `✓ Active (${new Date().toLocaleTimeString()})`);
-
-            } catch (error) {
-                console.error('[RECOGNITION] Error:', error);
-                updateStatus(false, 'Recognition failed: ' + error.message);
-                updateConnectionStatus('disconnected', '✗ Recognition failed');
-            }
-        }
-
-        // Handle face detections
-        function handleDetections(faces) {
-            faces.forEach(face => {
-                const detection = {
-                    name: face.userid || 'Unknown',
-                    confidence: face.confidence,
-                    timestamp: new Date()
-                };
-
-                detectionHistory.unshift(detection);
-                if (detectionHistory.length > MAX_DETECTION_HISTORY) {
-                    detectionHistory.pop();
-                }
-            });
-
-            updateDetectionList();
-        }
-
-        // Update detection list display
-        function updateDetectionList() {
-            const listEl = document.getElementById('detectionList');
-
-            if (detectionHistory.length === 0) {
-                listEl.innerHTML = '<div class="no-detections">No faces detected yet...</div>';
-                return;
-            }
-
-            listEl.innerHTML = detectionHistory.map(det => `
-                <div class="detection-item">
-                    <div class="name">${det.name}</div>
-                    <div class="confidence">Confidence: ${(det.confidence * 100).toFixed(1)}%</div>
-                    <div class="time">${det.timestamp.toLocaleTimeString()}</div>
-                </div>
-            `).join('');
-        }
-
-        // Draw bounding boxes on canvas overlay
-        function drawBoundingBoxes(faces) {
-            clearOverlay();
-
-            const scaleX = canvas.width / video.videoWidth;
-            const scaleY = canvas.height / video.videoHeight;
-
-            faces.forEach(face => {
-                const x = face.x_min * scaleX;
-                const y = face.y_min * scaleY;
-                const width = (face.x_max - face.x_min) * scaleX;
-                const height = (face.y_max - face.y_min) * scaleY;
-
-                // Draw bounding box
-                ctx.strokeStyle = '#48bb78';
-                ctx.lineWidth = 3;
-                ctx.strokeRect(x, y, width, height);
-
-                // Draw label
-                const label = `${face.userid} (${(face.confidence * 100).toFixed(0)}%)`;
-                ctx.fillStyle = '#48bb78';
-                ctx.fillRect(x, y - 30, ctx.measureText(label).width + 20, 30);
-                ctx.fillStyle = 'white';
-                ctx.font = '16px Arial';
-                ctx.fillText(label, x + 10, y - 10);
-            });
-        }
-
-        // Clear overlay canvas
-        function clearOverlay() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
-
-        // Send heartbeat to server
-        async function sendHeartbeat() {
-            try {
-                console.log('[HEARTBEAT] Sending heartbeat...');
-                const response = await fetch(`${SERVER_URL}/api/displays/heartbeat`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        display_id: displayId,
-                        location: displayLocation
-                    })
-                });
-
-                if (response.ok) {
-                    lastHeartbeatTime = new Date();
-                    document.getElementById('lastHeartbeat').textContent = lastHeartbeatTime.toLocaleTimeString();
-                    console.log('[HEARTBEAT] ✓ Heartbeat sent successfully');
-                } else {
-                    console.error('[HEARTBEAT] ✗ Server returned:', response.status);
-                }
-            } catch (error) {
-                console.error('[HEARTBEAT] ✗ Error:', error);
-                updateConnectionStatus('disconnected', '✗ Heartbeat failed');
-            }
-        }
-
-        // Update status display
-        function updateStatus(connected, message) {
-            isConnected = connected;
-            const indicator = document.getElementById('statusIndicator');
-            const text = document.getElementById('statusText');
-
-            indicator.className = 'status-indicator ' + (connected ? 'connected' : 'disconnected');
-            text.textContent = message;
-        }
-
-        // Update connection status details
-        function updateConnectionStatus(status, message) {
-            const statusEl = document.getElementById('connectionStatus');
-            statusEl.textContent = message;
-
-            // Also update the main indicator
-            const indicator = document.getElementById('statusIndicator');
-            indicator.className = 'status-indicator ' + status;
-        }
-
-        // Test connection to server
-        async function testConnection() {
-            console.log('[TEST] Testing connection to server...');
-            updateConnectionStatus('connecting', 'Testing connection...');
-
-            try {
-                // Test basic connectivity
-                const response = await fetch(`${SERVER_URL}/api/health-check`, {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-
-                console.log('[TEST] Health check response:', response.status);
 
                 if (response.ok) {
                     const data = await response.json();
-                    console.log('[TEST] ✓ Server is reachable:', data);
-                    updateConnectionStatus('connected', `✓ Server reachable (${new Date().toLocaleTimeString()})`);
-                    updateStatus(true, 'Server connection test successful');
-
-                    // Show server info in console
-                    if (data.server) {
-                        console.log('[TEST] Server:', data.server);
-                        console.log('[TEST] Message:', data.message);
-                    }
+                    console.log('[REGISTER] ✓ Registered:', data);
+                    document.getElementById('serverStatus').textContent = '✓ Registered';
                 } else {
-                    console.error('[TEST] ✗ Server returned:', response.status);
-                    updateConnectionStatus('disconnected', `✗ Server error (HTTP ${response.status})`);
-                    updateStatus(false, `Server returned error: ${response.status}`);
+                    console.error('[REGISTER] ✗ Failed:', response.status);
                 }
             } catch (error) {
-                console.error('[TEST] ✗ Connection test failed:', error);
-                updateConnectionStatus('disconnected', '✗ Cannot reach server');
-                updateStatus(false, `Connection test failed: ${error.message}`);
-                alert(`Cannot connect to server:\n${SERVER_URL}\n\nError: ${error.message}\n\nPlease check:\n- Server is running\n- Network connectivity\n- SERVER_URL is correct`);
+                console.error('[REGISTER] ✗ Error:', error);
             }
         }
 
-        // Retry connection
-        async function retryConnection() {
-            console.log('[RETRY] Retrying connection...');
-            updateStatus(false, 'Retrying connection...');
-            updateConnectionStatus('connecting', 'Retrying...');
+        // Update status indicator
+        function updateStatus(status, message) {
+            const indicator = document.getElementById('statusIndicator');
+            const text = document.getElementById('statusText');
 
-            // Reset counters
-            connectionAttempts = 0;
-
-            // Try to register again
-            await registerDisplay();
-
-            // If successful, restart heartbeat
-            if (isConnected) {
-                console.log('[RETRY] ✓ Connection restored');
-                sendHeartbeat();
-            } else {
-                console.log('[RETRY] ✗ Connection still failed');
-            }
+            indicator.className = 'status-indicator ' + status;
+            text.textContent = message;
         }
 
-        // Start the application
+        // Start on load
         window.addEventListener('load', init);
 
         // Handle Tizen back key

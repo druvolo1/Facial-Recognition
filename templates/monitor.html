@@ -237,6 +237,30 @@
             height: 18px;
             cursor: pointer;
         }
+
+        .delete-btn {
+            padding: 8px 16px;
+            background: #f56565;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s;
+            margin-top: 15px;
+            width: 100%;
+        }
+
+        .delete-btn:hover {
+            background: #e53e3e;
+            transform: translateY(-1px);
+        }
+
+        .delete-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -404,6 +428,7 @@
                     <div>Total detections: ${display.detection_count}</div>
                 </div>
                 ${detectionsHtml}
+                <button class="delete-btn" onclick="deleteDisplay('${display.display_id}', '${display.location}')">Delete Display</button>
             `;
 
             return card;
@@ -446,6 +471,33 @@
         function showError(message) {
             const container = document.getElementById('displayContainer');
             container.innerHTML = `<div class="no-displays" style="color: #f56565;">Error: ${message}</div>`;
+        }
+
+        // Delete display
+        async function deleteDisplay(displayId, location) {
+            if (!confirm(`Delete display "${displayId}" (${location})?\n\nThis will remove it from the database.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/displays/${encodeURIComponent(displayId)}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    console.log('[DELETE] Display deleted:', displayId);
+                    // Reload displays list
+                    loadDisplays();
+                } else {
+                    alert('Failed to delete display: ' + data.error);
+                }
+
+            } catch (error) {
+                console.error('[DELETE] Error:', error);
+                alert('Failed to delete display: ' + error.message);
+            }
         }
     </script>
 </body>
