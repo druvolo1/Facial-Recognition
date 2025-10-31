@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' http: https: ws: wss:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: http: https:; media-src 'self' blob: http: https:; connect-src 'self' http: https: ws: wss:;">
     <title>Face Recognition Monitor</title>
     <style>
         * {
@@ -131,16 +132,59 @@
             height: 12px;
             border-radius: 50%;
             margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
 
         .status-indicator.connected {
             background: #48bb78;
             box-shadow: 0 0 10px #48bb78;
+            animation: none;
         }
 
         .status-indicator.disconnected {
             background: #f56565;
             box-shadow: 0 0 10px #f56565;
+        }
+
+        .status-indicator.connecting {
+            background: #f6ad55;
+            box-shadow: 0 0 10px #f6ad55;
+        }
+
+        .connection-details {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            font-size: 12px;
+        }
+
+        .connection-details div {
+            margin: 3px 0;
+        }
+
+        .connection-test {
+            margin-top: 10px;
+        }
+
+        .test-btn {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+
+        .test-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
         }
 
         .no-detections {
@@ -179,12 +223,24 @@
         <div class="status">
             <span class="status-indicator" id="statusIndicator"></span>
             <span id="statusText">Initializing...</span>
+
+            <div class="connection-details" id="connectionDetails">
+                <div><strong>Server:</strong> <span id="serverUrl">-</span></div>
+                <div><strong>Connection Status:</strong> <span id="connectionStatus">Not tested</span></div>
+                <div><strong>Last Heartbeat:</strong> <span id="lastHeartbeat">Never</span></div>
+                <div><strong>Recognition Count:</strong> <span id="recognitionCount">0</span></div>
+            </div>
+
+            <div class="connection-test">
+                <button class="test-btn" onclick="testConnection()">Test Server Connection</button>
+                <button class="test-btn" onclick="retryConnection()">Retry Connection</button>
+            </div>
         </div>
     </div>
 
     <script>
         // Configuration - CHANGE THESE TO YOUR SERVER SETTINGS
-        const SERVER_URL = 'http://garden1.local:5000'; // Change to your Flask server IP
+        const SERVER_URL = 'http://172.16.1.102:5000'; // Change to your Flask server IP
         const RECOGNITION_INTERVAL = 3000; // Check every 3 seconds
         const MAX_DETECTION_HISTORY = 10;
 
@@ -192,6 +248,9 @@
         let displayId = 'unknown';
         let displayLocation = 'Unknown Location';
         let isConnected = false;
+        let recognitionCounter = 0;
+        let lastHeartbeatTime = null;
+        let connectionAttempts = 0;
 
         // WebRTC elements
         const video = document.getElementById('video');
@@ -201,12 +260,18 @@
         // Detection history
         const detectionHistory = [];
 
+        // Update server URL display on load
+        document.getElementById('serverUrl').textContent = SERVER_URL;
+
         // Initialize the application
         async function init() {
             console.log('[INIT] Starting Face Recognition Monitor');
 
             // Get display information
             getDisplayInfo();
+
+            // Request Tizen permissions first (for commercial displays)
+            await requestTizenPermissions();
 
             // Register display with server
             await registerDisplay();
@@ -219,6 +284,62 @@
 
             // Send heartbeat every 30 seconds
             setInterval(sendHeartbeat, 30000);
+        }
+
+        // Request Tizen runtime permissions (for SSSP 6.5 commercial displays)
+        async function requestTizenPermissions() {
+            try {
+                console.log('[PERMISSIONS] Requesting Tizen runtime permissions...');
+
+                // Check if Tizen Permission API is available
+                if (typeof tizen !== 'undefined' && tizen.ppm) {
+                    const permissions = [
+                        'http://tizen.org/privilege/camera',
+                        'http://tizen.org/privilege/mediacapture'
+                    ];
+
+                    // Request each permission
+                    for (const permission of permissions) {
+                        try {
+                            console.log(`[PERMISSIONS] Requesting: ${permission}`);
+
+                            // Check current permission status
+                            const status = tizen.ppm.checkPermission(permission);
+                            console.log(`[PERMISSIONS] Status for ${permission}: ${status}`);
+
+                            if (status === 'ASK') {
+                                // Permission needs to be requested
+                                await new Promise((resolve, reject) => {
+                                    tizen.ppm.requestPermission(
+                                        permission,
+                                        function() {
+                                            console.log(`[PERMISSIONS] Granted: ${permission}`);
+                                            resolve();
+                                        },
+                                        function(error) {
+                                            console.error(`[PERMISSIONS] Denied: ${permission}`, error);
+                                            reject(error);
+                                        }
+                                    );
+                                });
+                            } else if (status === 'GRANT') {
+                                console.log(`[PERMISSIONS] Already granted: ${permission}`);
+                            } else if (status === 'DENY') {
+                                console.error(`[PERMISSIONS] Previously denied: ${permission}`);
+                                updateStatus(false, 'Camera permission denied - reset app permissions');
+                            }
+                        } catch (error) {
+                            console.error(`[PERMISSIONS] Error requesting ${permission}:`, error);
+                        }
+                    }
+
+                    console.log('[PERMISSIONS] All permissions processed');
+                } else {
+                    console.log('[PERMISSIONS] Tizen PPM API not available (may be in browser mode)');
+                }
+            } catch (error) {
+                console.error('[PERMISSIONS] Error in permission request:', error);
+            }
         }
 
         // Get display information (tries Tizen API, falls back to generated ID)
@@ -266,7 +387,14 @@
 
         // Register display with server
         async function registerDisplay() {
+            connectionAttempts++;
+            updateConnectionStatus('connecting', `Connecting to server (attempt ${connectionAttempts})...`);
+
             try {
+                console.log('[REGISTER] Attempting to connect to:', SERVER_URL);
+                console.log('[REGISTER] Display ID:', displayId);
+                console.log('[REGISTER] Location:', displayLocation);
+
                 const response = await fetch(`${SERVER_URL}/api/displays/register`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -277,20 +405,44 @@
                             camera: true,
                             screen_size: `${screen.width}x${screen.height}`
                         }
-                    })
+                    }),
+                    timeout: 10000
                 });
 
+                console.log('[REGISTER] Response status:', response.status);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
                 const data = await response.json();
+                console.log('[REGISTER] Response data:', data);
+
                 if (data.success) {
-                    console.log('[REGISTER] Display registered successfully');
-                    updateStatus(true, 'Connected to server');
+                    console.log('[REGISTER] ✓ Display registered successfully');
+                    updateStatus(true, `Connected to server`);
+                    updateConnectionStatus('connected', `✓ Connected (${new Date().toLocaleTimeString()})`);
+                    connectionAttempts = 0; // Reset counter on success
                 } else {
-                    console.error('[REGISTER] Failed to register:', data.error);
-                    updateStatus(false, 'Registration failed');
+                    console.error('[REGISTER] ✗ Failed to register:', data.error);
+                    updateStatus(false, 'Registration failed: ' + data.error);
+                    updateConnectionStatus('disconnected', '✗ Registration failed');
                 }
             } catch (error) {
-                console.error('[REGISTER] Error:', error);
-                updateStatus(false, 'Cannot connect to server');
+                console.error('[REGISTER] ✗ Connection error:', error);
+                console.error('[REGISTER] Error details:', error.message);
+
+                let errorMsg = 'Cannot connect to server';
+                if (error.message.includes('Failed to fetch')) {
+                    errorMsg = `Cannot reach ${SERVER_URL} - check network`;
+                } else if (error.message.includes('timeout')) {
+                    errorMsg = 'Connection timeout - server not responding';
+                } else {
+                    errorMsg = `Connection error: ${error.message}`;
+                }
+
+                updateStatus(false, errorMsg);
+                updateConnectionStatus('disconnected', '✗ ' + errorMsg);
             }
         }
 
@@ -299,26 +451,90 @@
             try {
                 console.log('[CAMERA] Requesting camera access...');
 
-                const constraints = {
-                    video: {
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 },
-                        facingMode: 'user'
-                    }
-                };
+                // Check if getUserMedia is available
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    console.error('[CAMERA] getUserMedia not supported');
+                    updateStatus(false, 'Camera API not supported');
+                    return;
+                }
 
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                // For Tizen, try different constraint combinations
+                const constraintOptions = [
+                    // Option 1: Ideal resolution with facingMode
+                    {
+                        video: {
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 },
+                            facingMode: 'user'
+                        }
+                    },
+                    // Option 2: Simple video constraint (Tizen fallback)
+                    {
+                        video: {
+                            width: 1280,
+                            height: 720
+                        }
+                    },
+                    // Option 3: Just video true (most permissive)
+                    {
+                        video: true
+                    },
+                    // Option 4: Environment camera (for USB cameras)
+                    {
+                        video: {
+                            facingMode: { exact: 'environment' }
+                        }
+                    }
+                ];
+
+                let stream = null;
+                let lastError = null;
+
+                // Try each constraint option until one works
+                for (let i = 0; i < constraintOptions.length; i++) {
+                    try {
+                        console.log(`[CAMERA] Trying constraint option ${i + 1}...`);
+                        stream = await navigator.mediaDevices.getUserMedia(constraintOptions[i]);
+                        console.log(`[CAMERA] Success with option ${i + 1}`);
+                        break;
+                    } catch (error) {
+                        console.warn(`[CAMERA] Option ${i + 1} failed:`, error.name, error.message);
+                        lastError = error;
+                    }
+                }
+
+                if (!stream) {
+                    console.error('[CAMERA] All constraint options failed:', lastError);
+
+                    // Provide specific error messages
+                    let errorMessage = 'Camera access denied';
+                    if (lastError) {
+                        if (lastError.name === 'NotFoundError') {
+                            errorMessage = 'No camera found - connect USB camera';
+                        } else if (lastError.name === 'NotAllowedError') {
+                            errorMessage = 'Camera permission denied - check settings';
+                        } else if (lastError.name === 'NotReadableError') {
+                            errorMessage = 'Camera in use by another app';
+                        }
+                    }
+
+                    updateStatus(false, errorMessage);
+                    return;
+                }
+
+                // Successfully got stream
                 video.srcObject = stream;
 
                 video.onloadedmetadata = () => {
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
                     console.log('[CAMERA] Camera started:', video.videoWidth, 'x', video.videoHeight);
+                    updateStatus(true, 'Camera active');
                 };
 
             } catch (error) {
-                console.error('[CAMERA] Error accessing camera:', error);
-                updateStatus(false, 'Camera access denied');
+                console.error('[CAMERA] Unexpected error:', error);
+                updateStatus(false, 'Camera error: ' + error.message);
             }
         }
 
@@ -358,19 +574,25 @@
 
                 const data = await response.json();
 
+                recognitionCounter++;
+                document.getElementById('recognitionCount').textContent = recognitionCounter;
+
                 if (data.success && data.faces && data.faces.length > 0) {
                     console.log('[RECOGNITION] Detected', data.faces.length, 'face(s)');
                     handleDetections(data.faces);
                     drawBoundingBoxes(data.faces);
+                    updateStatus(true, `Active - ${data.faces.length} face(s) detected`);
                 } else {
                     clearOverlay();
+                    updateStatus(true, `Monitoring - Last check: ${new Date().toLocaleTimeString()}`);
                 }
 
-                updateStatus(true, `Monitoring - Last check: ${new Date().toLocaleTimeString()}`);
+                updateConnectionStatus('connected', `✓ Active (${new Date().toLocaleTimeString()})`);
 
             } catch (error) {
                 console.error('[RECOGNITION] Error:', error);
-                updateStatus(false, 'Recognition failed');
+                updateStatus(false, 'Recognition failed: ' + error.message);
+                updateConnectionStatus('disconnected', '✗ Recognition failed');
             }
         }
 
@@ -446,7 +668,8 @@
         // Send heartbeat to server
         async function sendHeartbeat() {
             try {
-                await fetch(`${SERVER_URL}/api/displays/heartbeat`, {
+                console.log('[HEARTBEAT] Sending heartbeat...');
+                const response = await fetch(`${SERVER_URL}/api/displays/heartbeat`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -454,8 +677,17 @@
                         location: displayLocation
                     })
                 });
+
+                if (response.ok) {
+                    lastHeartbeatTime = new Date();
+                    document.getElementById('lastHeartbeat').textContent = lastHeartbeatTime.toLocaleTimeString();
+                    console.log('[HEARTBEAT] ✓ Heartbeat sent successfully');
+                } else {
+                    console.error('[HEARTBEAT] ✗ Server returned:', response.status);
+                }
             } catch (error) {
-                console.error('[HEARTBEAT] Error:', error);
+                console.error('[HEARTBEAT] ✗ Error:', error);
+                updateConnectionStatus('disconnected', '✗ Heartbeat failed');
             }
         }
 
@@ -467,6 +699,75 @@
 
             indicator.className = 'status-indicator ' + (connected ? 'connected' : 'disconnected');
             text.textContent = message;
+        }
+
+        // Update connection status details
+        function updateConnectionStatus(status, message) {
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.textContent = message;
+
+            // Also update the main indicator
+            const indicator = document.getElementById('statusIndicator');
+            indicator.className = 'status-indicator ' + status;
+        }
+
+        // Test connection to server
+        async function testConnection() {
+            console.log('[TEST] Testing connection to server...');
+            updateConnectionStatus('connecting', 'Testing connection...');
+
+            try {
+                // Test basic connectivity
+                const response = await fetch(`${SERVER_URL}/api/health-check`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                console.log('[TEST] Health check response:', response.status);
+
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('[TEST] ✓ Server is reachable:', data);
+                    updateConnectionStatus('connected', `✓ Server reachable (${new Date().toLocaleTimeString()})`);
+                    updateStatus(true, 'Server connection test successful');
+
+                    // Show server info in console
+                    if (data.server) {
+                        console.log('[TEST] Server:', data.server);
+                        console.log('[TEST] Message:', data.message);
+                    }
+                } else {
+                    console.error('[TEST] ✗ Server returned:', response.status);
+                    updateConnectionStatus('disconnected', `✗ Server error (HTTP ${response.status})`);
+                    updateStatus(false, `Server returned error: ${response.status}`);
+                }
+            } catch (error) {
+                console.error('[TEST] ✗ Connection test failed:', error);
+                updateConnectionStatus('disconnected', '✗ Cannot reach server');
+                updateStatus(false, `Connection test failed: ${error.message}`);
+                alert(`Cannot connect to server:\n${SERVER_URL}\n\nError: ${error.message}\n\nPlease check:\n- Server is running\n- Network connectivity\n- SERVER_URL is correct`);
+            }
+        }
+
+        // Retry connection
+        async function retryConnection() {
+            console.log('[RETRY] Retrying connection...');
+            updateStatus(false, 'Retrying connection...');
+            updateConnectionStatus('connecting', 'Retrying...');
+
+            // Reset counters
+            connectionAttempts = 0;
+
+            // Try to register again
+            await registerDisplay();
+
+            // If successful, restart heartbeat
+            if (isConnected) {
+                console.log('[RETRY] ✓ Connection restored');
+                sendHeartbeat();
+            } else {
+                console.log('[RETRY] ✗ Connection still failed');
+            }
         }
 
         // Start the application

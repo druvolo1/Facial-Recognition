@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask_cors import CORS
 import requests
 import base64
 import os
@@ -10,6 +11,16 @@ import re
 from urllib.parse import urlparse
 
 app = Flask(__name__)
+
+# Enable CORS for all routes (allows SSSP displays to make API requests)
+# Support for both null origin (file://) and any other origin
+CORS(app,
+     resources={r"/api/*": {"origins": "*"}},
+     supports_credentials=False,
+     allow_headers=["Content-Type", "Authorization"],
+     methods=["GET", "POST", "DELETE", "OPTIONS"],
+     expose_headers=["Content-Type"],
+     send_wildcard=True)
 
 # CodeProject.AI configuration
 CODEPROJECT_HOST = "172.16.1.150"

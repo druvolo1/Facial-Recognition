@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns="http://www.w3.org/ns/widgets"
+    xmlns:tizen="http://tizen.org/ns/widgets"
+    id="http://yourdomain.com/FaceRecognitionMonitor"
+    version="1.0.0">
+
+    <tizen:application id="FaceRecMonitor.main" package="FaceRecMonitor" required_version="2.3"/>
+
+    <content src="index.html"/>
+
+    <name>Face Recognition Monitor</name>
+    <description>Real-time face recognition monitoring for signage displays</description>
+
+    <author email="your@email.com" href="http://yourdomain.com">
+        Your Company Name
+    </author>
+
+    <!-- Privileges for camera and network access -->
+    <tizen:privilege name="http://tizen.org/privilege/internet"/>
+    <tizen:privilege name="http://tizen.org/privilege/camera"/>
+    <tizen:privilege name="http://tizen.org/privilege/mediacapture"/>
+    <tizen:privilege name="http://tizen.org/privilege/audiorecord"/>
+
+    <!-- Permission manager privilege (for runtime permission requests) -->
+    <tizen:privilege name="http://tizen.org/privilege/appmanager.launch"/>
+    <tizen:privilege name="http://tizen.org/privilege/packagemanager.info"/>
+
+    <!-- Feature requirements -->
+    <feature name="http://tizen.org/feature/camera"/>
+    <feature name="http://tizen.org/feature/media.video_stream"/>
+
+    <!-- Settings -->
+    <tizen:setting screen-orientation="landscape" context-menu="disable" hwkey-event="enable"/>
+
+    <!-- Content Security Policy for camera access -->
+    <tizen:content-security-policy>
+        default-src 'self' http: https: ws: wss:;
+        script-src 'self' 'unsafe-inline' 'unsafe-eval';
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' data: http: https:;
+        media-src 'self' blob: http: https:;
+        connect-src 'self' http: https: ws: wss:;
+    </tizen:content-security-policy>
+
+    <access origin="*" subdomains="true"/>
+</widget>

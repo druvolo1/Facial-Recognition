@@ -1,8 +1,100 @@
-127.0.0.1 - - [31/Oct/2025 17:13:43] "GET /manage HTTP/1.1" 200 -
-127.0.0.1 - - [31/Oct/2025 17:13:43] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 -
-127.0.0.1 - - [31/Oct/2025 17:13:43] "GET /api/users HTTP/1.1" 200 -
-127.0.0.1 - - [31/Oct/2025 17:13:44] "GET /uploads/david_ruvolo_20251031_170240.jpg HTTP/1.1" 304 -
-[LINKEDIN] Fetching profile from: https://www.linkedin.com/in/linda-ruvolo-40a1303/
-[LINKEDIN] Page fetch status: 999
-[LINKEDIN] Failed to fetch LinkedIn page (status 999)
-127.0.0.1 - - [31/Oct/2025 17:13:55] "POST /api/users/linkedin HTTP/1.1" 400 -
+index.html:268 [INIT] Starting Face Recognition Monitor
+index.html:359 [DISPLAY] Tizen API not available, generating ID
+index.html:292 [PERMISSIONS] Requesting Tizen runtime permissions...
+index.html:338 [PERMISSIONS] Tizen PPM API not available (may be in browser mode)
+index.html:394 [REGISTER] Attempting to connect to: http://172.16.1.102:5000
+index.html:395 [REGISTER] Display ID: display_1761950994055_w09623csy
+index.html:396 [REGISTER] Location: Unknown Location
+index.html:1 Access to fetch at 'http://172.16.1.102:5000/api/displays/register' from origin 'null' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+172.16.1.102:5000/api/displays/register:1  Failed to load resource: net::ERR_FAILED
+index.html:432 [REGISTER] ✗ Connection error: TypeError: Failed to fetch
+    at registerDisplay (index.html:398:40)
+    at init (index.html:277:19)
+registerDisplay @ index.html:432
+index.html:433 [REGISTER] Error details: Failed to fetch
+registerDisplay @ index.html:433
+index.html:452 [CAMERA] Requesting camera access...
+index.html:496 [CAMERA] Trying constraint option 1...
+index.html:716 [TEST] Testing connection to server...
+index.html:1 Access to fetch at 'http://172.16.1.102:5000/api/health-check' from origin 'null' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+172.16.1.102:5000/api/health-check:1  Failed to load resource: net::ERR_FAILED
+index.html:745 [TEST] ✗ Connection test failed: TypeError: Failed to fetch
+    at testConnection (index.html:721:40)
+    at HTMLButtonElement.onclick (index.html:235:69)
+testConnection @ index.html:745
+index.html:498 [CAMERA] Success with option 1
+index.html:531 [CAMERA] Camera started: 1280 x 720
+index.html:716 [TEST] Testing connection to server...
+index.html:1 Access to fetch at 'http://172.16.1.102:5000/api/health-check' from origin 'null' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+172.16.1.102:5000/api/health-check:1  Failed to load resource: net::ERR_FAILED
+index.html:745 [TEST] ✗ Connection test failed: TypeError: Failed to fetch
+    at testConnection (index.html:721:40)
+    at HTMLButtonElement.onclick (index.html:235:69)
+testConnection @ index.html:745
+index.html:1 Access to fetch at 'http://172.16.1.102:5000/api/displays/recognize' from origin 'null' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+172.16.1.102:5000/api/displays/recognize:1  Failed to load resource: net::ERR_FAILED
+index.html:593 [RECOGNITION] Error: TypeError: Failed to fetch
+    at recognizeFaces (index.html:565:40)
+    at index.html:555:27
+recognizeFaces @ index.html:593
+index.html:1 Access to fetch at 'http://172.16.1.102:5000/api/displays/recognize' from origin 'null' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+172.16.1.102:5000/api/displays/recognize:1  Failed to load resource: net::ERR_FAILED
+index.html:593 [RECOGNITION] Error: TypeError: Failed to fetch
+    at recognizeFaces (index.html:565:40)
+    at index.html:555:27
+recognizeFaces @ index.html:593
+index.html:716 [TEST] Testing connection to server...
+index.html:1 Access to fetch at 'http://172.16.1.102:5000/api/health-check' from origin 'null' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+172.16.1.102:5000/api/health-check:1  Failed to load resource: net::ERR_FAILED
+index.html:745 [TEST] ✗ Connection test failed: TypeError: Failed to fetch
+    at testConnection (index.html:721:40)
+    at HTMLButtonElement.onclick (index.html:235:69)
+testConnection @ index.html:745
+index.html:671 [HEARTBEAT] Sending heartbeat...
+index.html:1 Access to fetch at 'http://172.16.1.102:5000/api/displays/recognize' from origin 'null' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+172.16.1.102:5000/api/displays/recognize:1  Failed to load resource: net::ERR_FAILED
+index.html:593 [RECOGNITION] Error: TypeError: Failed to fetch
+    at recognizeFaces (index.html:565:40)
+    at index.html:555:27
+recognizeFaces @ index.html:593
+index.html:1 Access to fetch at 'http://172.16.1.102:5000/api/displays/heartbeat' from origin 'null' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+172.16.1.102:5000/api/displays/heartbeat:1  Failed to load resource: net::ERR_FAILED
+index.html:689 [HEARTBEAT] ✗ Error: TypeError: Failed to fetch
+    at sendHeartbeat (index.html:672:40)
+sendHeartbeat @ index.html:689
+index.html:1 Access to fetch at 'http://172.16.1.102:5000/api/displays/recognize' from origin 'null' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+172.16.1.102:5000/api/displays/recognize:1  Failed to load resource: net::ERR_FAILED
+index.html:593 [RECOGNITION] Error: TypeError: Failed to fetch
+    at recognizeFaces (index.html:565:40)
+    at index.html:555:27
+recognizeFaces @ index.html:593
+index.html:1 Access to fetch at 'http://172.16.1.102:5000/api/displays/recognize' from origin 'null' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+index.html:565  POST http://172.16.1.102:5000/api/displays/recognize net::ERR_FAILED
+recognizeFaces @ index.html:565
+(anonymous) @ index.html:555
+index.html:593 [RECOGNITION] Error: TypeError: Failed to fetch
+    at recognizeFaces (index.html:565:40)
+    at index.html:555:27
+recognizeFaces @ index.html:593
+await in recognizeFaces
+(anonymous) @ index.html:555
+index.html:1 Access to fetch at 'http://172.16.1.102:5000/api/displays/recognize' from origin 'null' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+index.html:565  POST http://172.16.1.102:5000/api/displays/recognize net::ERR_FAILED
+recognizeFaces @ index.html:565
+(anonymous) @ index.html:555
+index.html:593 [RECOGNITION] Error: TypeError: Failed to fetch
+    at recognizeFaces (index.html:565:40)
+    at index.html:555:27
+recognizeFaces @ index.html:593
+await in recognizeFaces
+(anonymous) @ index.html:555
+index.html:1 Access to fetch at 'http://172.16.1.102:5000/api/displays/recognize' from origin 'null' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+index.html:565  POST http://172.16.1.102:5000/api/displays/recognize net::ERR_FAILED
+recognizeFaces @ index.html:565
+(anonymous) @ index.html:555
+index.html:593 [RECOGNITION] Error: TypeError: Failed to fetch
+    at recognizeFaces (index.html:565:40)
+    at index.html:555:27
+recognizeFaces @ index.html:593
+await in recognizeFaces
+(anonymous) @ index.html:555
