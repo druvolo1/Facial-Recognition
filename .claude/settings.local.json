@@ -5,7 +5,8 @@
       "Bash(dir \"C:\\Users\\Dave\\Documents\\Programming\\Facial Recognition\\claude\")",
       "Bash(powershell -Command:*)",
       "Bash(pip install:*)",
-      "Bash(del install_rhubarb.sh RHUBARB_SETUP.md)"
+      "Bash(del install_rhubarb.sh RHUBARB_SETUP.md)",
+      "Bash(del \"C:\\Users\\Dave\\Documents\\Programming\\Facial Recognition\\PIPER_SETUP.md\")"
     ],
     "deny": [],
     "ask": []

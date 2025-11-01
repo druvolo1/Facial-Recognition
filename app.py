@@ -13,15 +13,7 @@ import subprocess
 import hashlib
 import wave
 
-# Try to import Piper TTS (optional)
-try:
-    from piper import PiperVoice
-    from piper.download import ensure_voice_exists, find_voice, get_voices
-    import tempfile
-    PIPER_TTS_AVAILABLE = True
-except ImportError:
-    PIPER_TTS_AVAILABLE = False
-    print("[STARTUP] Piper TTS not available, install with: pip install piper-tts")
+# No additional TTS imports needed - using subprocess for Festival
 
 app = Flask(__name__)
 
@@ -513,36 +505,31 @@ def text_to_speech():
                 "cached": True
             })
 
-        # Generate audio using Piper TTS (100% free, neural quality, optimized for RPi)
-        if PIPER_TTS_AVAILABLE:
-            print(f"[TTS] Generating audio with Piper TTS (Neural Voice)...")
-            try:
-                # Use male voice optimized for Raspberry Pi
-                # en_US-lessac-medium: Good quality male voice (~50MB)
-                # en_US-ryan-high: High quality male voice (~100MB)
-                # en_GB-alan-medium: British male voice
-                voice_name = "en_US-lessac-medium"  # Good quality US male voice
+        # Generate audio using Festival TTS (100% free, better than espeak)
+        print(f"[TTS] Generating audio with Festival TTS...")
+        try:
+            # Generate audio using Festival text2wave command
+            final_audio_filename = audio_filename
 
-                print(f"[TTS] Loading Piper voice: {voice_name}")
+            # Festival command for better quality
+            # Using text2wave which outputs WAV files directly
+            festival_cmd = [
+                'text2wave',
+                '-o', audio_path,
+                '-eval', '(voice_cmu_us_rms_cg)'  # Male voice
+            ]
 
-                # Download voice model if not already present
-                # This will download to ~/.local/share/piper-voices/
-                voice_path = ensure_voice_exists(voice_name, None, None)
+            print(f"[TTS] Running Festival TTS with male voice...")
 
-                print(f"[TTS] Voice model ready at: {voice_path}")
+            # Run Festival with text input
+            result = subprocess.run(
+                festival_cmd,
+                input=text.encode('utf-8'),
+                capture_output=True,
+                timeout=30
+            )
 
-                # Load the voice
-                voice = PiperVoice.load(voice_path)
-                print(f"[TTS] ✓ Voice loaded successfully")
-
-                # Generate audio
-                final_audio_filename = audio_filename
-                print(f"[TTS] Generating speech...")
-
-                # Synthesize to WAV file
-                with open(audio_path, 'wb') as wav_file:
-                    voice.synthesize(text, wav_file)
-
+            if result.returncode == 0:
                 # Verify file was created
                 if os.path.exists(audio_path):
                     file_size = os.path.getsize(audio_path)
@@ -553,22 +540,33 @@ def text_to_speech():
                         "success": False,
                         "error": "Audio file was not created"
                     }), 500
-
-            except Exception as e:
-                print(f"[TTS] ✗ Piper TTS error: {e}")
-                import traceback
-                traceback.print_exc()
+            else:
+                error_msg = result.stderr.decode('utf-8') if result.stderr else "Unknown error"
+                print(f"[TTS] ✗ Festival error: {error_msg}")
                 return jsonify({
                     "success": False,
-                    "error": f"Failed to generate audio: {str(e)}"
+                    "error": f"Festival TTS failed: {error_msg}"
                 }), 500
 
-        else:
-            # Fallback: TTS library not available
-            print(f"[TTS] ✗ Piper TTS not available")
+        except FileNotFoundError:
+            print(f"[TTS] ✗ Festival not installed")
             return jsonify({
                 "success": False,
-                "error": "TTS library not installed. Run: pip install piper-tts"
+                "error": "Festival TTS not installed. Run: sudo apt-get install festival festvox-us-slt-hts"
+            }), 500
+        except subprocess.TimeoutExpired:
+            print(f"[TTS] ✗ Festival timeout")
+            return jsonify({
+                "success": False,
+                "error": "Festival TTS timed out"
+            }), 500
+        except Exception as e:
+            print(f"[TTS] ✗ Festival error: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({
+                "success": False,
+                "error": f"Failed to generate audio: {str(e)}"
             }), 500
 
         # Generate simple viseme data from text (no rhubarb needed)
