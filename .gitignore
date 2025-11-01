@@ -1,2 +1,7 @@
 sssp_app/
 claude/
+.env
+__pycache__/
+*.pyc
+venv/
+*.db

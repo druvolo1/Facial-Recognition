@@ -1,0 +1,794 @@
+"""
+Facial Recognition App with FastAPI and User Authentication
+Based on plant_logs_server authentication system
+"""
+import os
+import sys
+from datetime import datetime
+from typing import Optional, AsyncGenerator, List
+import secrets
+import base64
+from io import BytesIO
+import json
+
+from fastapi import FastAPI, Depends, HTTPException, Request, Form, status
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
+
+from sqlalchemy import Boolean, Integer, String, Text, Column, ForeignKey, select
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.exc import IntegrityError
+
+from fastapi_users import FastAPIUsers, BaseUserManager, IntegerIDMixin, models, schemas
+from fastapi_users.authentication import AuthenticationBackend, CookieTransport, JWTStrategy
+from fastapi_users.db import SQLAlchemyUserDatabase, SQLAlchemyBaseUserTable, SQLAlchemyBaseOAuthAccountTable
+from fastapi_users_db_sqlalchemy.access_token import SQLAlchemyAccessTokenDatabase, SQLAlchemyBaseAccessTokenTable
+
+from pydantic import EmailStr, BaseModel
+from dotenv import load_dotenv
+from httpx_oauth.clients.google import GoogleOAuth2
+import requests
+from PIL import Image
+
+# Load environment variables
+load_dotenv()
+
+# Configuration
+DATABASE_URL = os.getenv("DATABASE_URL", "mariadb+aiomysql://app_user:testpass123@172.16.1.150:3306/facial_recognition")
+SECRET = os.getenv("SECRET_KEY", "changeme")
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@example.com")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123!")
+
+# Google OAuth
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/auth/google/callback")
+
+# CodeProject.AI configuration
+CODEPROJECT_HOST = os.getenv("CODEPROJECT_HOST", "172.16.1.150")
+CODEPROJECT_PORT = int(os.getenv("CODEPROJECT_PORT", "32168"))
+CODEPROJECT_BASE_URL = f"http://{CODEPROJECT_HOST}:{CODEPROJECT_PORT}/v1"
+
+# Get the application directory
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(APP_DIR)
+
+# Create necessary directories
+UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
+AUDIO_FOLDER = os.path.join(BASE_DIR, "audio")
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(AUDIO_FOLDER, exist_ok=True)
+
+print(f"[CONFIG] Database URL: {DATABASE_URL}")
+print(f"[CONFIG] Base directory: {BASE_DIR}")
+print(f"[CONFIG] Upload folder: {UPLOAD_FOLDER}")
+print(f"[CONFIG] CodeProject.AI: {CODEPROJECT_BASE_URL}")
+
+# ============================================================================
+# DATABASE MODELS
+# ============================================================================
+
+class Base(DeclarativeBase):
+    pass
+
+
+class OAuthAccount(SQLAlchemyBaseOAuthAccountTable[int], Base):
+    """OAuth account table for storing Google OAuth credentials"""
+    pass
+
+
+class User(SQLAlchemyBaseUserTable[int], Base):
+    """User table with custom fields"""
+    __tablename__ = "user"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    email: Mapped[str] = mapped_column(String(320), unique=True, index=True, nullable=False)
+    hashed_password: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+
+    # Standard FastAPI-Users fields
+    is_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)  # Pending approval by default
+    is_superuser: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    # Custom fields
+    first_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    last_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    is_suspended: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    dashboard_preferences: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Relationships
+    oauth_accounts: Mapped[List[OAuthAccount]] = relationship("OAuthAccount", lazy="joined")
+
+
+class AccessToken(SQLAlchemyBaseAccessTokenTable[int], Base):
+    """Access token table for JWT tokens"""
+    pass
+
+
+# Database engine and session
+engine = create_async_engine(DATABASE_URL, echo=False, pool_pre_ping=True)
+async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
+
+
+async def create_db_and_tables():
+    """Create database tables"""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+
+async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+    async with async_session_maker() as session:
+        yield session
+
+
+async def get_user_db(session: AsyncSession = Depends(get_async_session)):
+    yield SQLAlchemyUserDatabase(session, User, OAuthAccount)
+
+
+async def get_access_token_db(session: AsyncSession = Depends(get_async_session)):
+    yield SQLAlchemyAccessTokenDatabase(session, AccessToken)
+
+
+# ============================================================================
+# USER SCHEMAS
+# ============================================================================
+
+class UserRead(schemas.BaseUser[int]):
+    """Schema for reading user data"""
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    is_suspended: bool = False
+    dashboard_preferences: Optional[str] = None
+
+
+class UserCreate(schemas.BaseUserCreate):
+    """Schema for creating users"""
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    is_active: bool = False
+    is_verified: bool = False
+    is_suspended: bool = False
+
+
+class UserUpdate(schemas.BaseUserUpdate):
+    """Schema for updating users"""
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    is_suspended: Optional[bool] = None
+    dashboard_preferences: Optional[str] = None
+
+
+# ============================================================================
+# USER MANAGER
+# ============================================================================
+
+class CustomUserManager(IntegerIDMixin, BaseUserManager[User, int]):
+    """Custom user manager with approval workflow and suspension support"""
+
+    reset_password_token_secret = SECRET
+    verification_token_secret = SECRET
+
+    async def on_after_register(self, user: User, request: Optional[Request] = None):
+        print(f"[AUTH] User {user.email} registered (pending approval)")
+
+    async def on_after_forgot_password(self, user: User, token: str, request: Optional[Request] = None):
+        print(f"[AUTH] User {user.email} forgot password. Token: {token}")
+
+    async def on_after_request_verify(self, user: User, token: str, request: Optional[Request] = None):
+        print(f"[AUTH] Verification requested for user {user.email}. Token: {token}")
+
+    async def oauth_callback(
+        self,
+        oauth_name: str,
+        access_token: str,
+        account_id: str,
+        account_email: str,
+        expires_at: Optional[int] = None,
+        refresh_token: Optional[str] = None,
+        request: Optional[Request] = None,
+        *,
+        associate_by_email: bool = False,
+        is_verified_by_default: bool = False,
+    ) -> User:
+        """
+        Handle OAuth callback with custom logic for pending approval
+        """
+        oauth_account_dict = {
+            "oauth_name": oauth_name,
+            "access_token": access_token,
+            "account_id": account_id,
+            "account_email": account_email,
+            "expires_at": expires_at,
+            "refresh_token": refresh_token,
+        }
+
+        # Try to get existing OAuth account
+        try:
+            user = await self.user_db.get_by_oauth_account(oauth_name, account_id)
+        except Exception:
+            user = None
+
+        # If no OAuth account found, try to associate by email if enabled
+        if user is None and associate_by_email:
+            try:
+                user = await self.get_by_email(account_email)
+                if user:
+                    # Link OAuth account to existing user
+                    user = await self.user_db.add_oauth_account(user, oauth_account_dict)
+            except Exception:
+                user = None
+
+        # If still no user, create new one
+        if user is None:
+            # Generate random password for OAuth users
+            random_password = secrets.token_urlsafe(32)
+
+            user_create = UserCreate(
+                email=account_email,
+                password=random_password,
+                is_verified=is_verified_by_default,
+                is_active=False,  # Require admin approval even for OAuth users
+                is_suspended=False
+            )
+
+            user = await self.create(user_create, safe=True, request=request)
+            user = await self.user_db.add_oauth_account(user, oauth_account_dict)
+
+            print(f"[AUTH] New OAuth user created: {account_email} (pending approval)")
+
+        return user
+
+
+async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db)):
+    yield CustomUserManager(user_db)
+
+
+# ============================================================================
+# AUTHENTICATION SETUP
+# ============================================================================
+
+cookie_transport = CookieTransport(cookie_name="auth_cookie", cookie_max_age=3600)
+
+
+def get_jwt_strategy() -> JWTStrategy:
+    return JWTStrategy(secret=SECRET, lifetime_seconds=3600)
+
+
+auth_backend = AuthenticationBackend(
+    name="jwt",
+    transport=cookie_transport,
+    get_strategy=get_jwt_strategy,
+)
+
+fastapi_users = FastAPIUsers[User, int](
+    get_user_manager,
+    [auth_backend],
+)
+
+current_active_user = fastapi_users.current_user(active=True)
+current_superuser = fastapi_users.current_user(active=True, superuser=True)
+
+# Google OAuth client
+google_oauth_client = GoogleOAuth2(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET)
+
+
+# ============================================================================
+# FASTAPI APP
+# ============================================================================
+
+app = FastAPI(title="Facial Recognition App")
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Templates
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+
+# Mount static files
+app.mount("/uploads", StaticFiles(directory=UPLOAD_FOLDER), name="uploads")
+app.mount("/audio", StaticFiles(directory=AUDIO_FOLDER), name="audio")
+
+
+# ============================================================================
+# STARTUP / SHUTDOWN
+# ============================================================================
+
+@app.on_event("startup")
+async def on_startup():
+    """Initialize database and create admin user"""
+    print(f"\n{'='*60}")
+    print(f"[STARTUP] Facial Recognition App starting...")
+
+    # Create tables
+    await create_db_and_tables()
+    print(f"[STARTUP] ✓ Database tables created/verified")
+
+    # Create admin user if doesn't exist
+    try:
+        async for session in get_async_session():
+            async for user_db in get_user_db(session):
+                async for user_manager in get_user_manager(user_db):
+                    try:
+                        existing_admin = await user_manager.get_by_email(ADMIN_EMAIL)
+                        if existing_admin:
+                            print(f"[STARTUP] ✓ Admin user already exists: {ADMIN_EMAIL}")
+                        else:
+                            admin_user = UserCreate(
+                                email=ADMIN_EMAIL,
+                                password=ADMIN_PASSWORD,
+                                is_active=True,
+                                is_superuser=True,
+                                is_verified=True,
+                                first_name="Admin",
+                                last_name="User"
+                            )
+                            await user_manager.create(admin_user)
+                            print(f"[STARTUP] ✓ Admin user created: {ADMIN_EMAIL}")
+                    except Exception as e:
+                        print(f"[STARTUP] ⚠ Could not create admin user: {e}")
+                    break
+                break
+            break
+    except Exception as e:
+        print(f"[STARTUP] ⚠ Error during admin user creation: {e}")
+
+    print(f"[STARTUP] ✓ Startup complete")
+    print(f"{'='*60}\n")
+
+
+# ============================================================================
+# AUTHENTICATION ROUTES
+# ============================================================================
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    """Login page"""
+    return templates.TemplateResponse("login.html", {"request": request})
+
+
+@app.get("/register-account", response_class=HTMLResponse)
+async def register_account_page(request: Request):
+    """User registration page"""
+    return templates.TemplateResponse("register_account.html", {"request": request})
+
+
+@app.post("/auth/register")
+async def register_user(
+    request: Request,
+    email: str = Form(...),
+    password: str = Form(...),
+    first_name: str = Form(...),
+    last_name: str = Form(...),
+    manager: CustomUserManager = Depends(get_user_manager)
+):
+    """Register a new user (pending approval)"""
+    try:
+        user_create = UserCreate(
+            email=email,
+            password=password,
+            first_name=first_name,
+            last_name=last_name,
+            is_active=False,  # Pending approval
+            is_verified=False,
+            is_suspended=False
+        )
+
+        user = await manager.create(user_create)
+
+        print(f"[AUTH] New user registered: {email} (pending approval)")
+
+        return templates.TemplateResponse("registration_pending.html", {"request": request})
+
+    except IntegrityError:
+        raise HTTPException(status_code=400, detail="User already exists")
+    except Exception as e:
+        print(f"[AUTH] Registration error: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/", response_class=HTMLResponse)
+async def home(request: Request):
+    """Home page - redirects to login if not authenticated"""
+    try:
+        # Try to get current user from cookie
+        # If no cookie or invalid, redirect to login
+        return RedirectResponse(url="/login", status_code=302)
+    except:
+        return RedirectResponse(url="/login", status_code=302)
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard(request: Request, user: User = Depends(current_active_user)):
+    """Main dashboard (requires authentication)"""
+    return templates.TemplateResponse("dashboard.html", {
+        "request": request,
+        "user": user
+    })
+
+
+@app.post("/auth/logout")
+async def logout(response: HTMLResponse):
+    """Logout user"""
+    response = RedirectResponse(url="/login", status_code=302)
+    response.delete_cookie("auth_cookie")
+    return response
+
+
+# ============================================================================
+# GOOGLE OAUTH ROUTES
+# ============================================================================
+
+@app.get("/auth/google/authorize")
+async def google_authorize(request: Request):
+    """Redirect to Google OAuth authorization"""
+    redirect_uri = str(request.url_for("google_callback"))
+    auth_url = await google_oauth_client.get_authorization_url(
+        redirect_uri,
+        scope=["openid", "email", "profile"]
+    )
+    return {"authorization_url": auth_url}
+
+
+@app.get("/auth/google/callback", name="google_callback")
+async def google_callback(
+    request: Request,
+    code: str,
+    manager: CustomUserManager = Depends(get_user_manager),
+    strategy: JWTStrategy = Depends(get_jwt_strategy),
+):
+    """Handle Google OAuth callback"""
+    try:
+        # Get access token
+        token = await google_oauth_client.get_access_token(code, str(request.url_for("google_callback")))
+
+        # Get user info
+        user_info = await google_oauth_client.get_id_email(token["access_token"])
+        account_id = user_info[0]  # Google subject ID
+        account_email = user_info[1]  # Email
+
+        # Create/get user via OAuth
+        user = await manager.oauth_callback(
+            oauth_name="google",
+            access_token=token["access_token"],
+            account_id=account_id,
+            account_email=account_email,
+            expires_at=token.get("expires_at"),
+            refresh_token=token.get("refresh_token"),
+            associate_by_email=True,
+            is_verified_by_default=False,
+        )
+
+        # Check if suspended
+        if user.is_suspended:
+            return templates.TemplateResponse("suspended.html", {"request": request})
+
+        # Check if pending approval
+        if not user.is_active:
+            return templates.TemplateResponse("pending_approval.html", {"request": request})
+
+        # Create JWT token
+        token_str = await strategy.write_token(user)
+
+        # Redirect to dashboard with auth cookie
+        response = RedirectResponse(url="/dashboard", status_code=302)
+        response.set_cookie(
+            key="auth_cookie",
+            value=token_str,
+            httponly=True,
+            max_age=3600,
+            samesite="lax"
+        )
+
+        return response
+
+    except Exception as e:
+        print(f"[OAUTH] Error: {e}")
+        raise HTTPException(status_code=400, detail=f"OAuth error: {str(e)}")
+
+
+# ============================================================================
+# ADMIN ROUTES
+# ============================================================================
+
+@app.get("/admin/users", response_class=HTMLResponse)
+async def admin_users_page(request: Request, user: User = Depends(current_superuser)):
+    """Admin user management page"""
+    return templates.TemplateResponse("admin_users.html", {"request": request, "user": user})
+
+
+@app.get("/api/admin/users")
+async def list_all_users(
+    user: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """List all users (admin only)"""
+    result = await session.execute(select(User))
+    users = result.scalars().all()
+
+    return {
+        "users": [
+            {
+                "id": u.id,
+                "email": u.email,
+                "first_name": u.first_name,
+                "last_name": u.last_name,
+                "is_active": u.is_active,
+                "is_superuser": u.is_superuser,
+                "is_suspended": u.is_suspended,
+                "is_verified": u.is_verified
+            }
+            for u in users
+        ]
+    }
+
+
+@app.post("/api/admin/users/{user_id}/approve")
+async def approve_user(
+    user_id: int,
+    admin: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Approve a pending user"""
+    result = await session.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.is_active = True
+    await session.commit()
+
+    print(f"[ADMIN] User approved: {user.email}")
+
+    return {"success": True, "message": f"User {user.email} approved"}
+
+
+@app.post("/api/admin/users/{user_id}/suspend")
+async def suspend_user(
+    user_id: int,
+    admin: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Suspend a user"""
+    result = await session.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.is_suspended = True
+    await session.commit()
+
+    print(f"[ADMIN] User suspended: {user.email}")
+
+    return {"success": True, "message": f"User {user.email} suspended"}
+
+
+@app.post("/api/admin/users/{user_id}/unsuspend")
+async def unsuspend_user(
+    user_id: int,
+    admin: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Unsuspend a user"""
+    result = await session.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.is_suspended = False
+    await session.commit()
+
+    print(f"[ADMIN] User unsuspended: {user.email}")
+
+    return {"success": True, "message": f"User {user.email} unsuspended"}
+
+
+# ============================================================================
+# FACIAL RECOGNITION API ROUTES (from original Flask app)
+# ============================================================================
+
+class RegisterRequest(BaseModel):
+    name: str
+    photos: List[str]
+
+
+class RecognizeRequest(BaseModel):
+    image: str
+
+
+@app.get("/register", response_class=HTMLResponse)
+async def register_face_page(request: Request, user: User = Depends(current_active_user)):
+    """Face registration page (requires authentication)"""
+    return templates.TemplateResponse("register.html", {"request": request, "user": user})
+
+
+@app.get("/recognize-face", response_class=HTMLResponse)
+async def recognize_face_page(request: Request, user: User = Depends(current_active_user)):
+    """Face recognition page (requires authentication)"""
+    return templates.TemplateResponse("recognize.html", {"request": request, "user": user})
+
+
+@app.post("/api/register")
+async def register_face(
+    data: RegisterRequest,
+    user: User = Depends(current_active_user)
+):
+    """Register face images to CodeProject.AI"""
+    try:
+        print(f"\n{'='*60}")
+        print(f"[REGISTER] New registration request at {datetime.now().strftime('%H:%M:%S')}")
+        print(f"[REGISTER] User: {data.name}")
+        print(f"[REGISTER] Photos to register: {len(data.photos)}")
+
+        successful_registrations = 0
+        errors = []
+
+        for idx, photo_data in enumerate(data.photos):
+            try:
+                print(f"[REGISTER] Processing photo {idx+1}/{len(data.photos)}")
+
+                # Extract base64 data from data URL
+                if ',' in photo_data:
+                    photo_data = photo_data.split(',')[1]
+
+                # Decode base64 image
+                image_bytes = base64.b64decode(photo_data)
+                image_size_kb = len(image_bytes) / 1024
+                print(f"[REGISTER]   Image size: {image_size_kb:.2f} KB")
+
+                # Save locally for backup
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"{data.name.replace(' ', '_')}_{timestamp}_{idx}.jpg"
+                filepath = os.path.join(UPLOAD_FOLDER, filename)
+                with open(filepath, 'wb') as f:
+                    f.write(image_bytes)
+                print(f"[REGISTER]   Saved locally: {filename}")
+
+                # Register with CodeProject.AI
+                files = {
+                    'image': (filename, BytesIO(image_bytes), 'image/jpeg')
+                }
+                params = {
+                    'userid': data.name
+                }
+
+                print(f"[REGISTER]   Sending to CodeProject.AI...")
+
+                response = requests.post(
+                    f"{CODEPROJECT_BASE_URL}/vision/face/register",
+                    files=files,
+                    data=params,
+                    timeout=60
+                )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    if result.get('success'):
+                        successful_registrations += 1
+                        print(f"[REGISTER]   ✓ Photo {idx+1} registered successfully")
+                    else:
+                        error_msg = result.get('error', 'Unknown error')
+                        errors.append(f"Photo {idx+1}: {error_msg}")
+                        print(f"[REGISTER]   ✗ Photo {idx+1} failed: {error_msg}")
+                else:
+                    errors.append(f"Photo {idx+1}: HTTP {response.status_code}")
+                    print(f"[REGISTER]   ✗ Photo {idx+1} failed with status {response.status_code}")
+
+            except Exception as e:
+                errors.append(f"Photo {idx+1}: {str(e)}")
+                print(f"[REGISTER]   ✗ Photo {idx+1} exception: {e}")
+
+        print(f"[REGISTER] Registration complete: {successful_registrations}/{len(data.photos)} successful")
+        print(f"{'='*60}\n")
+
+        if successful_registrations > 0:
+            return {
+                "success": True,
+                "message": f"Successfully registered {successful_registrations} out of {len(data.photos)} photos for {data.name}",
+                "registered_count": successful_registrations,
+                "total_count": len(data.photos),
+                "errors": errors if errors else None
+            }
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail={"success": False, "error": "Failed to register any photos", "details": errors}
+            )
+
+    except Exception as e:
+        print(f"[REGISTER] ✗ EXCEPTION: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/recognize")
+async def recognize_face(
+    data: RecognizeRequest,
+    user: User = Depends(current_active_user)
+):
+    """Recognize face in image using CodeProject.AI"""
+    try:
+        print(f"\n{'='*60}")
+        print(f"[RECOGNIZE] New recognition request at {datetime.now().strftime('%H:%M:%S')}")
+
+        # Extract base64 data from data URL
+        image_data = data.image
+        if ',' in image_data:
+            image_data = image_data.split(',')[1]
+
+        # Decode base64 image
+        image_bytes = base64.b64decode(image_data)
+
+        # Send to CodeProject.AI for recognition
+        files = {
+            'image': ('frame.jpg', BytesIO(image_bytes), 'image/jpeg')
+        }
+
+        response = requests.post(
+            f"{CODEPROJECT_BASE_URL}/vision/face/recognize",
+            files=files,
+            timeout=30
+        )
+
+        if response.status_code == 200:
+            result = response.json()
+            predictions = result.get('predictions', [])
+
+            recognized_faces = []
+            for pred in predictions:
+                recognized_faces.append({
+                    "userid": pred.get('userid', 'unknown'),
+                    "confidence": pred.get('confidence', 0),
+                    "x_min": pred.get('x_min', 0),
+                    "y_min": pred.get('y_min', 0),
+                    "x_max": pred.get('x_max', 0),
+                    "y_max": pred.get('y_max', 0)
+                })
+
+            print(f"[RECOGNIZE] ✓ SUCCESS - Found {len(recognized_faces)} face(s)")
+            print(f"{'='*60}\n")
+
+            return {
+                "success": True,
+                "faces": recognized_faces,
+                "count": len(recognized_faces)
+            }
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail=f"CodeProject.AI returned status {response.status_code}"
+            )
+
+    except Exception as e:
+        print(f"[RECOGNIZE] ✗ EXCEPTION: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# RUN SERVER
+# ============================================================================
+
+if __name__ == "__main__":
+    import uvicorn
+    print(f"\n{'*'*60}")
+    print(f"*{' '*58}*")
+    print(f"*  Facial Recognition App with Authentication{' '*14}*")
+    print(f"*{' '*58}*")
+    print(f"{'*'*60}\n")
+    print(f"Server will start at: http://localhost:5000")
+    print(f"Login page: http://localhost:5000/login")
+    print(f"Dashboard: http://localhost:5000/dashboard")
+    print(f"\nPress Ctrl+C to stop\n")
+
+    uvicorn.run("main:app", host="0.0.0.0", port=5000, reload=True)
+
