@@ -3,15 +3,179 @@
 [CONFIG] Base directory: /home/dave/Facial-Recognition
 [CONFIG] Upload folder: /home/dave/Facial-Recognition/uploads
 [CONFIG] CodeProject.AI: http://172.16.1.150:32168/v1
-/home/dave/Facial-Recognition/app/main.py:247: DeprecationWarning:
+/home/dave/Facial-Recognition/app/main.py:274: DeprecationWarning:
         on_event is deprecated, use lifespan event handlers instead.
 
         Read more about it in the
         [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
 
   @app.on_event("startup")
+
+************************************************************
+*                                                          *
+*  Facial Recognition App with Authentication              *
+*                                                          *
+************************************************************
+
+Server will start at: http://localhost:5000
+Login page: http://localhost:5000/login
+Dashboard: http://localhost:5000/dashboard
+
+Press Ctrl+C to stop
+
+INFO:     Will watch for changes in these directories: ['/home/dave/Facial-Recognition/app']
+INFO:     Uvicorn running on http://0.0.0.0:5000 (Press CTRL+C to quit)
+INFO:     Started reloader process [510957] using StatReload
+[CONFIG] Database URL: mariadb+aiomysql://app_user:testpass123@172.16.1.150:3306/facial_recognition
+[CONFIG] Base directory: /home/dave/Facial-Recognition
+[CONFIG] Upload folder: /home/dave/Facial-Recognition/uploads
+[CONFIG] CodeProject.AI: http://172.16.1.150:32168/v1
+[CONFIG] Database URL: mariadb+aiomysql://app_user:testpass123@172.16.1.150:3306/facial_recognition
+[CONFIG] Base directory: /home/dave/Facial-Recognition
+[CONFIG] Upload folder: /home/dave/Facial-Recognition/uploads
+[CONFIG] CodeProject.AI: http://172.16.1.150:32168/v1
+INFO:     Started server process [510963]
+INFO:     Waiting for application startup.
+
+============================================================
+[STARTUP] Facial Recognition App starting...
+[DB-INIT] Looking for .env file at: /home/dave/Facial-Recognition/.env
+[DB-INIT] .env file exists: True
+[DB-INIT] Connecting to MariaDB server at 172.16.1.150:3306
+[DB-INIT] User: app_user
+[DB-INIT] Target database: facial_recognition
+
+============================================================
+[DATABASE] Initializing database: facial_recognition
+[DATABASE] Host: 172.16.1.150:3306
+[DATABASE] User: app_user
+[DATABASE] ✓ Database 'facial_recognition' already exists and is accessible
+[STARTUP] ✓ Database tables created/verified
+[STARTUP] ⚠ Could not create admin user: (pymysql.err.OperationalError) (1054, "Unknown column 'user.password_change_required' in 'SELECT'")
+[SQL: SELECT user.id, user.email, user.hashed_password, user.is_active, user.is_superuser, user.is_verified, user.first_name, user.last_name, user.is_suspended, user.dashboard_preferences, user.password_change_required
+FROM user
+WHERE lower(user.email) = lower(%s)]
+[parameters: ('admin@example.com',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
 Traceback (most recent call last):
-  File "/home/dave/Facial-Recognition/app/main.py", line 376, in <module>
-    password_data: ChangePasswordRequest,
-                   ^^^^^^^^^^^^^^^^^^^^^
-NameError: name 'ChangePasswordRequest' is not defined
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 95, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 104, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 239, in execute
+    await self._query(query)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 457, in _query
+    await conn.query(q)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 469, in query
+    await self._read_query_result(unbuffered=unbuffered)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+    await result.read()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 1164, in read
+    first_packet = await self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 652, in _read_packet
+    packet.raise_for_error()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.OperationalError: (1054, "Unknown column 'user.password_change_required' in 'SELECT'")
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/dave/Facial-Recognition/app/main.py", line 310, in on_startup
+    existing_admin = await user_manager.get_by_email(ADMIN_EMAIL)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/fastapi_users/manager.py", line 87, in get_by_email
+    user = await self.user_db.get_by_email(user_email)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/fastapi_users_db_sqlalchemy/__init__.py", line 127, in get_by_email
+    return await self._get_user(statement)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/fastapi_users_db_sqlalchemy/__init__.py", line 188, in _get_user
+    results = await self.session.execute(statement)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/session.py", line 461, in execute
+    result = await greenlet_spawn(
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 201, in greenlet_spawn
+    result = context.throw(*sys.exc_info())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2362, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2247, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/context.py", line 305, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1418, in execute
+    return meth(
+           ^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 515, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1640, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2355, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 95, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 104, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 239, in execute
+    await self._query(query)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 457, in _query
+    await conn.query(q)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 469, in query
+    await self._read_query_result(unbuffered=unbuffered)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+    await result.read()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 1164, in read
+    first_packet = await self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 652, in _read_packet
+    packet.raise_for_error()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+sqlalchemy.exc.OperationalError: (pymysql.err.OperationalError) (1054, "Unknown column 'user.password_change_required' in 'SELECT'")
+[SQL: SELECT user.id, user.email, user.hashed_password, user.is_active, user.is_superuser, user.is_verified, user.first_name, user.last_name, user.is_suspended, user.dashboard_preferences, user.password_change_required
+FROM user
+WHERE lower(user.email) = lower(%s)]
+[parameters: ('admin@example.com',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+[STARTUP] ✓ Startup complete
