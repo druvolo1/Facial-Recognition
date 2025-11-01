@@ -126,11 +126,21 @@
     <div class="navbar">
         <h1>🔐 Facial Recognition</h1>
         <div class="user-info">
-            <span>{{ user.email }}</span>
-            {% if user.is_superuser %}
-            <span class="admin-badge">ADMIN</span>
-            {% endif %}
-            <button class="logout-btn" onclick="logout()">Logout</button>
+            <div style="display: flex; gap: 20px; align-items: center;">
+                <a href="/dashboard" style="color: #333; text-decoration: none; font-weight: 500;">Dashboard</a>
+                <a href="/register" style="color: #333; text-decoration: none; font-weight: 500;">Register Faces</a>
+                <a href="/recognize-face" style="color: #333; text-decoration: none; font-weight: 500;">Recognize Faces</a>
+                {% if user.is_superuser %}
+                <a href="/admin/users" style="color: #333; text-decoration: none; font-weight: 500;">Manage Users</a>
+                {% endif %}
+            </div>
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <span>{{ user.email }}</span>
+                {% if user.is_superuser %}
+                <span class="admin-badge">ADMIN</span>
+                {% endif %}
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
         </div>
     </div>
 

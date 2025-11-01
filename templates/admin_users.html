@@ -30,6 +30,12 @@
             font-size: 24px;
         }
 
+        .user-info {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+
         .back-btn {
             background: rgba(255, 255, 255, 0.2);
             color: white;
@@ -170,8 +176,16 @@
 </head>
 <body>
     <div class="navbar">
-        <h1>⚙️ User Management</h1>
-        <a href="/dashboard" class="back-btn">← Back to Dashboard</a>
+        <h1>🔐 Facial Recognition</h1>
+        <div class="user-info">
+            <div style="display: flex; gap: 20px; align-items: center;">
+                <a href="/dashboard" style="color: white; text-decoration: none; font-weight: 500;">Dashboard</a>
+                <a href="/register" style="color: white; text-decoration: none; font-weight: 500;">Register Faces</a>
+                <a href="/recognize-face" style="color: white; text-decoration: none; font-weight: 500;">Recognize Faces</a>
+                <a href="/admin/users" style="color: white; text-decoration: none; font-weight: 600; border-bottom: 2px solid white;">Manage Users</a>
+            </div>
+            <button class="back-btn" onclick="logout()">Logout</button>
+        </div>
     </div>
 
     <div class="container">
@@ -323,6 +337,16 @@
 
         // Load users on page load
         loadUsers();
+
+        // Logout function
+        async function logout() {
+            try {
+                await fetch('/auth/logout', { method: 'POST' });
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+            window.location.href = '/login';
+        }
     </script>
 </body>
 </html>

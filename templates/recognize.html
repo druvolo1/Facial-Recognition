@@ -15,7 +15,60 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 20px;
+            padding: 0;
+        }
+
+        .navbar {
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .navbar h1 {
+            color: #667eea;
+            font-size: 24px;
+            margin: 0;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: #333;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: #667eea;
+        }
+
+        .nav-links a.active {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .logout-btn {
+            background: #f56565;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: #e53e3e;
         }
 
         .container {
@@ -23,7 +76,7 @@
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             max-width: 1200px;
-            margin: 0 auto;
+            margin: 0 auto 20px;
             padding: 40px;
         }
 
@@ -39,16 +92,6 @@
             margin-bottom: 20px;
         }
 
-        .back-link {
-            display: inline-block;
-            color: #667eea;
-            text-decoration: none;
-            margin-bottom: 20px;
-        }
-
-        .back-link:hover {
-            text-decoration: underline;
-        }
 
         .camera-section {
             position: relative;
@@ -260,9 +303,17 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <a href="/" class="back-link">← Back to Home</a>
+    <div class="navbar">
+        <h1>🔐 Facial Recognition</h1>
+        <div class="nav-links">
+            <a href="/dashboard">Dashboard</a>
+            <a href="/register">Register Faces</a>
+            <a href="/recognize-face" class="active">Recognize Faces</a>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
 
+    <div class="container">
         <h1>Face Recognition</h1>
         <p class="subtitle">Real-time face recognition powered by CodeProject.AI</p>
 
@@ -549,6 +600,16 @@
         window.addEventListener('beforeunload', () => {
             stopCamera();
         });
+
+        // Logout function
+        async function logout() {
+            try {
+                await fetch('/auth/logout', { method: 'POST' });
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+            window.location.href = '/login';
+        }
     </script>
 </body>
 </html>
