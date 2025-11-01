@@ -337,7 +337,7 @@
                         id="avatarUrl"
                         class="avatar-url-input"
                         placeholder="Paste your Ready Player Me avatar URL here..."
-                        value="https://models.readyplayer.me/6566b507f716fb66c7ecbf50.glb"
+                        value="https://models.readyplayer.me/6905501491ee90a9d5fdb39c.glb"
                     >
                     <button class="load-avatar-btn" id="loadAvatarBtn">Load Avatar</button>
                     <div class="helper-text">
@@ -388,6 +388,12 @@
                 </div>
 
                 <div class="info-box">
+                    <strong>How to get your avatar URL:</strong><br>
+                    1. Go to <a href="https://readyplayer.me" target="_blank">readyplayer.me</a><br>
+                    2. Create your custom avatar<br>
+                    3. Click "Download" → choose "GLB" format<br>
+                    4. Right-click the download link → "Copy Link Address"<br>
+                    5. Paste the URL above and click "Load Avatar"<br><br>
                     <strong>Advanced Features:</strong><br>
                     • <strong>Lip Sync:</strong> Mouth moves naturally with speech<br>
                     • <strong>Eye Tracking:</strong> Avatar looks at detected face<br>
@@ -523,36 +529,55 @@
                     avatar.scale.set(1, 1, 1);
 
                     // Find head, neck, and eyes for tracking
+                    console.log('[AVATAR] Scanning for bones and morph targets...');
                     avatar.traverse((node) => {
                         if (node.isBone) {
                             const nodeName = node.name.toLowerCase();
-                            if (nodeName.includes('head')) {
+                            console.log('[AVATAR] Found bone:', node.name);
+
+                            // Try multiple possible head bone names
+                            if (nodeName.includes('head') || nodeName === 'head' || nodeName.includes('mixamorig_head')) {
                                 avatarHead = node;
-                            } else if (nodeName.includes('neck')) {
+                                console.log('[AVATAR] ✓ Head bone found:', node.name);
+                            } else if (nodeName.includes('neck') || nodeName === 'neck' || nodeName.includes('mixamorig_neck')) {
                                 avatarNeck = node;
+                                console.log('[AVATAR] ✓ Neck bone found:', node.name);
                             }
                         }
 
                         // Find morph targets for facial expressions and lip sync
                         if (node.isMesh && node.morphTargetDictionary) {
                             const dict = node.morphTargetDictionary;
+                            console.log('[AVATAR] Found mesh with morph targets:', node.name);
+                            console.log('[AVATAR] Available morph targets:', Object.keys(dict));
 
-                            // Store references to morph targets
+                            // Store ALL meshes with morph targets (Ready Player Me may have multiple)
+                            if (!morphTargets.meshes) {
+                                morphTargets.meshes = [];
+                            }
+                            morphTargets.meshes.push({
+                                mesh: node,
+                                influences: node.morphTargetInfluences,
+                                dictionary: dict
+                            });
+
+                            // Keep first mesh as primary
                             if (!morphTargets.mesh) {
                                 morphTargets.mesh = node;
                                 morphTargets.influences = node.morphTargetInfluences;
                                 morphTargets.dictionary = dict;
-
-                                console.log('[AVATAR] Available morph targets:', Object.keys(dict));
                             }
                         }
 
-                        // Find eyes
-                        if (node.name.toLowerCase().includes('leftEye')) {
+                        // Find eyes - try multiple naming conventions
+                        const nodeName = node.name.toLowerCase();
+                        if (nodeName.includes('lefteye') || nodeName === 'eye_l' || nodeName.includes('eye.l')) {
                             leftEye = node;
+                            console.log('[AVATAR] ✓ Left eye found:', node.name);
                         }
-                        if (node.name.toLowerCase().includes('rightEye')) {
+                        if (nodeName.includes('righteye') || nodeName === 'eye_r' || nodeName.includes('eye.r')) {
                             rightEye = node;
+                            console.log('[AVATAR] ✓ Right eye found:', node.name);
                         }
                     });
 
@@ -618,23 +643,51 @@
             });
         }
 
-        // Set morph target value by name
+        // Set morph target value by name - try all meshes
         function setMorphTarget(name, value) {
-            if (!morphTargets.mesh || !morphTargets.dictionary) return;
+            let found = false;
 
-            const index = morphTargets.dictionary[name];
-            if (index !== undefined) {
-                morphTargets.influences[index] = value;
+            // Try all meshes with morph targets
+            if (morphTargets.meshes) {
+                morphTargets.meshes.forEach(meshData => {
+                    const index = meshData.dictionary[name];
+                    if (index !== undefined) {
+                        meshData.influences[index] = value;
+                        found = true;
+                    }
+                });
             }
+
+            // Fallback to primary mesh
+            if (!found && morphTargets.mesh && morphTargets.dictionary) {
+                const index = morphTargets.dictionary[name];
+                if (index !== undefined) {
+                    morphTargets.influences[index] = value;
+                    found = true;
+                }
+            }
+
+            return found;
         }
 
         // Get morph target value by name
         function getMorphTarget(name) {
-            if (!morphTargets.mesh || !morphTargets.dictionary) return 0;
+            // Try all meshes
+            if (morphTargets.meshes) {
+                for (let meshData of morphTargets.meshes) {
+                    const index = meshData.dictionary[name];
+                    if (index !== undefined) {
+                        return meshData.influences[index];
+                    }
+                }
+            }
 
-            const index = morphTargets.dictionary[name];
-            if (index !== undefined) {
-                return morphTargets.influences[index];
+            // Fallback to primary mesh
+            if (morphTargets.mesh && morphTargets.dictionary) {
+                const index = morphTargets.dictionary[name];
+                if (index !== undefined) {
+                    return morphTargets.influences[index];
+                }
             }
             return 0;
         }
@@ -664,35 +717,30 @@
 
         // Update lip sync based on audio
         function updateLipSync() {
-            if (!document.getElementById('enableLipSync').checked || !isSpeaking || !analyser) {
-                // Close mouth when not speaking
-                animateMorphTarget('mouthOpen', 0, 100);
-                animateMorphTarget('jawOpen', 0, 100);
+            if (!document.getElementById('enableLipSync').checked || !isSpeaking) {
+                // Close mouth when not speaking - try various morph target names
+                setMorphTarget('mouthOpen', 0);
+                setMorphTarget('jawOpen', 0);
+                setMorphTarget('viseme_aa', 0);
+                setMorphTarget('viseme_O', 0);
                 return;
             }
 
-            analyser.getByteFrequencyData(dataArray);
+            // Use simple time-based animation since Web Audio API doesn't capture speech synthesis
+            const t = Date.now() * 0.015;
+            const mouthValue = Math.abs(Math.sin(t)) * 0.6;
 
-            // Calculate average volume
-            let sum = 0;
-            for (let i = 0; i < dataArray.length; i++) {
-                sum += dataArray[i];
+            // Try different Ready Player Me morph target names
+            let applied = false;
+            applied = setMorphTarget('mouthOpen', mouthValue) || applied;
+            applied = setMorphTarget('jawOpen', mouthValue * 0.7) || applied;
+            applied = setMorphTarget('viseme_aa', mouthValue) || applied;
+            applied = setMorphTarget('viseme_O', mouthValue * 0.8) || applied;
+            applied = setMorphTarget('viseme_I', mouthValue * 0.3) || applied;
+
+            if (!applied) {
+                console.log('[LIP SYNC] No suitable morph targets found');
             }
-            const average = sum / dataArray.length;
-
-            // Normalize to 0-1 range
-            const normalized = average / 255;
-
-            // Apply to mouth morph targets
-            const mouthOpen = normalized * 0.7;
-            const jawOpen = normalized * 0.5;
-
-            setMorphTarget('mouthOpen', mouthOpen);
-            setMorphTarget('jawOpen', jawOpen);
-
-            // Add some variation for more natural look
-            const variation = Math.sin(Date.now() * 0.01) * 0.1;
-            setMorphTarget('mouthSmile', variation * normalized);
         }
 
         // Update eye tracking to look at detected face
@@ -733,17 +781,24 @@
         function showExpression(expression, intensity = 1.0, duration = 1000) {
             if (!document.getElementById('enableExpressions').checked) return;
 
+            // Ready Player Me uses Apple ARKit blend shape names
             const expressions = {
-                smile: ['mouthSmile', 'eyeSquintLeft', 'eyeSquintRight'],
-                happy: ['mouthSmile', 'eyesClosed', 'cheekPuff'],
-                surprised: ['mouthOpen', 'eyesWide', 'browInnerUp'],
+                smile: ['mouthSmile', 'mouthSmileLeft', 'mouthSmileRight', 'viseme_aa'],
+                happy: ['mouthSmile', 'mouthSmileLeft', 'mouthSmileRight', 'eyeSquintLeft', 'eyeSquintRight'],
+                surprised: ['jawOpen', 'eyeWideLeft', 'eyeWideRight', 'browInnerUp'],
                 neutral: []
             };
 
             const morphs = expressions[expression] || [];
 
+            console.log('[EXPRESSION] Trying to show:', expression, 'with morphs:', morphs);
+
             // Animate expression
             morphs.forEach(morph => {
+                const success = setMorphTarget(morph, intensity);
+                if (success) {
+                    console.log('[EXPRESSION] ✓ Applied:', morph);
+                }
                 animateMorphTarget(morph, intensity, duration / 2);
             });
 
