@@ -856,37 +856,42 @@
             }
         }
 
-        // Handle assign location form submission
-        document.getElementById('assignLocationForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        // Handle assign location form submission - wait for DOM to load
+        window.addEventListener('DOMContentLoaded', () => {
+            const assignForm = document.getElementById('assignLocationForm');
+            if (assignForm) {
+                assignForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
 
-            const userId = parseInt(document.getElementById('assignLocationUserId').value);
-            const locationId = parseInt(document.getElementById('assignLocationSelect').value);
-            const role = document.getElementById('assignRoleSelect').value;
+                    const userId = parseInt(document.getElementById('assignLocationUserId').value);
+                    const locationId = parseInt(document.getElementById('assignLocationSelect').value);
+                    const role = document.getElementById('assignRoleSelect').value;
 
-            try {
-                const response = await fetch(`/api/locations/${locationId}/users`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        user_id: userId,
-                        role: role
-                    })
+                    try {
+                        const response = await fetch(`/api/locations/${locationId}/users`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                user_id: userId,
+                                role: role
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.detail || 'Failed to assign location');
+                        }
+
+                        alert('Location assigned successfully!');
+                        await loadUserAssignments(userId);
+                        await loadUsers(); // Refresh the main user list
+                        e.target.reset();
+                    } catch (error) {
+                        alert('Error: ' + error.message);
+                    }
                 });
-
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.detail || 'Failed to assign location');
-                }
-
-                alert('Location assigned successfully!');
-                await loadUserAssignments(userId);
-                await loadUsers(); // Refresh the main user list
-                e.target.reset();
-            } catch (error) {
-                alert('Error: ' + error.message);
             }
         });
 

@@ -1,27 +1,4 @@
-locations:773  GET https://nrf.ruvolo.loseyourip.com/api/locations/1/users 500 (Internal Server Error)
-loadLocationUsers @ locations:773
-showManageUsersModal @ locations:765
-onclick @ locations:1
-locations:779 Error loading location users: Error: Failed to load users
-    at loadLocationUsers (locations:774:41)
-    at async showManageUsersModal (locations:765:13)
-loadLocationUsers @ locations:779
-await in loadLocationUsers
-showManageUsersModal @ locations:765
-onclick @ locations:1
-locations:773  GET https://nrf.ruvolo.loseyourip.com/api/locations/1/users 500 (Internal Server Error)
-loadLocationUsers @ locations:773
-(anonymous) @ locations:845
-locations:779 Error loading location users: Error: Failed to load users
-    at loadLocationUsers (locations:774:41)
-loadLocationUsers @ locations:779
-await in loadLocationUsers
-(anonymous) @ locations:845
-locations:773  GET https://nrf.ruvolo.loseyourip.com/api/locations/1/users 500 (Internal Server Error)
-loadLocationUsers @ locations:773
-(anonymous) @ locations:845
-locations:779 Error loading location users: Error: Failed to load users
-    at loadLocationUsers (locations:774:41)
-loadLocationUsers @ locations:779
-await in loadLocationUsers
-(anonymous) @ locations:845
+users:860 Uncaught TypeError: Cannot read properties of null (reading 'addEventListener')
+    at users:860:54
+(anonymous) @ users:860
+users:1 [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) <input type=​"password" id=​"newUserPassword" required minlength=​"8">​
