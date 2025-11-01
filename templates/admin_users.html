@@ -216,6 +216,15 @@
             background: #e68900;
         }
 
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-delete:hover {
+            background: #c82333;
+        }
+
         .modal {
             display: none;
             position: fixed;
@@ -448,6 +457,11 @@
                         actions += `<button class="btn btn-reset" onclick="resetPassword(${user.id}, '${user.email}')">Reset Password</button>`;
                     }
 
+                    // Delete button for all users except current admin
+                    if (user.id !== currentUserId) {
+                        actions += `<button class="btn btn-delete" onclick="deleteUser(${user.id}, '${user.email}')">Delete</button>`;
+                    }
+
                     const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ') || '-';
 
                     row.innerHTML = `
@@ -670,6 +684,39 @@
             navigator.clipboard.writeText(password).then(() => {
                 alert('Password copied to clipboard!');
             });
+        }
+
+        // Delete user
+        async function deleteUser(userId, userEmail) {
+            if (!confirm(`Are you sure you want to DELETE user "${userEmail}"?\n\nThis action cannot be undone and will:\n- Permanently remove the user account\n- Remove all user data\n\nType the email address to confirm deletion.`)) {
+                return;
+            }
+
+            // Extra confirmation - ask user to type the email
+            const confirmEmail = prompt(`To confirm deletion, please type the user's email address:\n\n${userEmail}`);
+
+            if (confirmEmail !== userEmail) {
+                alert('Email does not match. Deletion cancelled.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/admin/users/${userId}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert(`User "${userEmail}" has been deleted successfully.`);
+                    loadUsers();
+                } else {
+                    alert(`Failed to delete user: ${result.detail}`);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error deleting user');
+            }
         }
     </script>
 

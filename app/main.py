@@ -746,6 +746,37 @@ async def reset_user_password(
     }
 
 
+@app.delete("/api/admin/users/{user_id}")
+async def delete_user(
+    user_id: int,
+    admin: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Admin deletes a user account"""
+    # Don't allow deleting yourself
+    if user_id == admin.id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+
+    result = await session.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user_email = user.email
+
+    # Delete the user
+    await session.delete(user)
+    await session.commit()
+
+    print(f"[ADMIN] User deleted by {admin.email}: {user_email}")
+
+    return {
+        "success": True,
+        "message": f"User {user_email} deleted successfully"
+    }
+
+
 # ============================================================================
 # FACIAL RECOGNITION API ROUTES (from original Flask app)
 # ============================================================================
