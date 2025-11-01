@@ -11,16 +11,8 @@ import re
 from urllib.parse import urlparse
 import subprocess
 import hashlib
-from gtts import gTTS
+import pyttsx3
 import wave
-
-# Try to import Google Cloud TTS (optional, falls back to gTTS)
-try:
-    from google.cloud import texttospeech
-    GOOGLE_CLOUD_TTS_AVAILABLE = True
-except ImportError:
-    GOOGLE_CLOUD_TTS_AVAILABLE = False
-    print("[STARTUP] Google Cloud TTS not available, will use gTTS")
 
 app = Flask(__name__)
 
@@ -497,86 +489,47 @@ def text_to_speech():
                 "cached": True
             })
 
-        # Generate audio using Google Cloud TTS (with fallback to gTTS)
-        print(f"[TTS] Generating audio...")
+        # Generate audio using pyttsx3 with espeak (100% free, offline)
+        print(f"[TTS] Generating audio with espeak (male voice)...")
+        try:
+            # Initialize espeak engine
+            engine = pyttsx3.init('espeak')
+            print(f"[TTS] Using espeak driver")
 
-        # Try Google Cloud TTS first (better quality, specific voices)
-        use_google_cloud = GOOGLE_CLOUD_TTS_AVAILABLE and os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')
+            # Set male voice
+            # Espeak voice variants:
+            # english-us+m3 = Male US voice variant 3 (deeper)
+            # english-us+m7 = Older male voice
+            # english-us+m1 = Male voice variant 1
+            engine.setProperty('voice', 'english-us+m3')  # Male voice, deeper variant
+            print(f"[TTS] ✓ Set voice to: english-us+m3 (male, deeper)")
 
-        if use_google_cloud:
-            print(f"[TTS] Using Google Cloud Text-to-Speech (Deep Male Voice)")
+            # Adjust speech properties for better sound
+            engine.setProperty('rate', 140)  # Slightly slower for clarity
+            engine.setProperty('volume', 1.0)
+            engine.setProperty('pitch', 50)  # Lower pitch for male voice
+
+            # Save to file
+            engine.save_to_file(text, audio_path)
+            engine.runAndWait()
+
+            # Stop engine
             try:
-                # Initialize the client
-                client = texttospeech.TextToSpeechClient()
+                engine.stop()
+            except:
+                pass
 
-                # Set the text input
-                synthesis_input = texttospeech.SynthesisInput(text=text)
+            final_audio_filename = audio_filename
+            print(f"[TTS] ✓ Audio generated: {final_audio_filename}")
 
-                # Build the voice request
-                # Voice options:
-                # en-US-Neural2-D: Deep male voice (recommended for male avatar)
-                # en-GB-Neural2-B: Male British voice
-                # en-GB-Neural2-D: Deep male British voice
-                voice = texttospeech.VoiceSelectionParams(
-                    language_code="en-US",
-                    name="en-US-Neural2-D",  # Deep male voice
-                    ssml_gender=texttospeech.SsmlVoiceGender.MALE
-                )
-
-                # Select the audio encoding
-                audio_config = texttospeech.AudioConfig(
-                    audio_encoding=texttospeech.AudioEncoding.MP3,
-                    speaking_rate=1.0,  # Normal speed
-                    pitch=0.0  # Normal pitch
-                )
-
-                # Perform the text-to-speech request
-                response = client.synthesize_speech(
-                    input=synthesis_input,
-                    voice=voice,
-                    audio_config=audio_config
-                )
-
-                # Save the audio to MP3 file
-                mp3_path = audio_path.replace('.wav', '.mp3')
-                with open(mp3_path, 'wb') as out:
-                    out.write(response.audio_content)
-
-                print(f"[TTS] ✓ Google Cloud TTS audio generated (Deep Male Voice)")
-
-                audio_path = mp3_path
-                final_audio_filename = audio_filename.replace('.wav', '.mp3')
-
-            except Exception as e:
-                print(f"[TTS] ✗ Google Cloud TTS failed: {e}")
-                print(f"[TTS] Falling back to gTTS...")
-                use_google_cloud = False
-
-        if not use_google_cloud:
-            # Fallback to gTTS (free, no API key needed)
-            print(f"[TTS] Using gTTS (basic voice)")
-            try:
-                # Create gTTS object with English language
-                tts = gTTS(text=text, lang='en', slow=False)
-
-                # Save to MP3 file
-                mp3_path = audio_path.replace('.wav', '.mp3')
-                tts.save(mp3_path)
-                print(f"[TTS] ✓ gTTS audio generated (MP3)")
-
-                audio_path = mp3_path
-                final_audio_filename = audio_filename.replace('.wav', '.mp3')
-
-            except Exception as e:
-                print(f"[TTS] ✗ Error generating audio: {e}")
-                import traceback
-                traceback.print_exc()
-                return jsonify({
-                    "success": False,
-                    "error": f"Failed to generate audio: {str(e)}. Check internet connection."
-                }), 500
-
-        print(f"[TTS] ✓ Audio file ready: {final_audio_filename}")
+        except Exception as e:
+            print(f"[TTS] ✗ Error generating audio: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({
+                "success": False,
+                "error": f"Failed to generate audio: {str(e)}"
+            }), 500
 
         # Generate simple viseme data from text (no rhubarb needed)
         print(f"[TTS] Generating simple lip sync data...")
