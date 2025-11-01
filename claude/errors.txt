@@ -1,15 +1,32 @@
-'b2brtpplay' is defined but never used.
-'displayVersion' is defined but never used.
-'onErrorDisplayRect' is defined but never used.
-'onSuccessDisplayRect' is defined but never used.
-'redireccionar' is defined but never used.
-'RTPPlayer' is defined but never used.
-'RTPPlayer' is not defined.
-Expected '!==' and instead saw '!='.
-Expected '!==' and instead saw '!='.
-Expected '!==' and instead saw '!='.
-Expected '===' and instead saw '=='.
-Expected '===' and instead saw '=='.
-Expected '===' and instead saw '=='.
-Expected '===' and instead saw '=='.
-Expected an assignment or function call and instead saw an expression.
+(venv) dave@Garden1:~/Facial-Recognition/app $ python main.py
+[CONFIG] Database URL: mariadb+aiomysql://app_user:testpass123@172.16.1.150:3306/facial_recognition
+[CONFIG] Base directory: /home/dave/Facial-Recognition
+[CONFIG] Upload folder: /home/dave/Facial-Recognition/uploads
+[CONFIG] CodeProject.AI: http://172.16.1.150:32168/v1
+Traceback (most recent call last):
+  File "/home/dave/Facial-Recognition/app/main.py", line 72, in <module>
+    class OAuthAccount(SQLAlchemyBaseOAuthAccountTable[int], Base):
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/decl_api.py", line 836, in __init_subclass__
+    _as_declarative(cls._sa_registry, cls, cls.__dict__)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/decl_base.py", line 244, in _as_declarative
+    return _MapperConfig.setup_mapping(registry, cls, dict_, None, {})
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/decl_base.py", line 325, in setup_mapping
+    return _ClassScanMapperConfig(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/decl_base.py", line 580, in __init__
+    self._early_mapping(mapper_kw)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/decl_base.py", line 366, in _early_mapping
+    self.map(mapper_kw)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/decl_base.py", line 1982, in map
+    mapper_cls(self.cls, self.local_table, **self.mapper_args),
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 2, in __init__
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/deprecations.py", line 281, in warned
+    return fn(*args, **kwargs)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/mapper.py", line 853, in __init__
+    self._configure_pks()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/mapper.py", line 1639, in _configure_pks
+    raise sa_exc.ArgumentError(
+sqlalchemy.exc.ArgumentError: Mapper Mapper[OAuthAccount(oauth_account)] could not assemble any primary key columns for mapped table 'oauth_account'

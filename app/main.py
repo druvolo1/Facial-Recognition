@@ -24,7 +24,7 @@ from sqlalchemy.exc import IntegrityError
 
 from fastapi_users import FastAPIUsers, BaseUserManager, IntegerIDMixin, models, schemas
 from fastapi_users.authentication import AuthenticationBackend, CookieTransport, JWTStrategy
-from fastapi_users.db import SQLAlchemyUserDatabase, SQLAlchemyBaseUserTable, SQLAlchemyBaseOAuthAccountTable
+from fastapi_users.db import SQLAlchemyUserDatabase, SQLAlchemyBaseUserTable
 from fastapi_users_db_sqlalchemy.access_token import SQLAlchemyAccessTokenDatabase, SQLAlchemyBaseAccessTokenTable
 
 from pydantic import EmailStr, BaseModel
@@ -69,11 +69,6 @@ class Base(DeclarativeBase):
     pass
 
 
-class OAuthAccount(SQLAlchemyBaseOAuthAccountTable[int], Base):
-    """OAuth account table for storing Google OAuth credentials"""
-    pass
-
-
 class User(SQLAlchemyBaseUserTable[int], Base):
     """User table with custom fields"""
     __tablename__ = "user"
@@ -92,9 +87,6 @@ class User(SQLAlchemyBaseUserTable[int], Base):
     last_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     is_suspended: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     dashboard_preferences: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-
-    # Relationships
-    oauth_accounts: Mapped[List[OAuthAccount]] = relationship("OAuthAccount", lazy="joined")
 
 
 class AccessToken(SQLAlchemyBaseAccessTokenTable[int], Base):
@@ -119,7 +111,7 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def get_user_db(session: AsyncSession = Depends(get_async_session)):
-    yield SQLAlchemyUserDatabase(session, User, OAuthAccount)
+    yield SQLAlchemyUserDatabase(session, User)
 
 
 async def get_access_token_db(session: AsyncSession = Depends(get_async_session)):
