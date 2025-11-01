@@ -504,8 +504,8 @@ def text_to_speech():
             # english-us+m3 = Male US voice variant 3 (deeper)
             # english-us+m7 = Older male voice
             # english-us+m1 = Male voice variant 1
-            engine.setProperty('voice', 'english-us+m3')  # Male voice, deeper variant
-            print(f"[TTS] ✓ Set voice to: english-us+m3 (male, deeper)")
+            engine.setProperty('voice', 'english-us+m7')  # Male voice, deeper variant
+            print(f"[TTS] ✓ Set voice to: english-us+m7 (male, deeper)")
 
             # Adjust speech properties for better sound
             engine.setProperty('rate', 140)  # Slightly slower for clarity
