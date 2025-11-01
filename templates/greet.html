@@ -134,8 +134,8 @@
             display: block;
             width: 100%;
             height: auto;
-            aspect-ratio: 4 / 3;
-            object-fit: cover;
+            object-fit: contain;
+            background: #000;
         }
 
         #canvas {
@@ -849,19 +849,54 @@
 
         // Update canvas size to match video display size
         function updateCanvasSize() {
+            // When using object-fit: contain, the video maintains aspect ratio
+            // and may have letterboxing. We need to match the actual video content size.
+            const videoAspect = video.videoWidth / video.videoHeight;
+            const containerAspect = video.clientWidth / video.clientHeight;
+
+            let displayWidth, displayHeight, offsetX, offsetY;
+
+            if (containerAspect > videoAspect) {
+                // Container is wider - video will have pillarboxing (black bars on sides)
+                displayHeight = video.clientHeight;
+                displayWidth = displayHeight * videoAspect;
+                offsetX = (video.clientWidth - displayWidth) / 2;
+                offsetY = 0;
+            } else {
+                // Container is taller - video will have letterboxing (black bars top/bottom)
+                displayWidth = video.clientWidth;
+                displayHeight = displayWidth / videoAspect;
+                offsetX = 0;
+                offsetY = (video.clientHeight - displayHeight) / 2;
+            }
+
+            // Set canvas to match the video element container
             canvas.width = video.clientWidth;
             canvas.height = video.clientHeight;
+
             console.log('[VIDEO] Canvas size updated to:', canvas.width, 'x', canvas.height);
             console.log('[VIDEO] Video element size:', video.clientWidth, 'x', video.clientHeight);
             console.log('[VIDEO] Video native size:', video.videoWidth, 'x', video.videoHeight);
+            console.log('[VIDEO] Actual video display:', displayWidth.toFixed(0), 'x', displayHeight.toFixed(0));
+            console.log('[VIDEO] Video offset:', offsetX.toFixed(0), ',', offsetY.toFixed(0));
+
+            // Store these for bounding box calculations
+            video.dataset.displayWidth = displayWidth;
+            video.dataset.displayHeight = displayHeight;
+            video.dataset.offsetX = offsetX;
+            video.dataset.offsetY = offsetY;
         }
 
         // Helper function to calculate scale factors for coordinate conversion
         function getCoordinateScaling() {
             const actualVideoWidth = video.videoWidth || 1280;
             const actualVideoHeight = video.videoHeight || 720;
-            const displayWidth = canvas.width || video.clientWidth;
-            const displayHeight = canvas.height || video.clientHeight;
+
+            // Get the actual displayed video size (accounting for object-fit: contain)
+            const displayWidth = parseFloat(video.dataset.displayWidth) || video.clientWidth;
+            const displayHeight = parseFloat(video.dataset.displayHeight) || video.clientHeight;
+            const offsetX = parseFloat(video.dataset.offsetX) || 0;
+            const offsetY = parseFloat(video.dataset.offsetY) || 0;
 
             // Calculate what size was sent to the server (max 640x480)
             const maxWidth = 640;
@@ -888,7 +923,9 @@
                 sentWidth,
                 sentHeight,
                 displayWidth,
-                displayHeight
+                displayHeight,
+                offsetX,
+                offsetY
             };
         }
 
@@ -960,12 +997,17 @@
                     // Update face position for eye tracking
                     const scaling = getCoordinateScaling();
 
+                    // Get face center in server coordinates
                     const faceX = (bestFace.x_min + bestFace.x_max) / 2;
                     const faceY = (bestFace.y_min + bestFace.y_max) / 2;
 
-                    // Normalize to -1 to 1 range using sent dimensions
-                    detectedFacePosition.x = (faceX / scaling.sentWidth) * 2 - 1;
-                    detectedFacePosition.y = -((faceY / scaling.sentHeight) * 2 - 1);
+                    // Scale to display coordinates
+                    const displayFaceX = faceX * scaling.scaleX + scaling.offsetX;
+                    const displayFaceY = faceY * scaling.scaleY + scaling.offsetY;
+
+                    // Normalize to -1 to 1 range using display dimensions
+                    detectedFacePosition.x = (displayFaceX / scaling.displayWidth) * 2 - 1;
+                    detectedFacePosition.y = -((displayFaceY / scaling.displayHeight) * 2 - 1);
 
                     if (bestFace.userid !== 'unknown') {
                         greetPerson(bestFace.userid, bestFace.confidence);
@@ -1171,21 +1213,22 @@
 
             console.log('[BBOX] Scaling info:', {
                 videoSize: `${video.videoWidth}x${video.videoHeight}`,
-                sentSize: `${scaling.sentWidth}x${scaling.sentHeight}`,
-                displaySize: `${scaling.displayWidth}x${scaling.displayHeight}`,
-                scaleFactors: `${scaling.scaleX.toFixed(2)}x, ${scaling.scaleY.toFixed(2)}y`
+                sentSize: `${scaling.sentWidth.toFixed(0)}x${scaling.sentHeight.toFixed(0)}`,
+                displaySize: `${scaling.displayWidth.toFixed(0)}x${scaling.displayHeight.toFixed(0)}`,
+                offset: `${scaling.offsetX.toFixed(0)},${scaling.offsetY.toFixed(0)}`,
+                scaleFactors: `${scaling.scaleX.toFixed(3)}x, ${scaling.scaleY.toFixed(3)}y`
             });
 
             faces.forEach((face) => {
-                // Scale from server coordinates to display size
-                const x = face.x_min * scaling.scaleX;
-                const y = face.y_min * scaling.scaleY;
+                // Scale from server coordinates to display size and add offset
+                const x = face.x_min * scaling.scaleX + scaling.offsetX;
+                const y = face.y_min * scaling.scaleY + scaling.offsetY;
                 const width = (face.x_max - face.x_min) * scaling.scaleX;
                 const height = (face.y_max - face.y_min) * scaling.scaleY;
 
                 console.log('[BBOX] Face coords:', {
-                    server: `(${face.x_min}, ${face.y_min}, ${face.x_max}, ${face.y_max})`,
-                    display: `(${x.toFixed(0)}, ${y.toFixed(0)}, ${width.toFixed(0)}x${height.toFixed(0)})`
+                    server: `(${face.x_min}, ${face.y_min}) - (${face.x_max}, ${face.y_max})`,
+                    display: `(${x.toFixed(0)}, ${y.toFixed(0)}) ${width.toFixed(0)}x${height.toFixed(0)}`
                 });
 
                 ctx.strokeStyle = face.userid === 'unknown' ? '#ff4444' : '#48bb78';
