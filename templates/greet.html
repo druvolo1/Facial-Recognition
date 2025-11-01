@@ -398,11 +398,20 @@
         </div>
     </div>
 
-    <!-- Three.js and GLTFLoader -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/loaders/GLTFLoader.js"></script>
+    <!-- Three.js ES Module -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
 
-    <script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
         // Three.js scene setup
         let scene, camera, renderer, avatar, mixer, clock;
         let avatarHead, avatarNeck, leftEye, rightEye;
@@ -501,7 +510,7 @@
                 scene.remove(avatar);
             }
 
-            const loader = new THREE.GLTFLoader();
+            const loader = new GLTFLoader();
 
             loader.load(
                 url,
