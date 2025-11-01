@@ -893,6 +893,12 @@
             const actualVideoHeight = video.videoHeight || 720;
 
             // Get the actual displayed video size (accounting for object-fit: contain)
+            // If dataset values don't exist yet, recalculate them
+            if (!video.dataset.displayWidth) {
+                console.warn('[BBOX] Display dimensions not set, calculating now...');
+                updateCanvasSize();
+            }
+
             const displayWidth = parseFloat(video.dataset.displayWidth) || video.clientWidth;
             const displayHeight = parseFloat(video.dataset.displayHeight) || video.clientHeight;
             const offsetX = parseFloat(video.dataset.offsetX) || 0;
@@ -945,18 +951,21 @@
                     // Wait for video to render then set canvas to match displayed size
                     setTimeout(() => {
                         updateCanvasSize();
-                    }, 100);
+
+                        // Start recognition AFTER canvas is sized correctly
+                        startBtn.disabled = true;
+                        stopBtn.disabled = false;
+                        isRecognizing = true;
+
+                        recognitionInterval = setInterval(recognizeFaces, 2000);
+                        recognizeFaces();
+                    }, 200);
                 };
 
                 // Update canvas size on window resize
-                window.addEventListener('resize', updateCanvasSize);
-
-                startBtn.disabled = true;
-                stopBtn.disabled = false;
-                isRecognizing = true;
-
-                recognitionInterval = setInterval(recognizeFaces, 2000);
-                recognizeFaces();
+                window.addEventListener('resize', () => {
+                    updateCanvasSize();
+                });
 
                 statusText.textContent = 'Looking for faces...';
 
@@ -976,10 +985,20 @@
             if (!isRecognizing || !video.videoWidth) return;
 
             try {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                // Clear and capture the current video frame
+                // Create a temporary canvas that matches the video's native resolution
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = video.videoWidth;
+                tempCanvas.height = video.videoHeight;
+                const tempCtx = tempCanvas.getContext('2d');
 
-                const imageData = canvas.toDataURL('image/jpeg', 0.8);
+                // Draw the video frame at full resolution
+                tempCtx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+
+                // Get the image data to send to server
+                const imageData = tempCanvas.toDataURL('image/jpeg', 0.8);
+
+                console.log('[RECOGNIZE] Captured frame:', video.videoWidth, 'x', video.videoHeight);
 
                 const response = await fetch('/api/recognize', {
                     method: 'POST',
