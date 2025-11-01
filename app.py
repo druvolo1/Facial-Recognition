@@ -11,8 +11,15 @@ import re
 from urllib.parse import urlparse
 import subprocess
 import hashlib
-import pyttsx3
 import wave
+
+# Try to import Coqui TTS (optional, falls back to espeak if not available)
+try:
+    from TTS.api import TTS as CoquiTTS
+    COQUI_TTS_AVAILABLE = True
+except ImportError:
+    COQUI_TTS_AVAILABLE = False
+    print("[STARTUP] Coqui TTS not available, install with: pip install TTS")
 
 app = Flask(__name__)
 
@@ -492,56 +499,66 @@ def text_to_speech():
                 "cached": True
             })
 
-        # Generate audio using pyttsx3 with espeak (100% free, offline)
-        print(f"[TTS] Generating audio with espeak (male voice)...")
-        try:
-            # Initialize espeak engine
-            engine = pyttsx3.init('espeak')
-            print(f"[TTS] Using espeak driver")
-
-            # Set male voice
-            # Espeak voice variants:
-            # english-us+m3 = Male US voice variant 3 (deeper)
-            # english-us+m7 = Older male voice
-            # english-us+m1 = Male voice variant 1
-            engine.setProperty('voice', 'english-us+m7')  # Male voice, deeper variant
-            print(f"[TTS] ✓ Set voice to: english-us+m7 (male, deeper)")
-
-            # Adjust speech properties for better sound
-            engine.setProperty('rate', 140)  # Slightly slower for clarity
-            engine.setProperty('volume', 1.0)
-            engine.setProperty('pitch', 50)  # Lower pitch for male voice
-
-            # Save to file
-            final_audio_filename = audio_filename
-            print(f"[TTS] Saving to: {audio_path}")
-            engine.save_to_file(text, audio_path)
-            engine.runAndWait()
-
-            # Stop engine
+        # Generate audio using Coqui TTS (100% free, neural quality)
+        if COQUI_TTS_AVAILABLE:
+            print(f"[TTS] Generating audio with Coqui TTS (Neural Voice)...")
             try:
-                engine.stop()
-            except:
-                pass
+                # Initialize Coqui TTS with a male voice model
+                # Using VCTK model with multiple speakers (includes male voices)
+                # Model will download automatically on first use (~100MB)
+                tts = CoquiTTS(model_name="tts_models/en/vctk/vits")
+                print(f"[TTS] Using Coqui TTS - VCTK VITS model")
 
-            # Verify file was created
-            if os.path.exists(audio_path):
-                file_size = os.path.getsize(audio_path)
-                print(f"[TTS] ✓ Audio file created: {audio_path} ({file_size} bytes)")
-            else:
-                print(f"[TTS] ✗ Error: File not found at {audio_path}")
+                # Get list of available speakers
+                speakers = tts.speakers
+                print(f"[TTS] Available speakers: {len(speakers)}")
+
+                # Select a male speaker
+                # Good male voices in VCTK: p225, p226, p227, p228, p229, p230, p231, p232, p233, p234
+                # p273 is a good deeper male voice
+                male_speaker = "p273"  # Deep male voice
+                if male_speaker not in speakers:
+                    # Fallback to first speaker
+                    male_speaker = speakers[0] if speakers else None
+                    print(f"[TTS] Warning: p273 not found, using {male_speaker}")
+                else:
+                    print(f"[TTS] ✓ Using speaker: {male_speaker} (deep male)")
+
+                # Generate audio
+                final_audio_filename = audio_filename
+                print(f"[TTS] Generating speech...")
+                tts.tts_to_file(
+                    text=text,
+                    file_path=audio_path,
+                    speaker=male_speaker
+                )
+
+                # Verify file was created
+                if os.path.exists(audio_path):
+                    file_size = os.path.getsize(audio_path)
+                    print(f"[TTS] ✓ Audio file created: {audio_path} ({file_size} bytes)")
+                else:
+                    print(f"[TTS] ✗ Error: File not found at {audio_path}")
+                    return jsonify({
+                        "success": False,
+                        "error": "Audio file was not created"
+                    }), 500
+
+            except Exception as e:
+                print(f"[TTS] ✗ Coqui TTS error: {e}")
+                import traceback
+                traceback.print_exc()
                 return jsonify({
                     "success": False,
-                    "error": "Audio file was not created"
+                    "error": f"Failed to generate audio: {str(e)}"
                 }), 500
 
-        except Exception as e:
-            print(f"[TTS] ✗ Error generating audio: {e}")
-            import traceback
-            traceback.print_exc()
+        else:
+            # Fallback: TTS library not available
+            print(f"[TTS] ✗ Coqui TTS not available")
             return jsonify({
                 "success": False,
-                "error": f"Failed to generate audio: {str(e)}"
+                "error": "TTS library not installed. Run: pip install TTS"
             }), 500
 
         # Generate simple viseme data from text (no rhubarb needed)
