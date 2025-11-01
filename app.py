@@ -13,13 +13,15 @@ import subprocess
 import hashlib
 import wave
 
-# Try to import Coqui TTS (optional, falls back to espeak if not available)
+# Try to import Piper TTS (optional)
 try:
-    from TTS.api import TTS as CoquiTTS
-    COQUI_TTS_AVAILABLE = True
+    from piper import PiperVoice
+    from piper.download import ensure_voice_exists, find_voice, get_voices
+    import tempfile
+    PIPER_TTS_AVAILABLE = True
 except ImportError:
-    COQUI_TTS_AVAILABLE = False
-    print("[STARTUP] Coqui TTS not available, install with: pip install TTS")
+    PIPER_TTS_AVAILABLE = False
+    print("[STARTUP] Piper TTS not available, install with: pip install piper-tts")
 
 app = Flask(__name__)
 
@@ -511,39 +513,35 @@ def text_to_speech():
                 "cached": True
             })
 
-        # Generate audio using Coqui TTS (100% free, neural quality)
-        if COQUI_TTS_AVAILABLE:
-            print(f"[TTS] Generating audio with Coqui TTS (Neural Voice)...")
+        # Generate audio using Piper TTS (100% free, neural quality, optimized for RPi)
+        if PIPER_TTS_AVAILABLE:
+            print(f"[TTS] Generating audio with Piper TTS (Neural Voice)...")
             try:
-                # Initialize Coqui TTS with a male voice model
-                # Using VCTK model with multiple speakers (includes male voices)
-                # Model will download automatically on first use (~100MB)
-                tts = CoquiTTS(model_name="tts_models/en/vctk/vits")
-                print(f"[TTS] Using Coqui TTS - VCTK VITS model")
+                # Use male voice optimized for Raspberry Pi
+                # en_US-lessac-medium: Good quality male voice (~50MB)
+                # en_US-ryan-high: High quality male voice (~100MB)
+                # en_GB-alan-medium: British male voice
+                voice_name = "en_US-lessac-medium"  # Good quality US male voice
 
-                # Get list of available speakers
-                speakers = tts.speakers
-                print(f"[TTS] Available speakers: {len(speakers)}")
+                print(f"[TTS] Loading Piper voice: {voice_name}")
 
-                # Select a male speaker
-                # Good male voices in VCTK: p225, p226, p227, p228, p229, p230, p231, p232, p233, p234
-                # p273 is a good deeper male voice
-                male_speaker = "p273"  # Deep male voice
-                if male_speaker not in speakers:
-                    # Fallback to first speaker
-                    male_speaker = speakers[0] if speakers else None
-                    print(f"[TTS] Warning: p273 not found, using {male_speaker}")
-                else:
-                    print(f"[TTS] ✓ Using speaker: {male_speaker} (deep male)")
+                # Download voice model if not already present
+                # This will download to ~/.local/share/piper-voices/
+                voice_path = ensure_voice_exists(voice_name, None, None)
+
+                print(f"[TTS] Voice model ready at: {voice_path}")
+
+                # Load the voice
+                voice = PiperVoice.load(voice_path)
+                print(f"[TTS] ✓ Voice loaded successfully")
 
                 # Generate audio
                 final_audio_filename = audio_filename
                 print(f"[TTS] Generating speech...")
-                tts.tts_to_file(
-                    text=text,
-                    file_path=audio_path,
-                    speaker=male_speaker
-                )
+
+                # Synthesize to WAV file
+                with open(audio_path, 'wb') as wav_file:
+                    voice.synthesize(text, wav_file)
 
                 # Verify file was created
                 if os.path.exists(audio_path):
@@ -557,7 +555,7 @@ def text_to_speech():
                     }), 500
 
             except Exception as e:
-                print(f"[TTS] ✗ Coqui TTS error: {e}")
+                print(f"[TTS] ✗ Piper TTS error: {e}")
                 import traceback
                 traceback.print_exc()
                 return jsonify({
@@ -567,10 +565,10 @@ def text_to_speech():
 
         else:
             # Fallback: TTS library not available
-            print(f"[TTS] ✗ Coqui TTS not available")
+            print(f"[TTS] ✗ Piper TTS not available")
             return jsonify({
                 "success": False,
-                "error": "TTS library not installed. Run: pip install TTS"
+                "error": "TTS library not installed. Run: pip install piper-tts"
             }), 500
 
         # Generate simple viseme data from text (no rhubarb needed)
