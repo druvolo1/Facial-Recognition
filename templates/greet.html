@@ -589,7 +589,14 @@
                     isAvatarLoaded = true;
                     console.log('[AVATAR] Loaded successfully');
                     console.log('[AVATAR] Head bone:', avatarHead ? 'Found' : 'Not found');
-                    console.log('[AVATAR] Morph targets:', morphTargets.dictionary ? Object.keys(morphTargets.dictionary).length : 0);
+
+                    // Log ALL available morph targets for debugging
+                    if (morphTargets.meshes && morphTargets.meshes.length > 0) {
+                        console.log('[AVATAR] Total meshes with morph targets:', morphTargets.meshes.length);
+                        morphTargets.meshes.forEach((meshData, i) => {
+                            console.log(`[AVATAR] Mesh ${i} morph targets:`, Object.keys(meshData.dictionary));
+                        });
+                    }
                 },
                 (progress) => {
                     const percent = (progress.loaded / progress.total * 100).toFixed(0);
@@ -639,7 +646,7 @@
                 morphTargets.meshes.forEach(meshData => {
                     const index = meshData.dictionary[name];
                     if (index !== undefined) {
-                        meshData.influences[index] = value;
+                        meshData.influences[index] = Math.max(0, Math.min(1, value)); // Clamp 0-1
                         found = true;
                     }
                 });
@@ -649,7 +656,7 @@
             if (!found && morphTargets.mesh && morphTargets.dictionary) {
                 const index = morphTargets.dictionary[name];
                 if (index !== undefined) {
-                    morphTargets.influences[index] = value;
+                    morphTargets.influences[index] = Math.max(0, Math.min(1, value)); // Clamp 0-1
                     found = true;
                 }
             }
@@ -702,33 +709,33 @@
             animate();
         }
 
-        // Phoneme to viseme mapping for lip sync
+        // Phoneme to viseme mapping for Ready Player Me (Apple ARKit blendshapes)
         const phonemeToViseme = {
-            // Vowels
-            'a': { targets: [{ name: 'viseme_aa', value: 0.8 }, { name: 'jawOpen', value: 0.6 }] },
-            'e': { targets: [{ name: 'viseme_E', value: 0.7 }, { name: 'mouthSmile', value: 0.4 }] },
-            'i': { targets: [{ name: 'viseme_I', value: 0.8 }, { name: 'mouthSmile', value: 0.5 }] },
-            'o': { targets: [{ name: 'viseme_O', value: 0.9 }, { name: 'jawOpen', value: 0.4 }] },
-            'u': { targets: [{ name: 'viseme_U', value: 0.8 }, { name: 'mouthPucker', value: 0.5 }] },
+            // Vowels - using actual Ready Player Me morph target names
+            'a': { targets: [{ name: 'mouthOpen', value: 1.0 }, { name: 'jawOpen', value: 0.7 }] },
+            'e': { targets: [{ name: 'mouthSmileLeft', value: 0.6 }, { name: 'mouthSmileRight', value: 0.6 }, { name: 'jawOpen', value: 0.3 }] },
+            'i': { targets: [{ name: 'mouthSmileLeft', value: 0.8 }, { name: 'mouthSmileRight', value: 0.8 }, { name: 'jawOpen', value: 0.2 }] },
+            'o': { targets: [{ name: 'mouthFunnel', value: 0.8 }, { name: 'jawOpen', value: 0.5 }] },
+            'u': { targets: [{ name: 'mouthPucker', value: 0.8 }, { name: 'mouthFunnel', value: 0.4 }] },
             // Consonants
-            'p': { targets: [{ name: 'viseme_PP', value: 0.9 }, { name: 'mouthClose', value: 0.7 }] },
-            'b': { targets: [{ name: 'viseme_PP', value: 0.9 }, { name: 'mouthClose', value: 0.7 }] },
-            'm': { targets: [{ name: 'viseme_PP', value: 0.9 }, { name: 'mouthClose', value: 0.7 }] },
-            'f': { targets: [{ name: 'viseme_FF', value: 0.8 }, { name: 'mouthLowerDownLeft', value: 0.3 }] },
-            'v': { targets: [{ name: 'viseme_FF', value: 0.8 }, { name: 'mouthLowerDownLeft', value: 0.3 }] },
-            'th': { targets: [{ name: 'viseme_TH', value: 0.7 }, { name: 'tongueOut', value: 0.4 }] },
-            's': { targets: [{ name: 'viseme_SS', value: 0.7 }, { name: 'mouthSmile', value: 0.3 }] },
-            'z': { targets: [{ name: 'viseme_SS', value: 0.7 }, { name: 'mouthSmile', value: 0.3 }] },
-            'sh': { targets: [{ name: 'viseme_CH', value: 0.8 }, { name: 'mouthFunnel', value: 0.4 }] },
-            'ch': { targets: [{ name: 'viseme_CH', value: 0.8 }, { name: 'mouthFunnel', value: 0.4 }] },
-            't': { targets: [{ name: 'viseme_DD', value: 0.7 }, { name: 'jawOpen', value: 0.3 }] },
-            'd': { targets: [{ name: 'viseme_DD', value: 0.7 }, { name: 'jawOpen', value: 0.3 }] },
-            'k': { targets: [{ name: 'viseme_kk', value: 0.7 }, { name: 'jawOpen', value: 0.4 }] },
-            'g': { targets: [{ name: 'viseme_kk', value: 0.7 }, { name: 'jawOpen', value: 0.4 }] },
-            'n': { targets: [{ name: 'viseme_nn', value: 0.6 }, { name: 'jawOpen', value: 0.3 }] },
-            'l': { targets: [{ name: 'viseme_DD', value: 0.6 }, { name: 'jawOpen', value: 0.3 }] },
-            'r': { targets: [{ name: 'viseme_RR', value: 0.7 }, { name: 'jawOpen', value: 0.3 }] },
-            'w': { targets: [{ name: 'viseme_U', value: 0.7 }, { name: 'mouthPucker', value: 0.5 }] },
+            'p': { targets: [{ name: 'mouthPressLeft', value: 0.9 }, { name: 'mouthPressRight', value: 0.9 }] },
+            'b': { targets: [{ name: 'mouthPressLeft', value: 0.9 }, { name: 'mouthPressRight', value: 0.9 }] },
+            'm': { targets: [{ name: 'mouthPressLeft', value: 0.9 }, { name: 'mouthPressRight', value: 0.9 }] },
+            'f': { targets: [{ name: 'mouthLowerDownLeft', value: 0.6 }, { name: 'mouthLowerDownRight', value: 0.6 }] },
+            'v': { targets: [{ name: 'mouthLowerDownLeft', value: 0.6 }, { name: 'mouthLowerDownRight', value: 0.6 }] },
+            'th': { targets: [{ name: 'jawOpen', value: 0.3 }, { name: 'mouthRollLower', value: 0.4 }] },
+            's': { targets: [{ name: 'mouthSmileLeft', value: 0.5 }, { name: 'mouthSmileRight', value: 0.5 }, { name: 'jawOpen', value: 0.15 }] },
+            'z': { targets: [{ name: 'mouthSmileLeft', value: 0.5 }, { name: 'mouthSmileRight', value: 0.5 }, { name: 'jawOpen', value: 0.15 }] },
+            'sh': { targets: [{ name: 'mouthFunnel', value: 0.6 }, { name: 'jawOpen', value: 0.2 }] },
+            'ch': { targets: [{ name: 'mouthFunnel', value: 0.6 }, { name: 'jawOpen', value: 0.2 }] },
+            't': { targets: [{ name: 'jawOpen', value: 0.4 }, { name: 'mouthUpperUpLeft', value: 0.3 }, { name: 'mouthUpperUpRight', value: 0.3 }] },
+            'd': { targets: [{ name: 'jawOpen', value: 0.4 }, { name: 'mouthUpperUpLeft', value: 0.3 }, { name: 'mouthUpperUpRight', value: 0.3 }] },
+            'k': { targets: [{ name: 'jawOpen', value: 0.5 }] },
+            'g': { targets: [{ name: 'jawOpen', value: 0.5 }] },
+            'n': { targets: [{ name: 'noseSneerLeft', value: 0.3 }, { name: 'noseSneerRight', value: 0.3 }, { name: 'jawOpen', value: 0.25 }] },
+            'l': { targets: [{ name: 'jawOpen', value: 0.3 }, { name: 'mouthRollUpper', value: 0.2 }] },
+            'r': { targets: [{ name: 'mouthShrugUpper', value: 0.3 }, { name: 'jawOpen', value: 0.3 }] },
+            'w': { targets: [{ name: 'mouthPucker', value: 0.7 }, { name: 'mouthFunnel', value: 0.3 }] },
         };
 
         // Text to phoneme approximation
@@ -853,7 +860,12 @@
                     const blend = Math.sin(progress * Math.PI); // Smooth in/out
 
                     visemeData.targets.forEach(target => {
-                        setMorphTarget(target.name, target.value * blend * 0.8);
+                        const applied = setMorphTarget(target.name, target.value * blend);
+                        if (applied) {
+                            console.log('[LIP SYNC] Applied', target.name, '=', (target.value * blend).toFixed(2));
+                        } else {
+                            console.warn('[LIP SYNC] Morph target not found:', target.name);
+                        }
                     });
                 }
             }
