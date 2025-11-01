@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.exc import IntegrityError
 
-from fastapi_users import FastAPIUsers, BaseUserManager, IntegerIDMixin, models, schemas
+from fastapi_users import FastAPIUsers, BaseUserManager, IntegerIDMixin, models, schemas, exceptions
 from fastapi_users.authentication import AuthenticationBackend, CookieTransport, JWTStrategy
 from fastapi_users.db import SQLAlchemyUserDatabase, SQLAlchemyBaseUserTable
 from fastapi_users_db_sqlalchemy.access_token import SQLAlchemyAccessTokenDatabase, SQLAlchemyBaseAccessTokenTable
@@ -259,10 +259,12 @@ async def on_startup():
             async for user_db in get_user_db(session):
                 async for user_manager in get_user_manager(user_db):
                     try:
-                        existing_admin = await user_manager.get_by_email(ADMIN_EMAIL)
-                        if existing_admin:
+                        # Try to get existing admin user
+                        try:
+                            existing_admin = await user_manager.get_by_email(ADMIN_EMAIL)
                             print(f"[STARTUP] ✓ Admin user already exists: {ADMIN_EMAIL}")
-                        else:
+                        except exceptions.UserNotExists:
+                            # User doesn't exist, create it
                             admin_user = UserCreate(
                                 email=ADMIN_EMAIL,
                                 password=ADMIN_PASSWORD,
