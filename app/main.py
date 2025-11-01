@@ -12,6 +12,7 @@ from io import BytesIO
 import json
 
 from fastapi import FastAPI, Depends, HTTPException, Request, Form, status
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -362,12 +363,53 @@ async def dashboard(request: Request, user: User = Depends(current_active_user))
     })
 
 
-# Include FastAPI-Users authentication routes
-app.include_router(
-    fastapi_users.get_auth_router(auth_backend),
-    prefix="/auth/jwt",
-    tags=["auth"],
-)
+@app.post("/auth/jwt/login")
+async def custom_login(
+    request: Request,
+    credentials: OAuth2PasswordRequestForm = Depends(),
+    user_manager: CustomUserManager = Depends(get_user_manager),
+    strategy: JWTStrategy = Depends(get_jwt_strategy),
+):
+    """Custom login endpoint that properly sets the auth cookie"""
+    try:
+        # Authenticate user
+        user = await user_manager.authenticate(credentials)
+
+        if user is None:
+            raise HTTPException(status_code=400, detail="LOGIN_BAD_CREDENTIALS")
+
+        # Check if user is suspended
+        if user.is_suspended:
+            raise HTTPException(status_code=403, detail="User account is suspended")
+
+        # Check if user is active (approved)
+        if not user.is_active:
+            raise HTTPException(status_code=403, detail="User account is pending approval")
+
+        # Generate token
+        token = await strategy.write_token(user)
+
+        # Return success response
+        response = JSONResponse(content={"detail": "Login successful"})
+
+        # Set the auth cookie
+        response.set_cookie(
+            key="auth_cookie",
+            value=token,
+            httponly=True,
+            max_age=3600,
+            samesite="lax",
+            secure=False  # Set to True if using HTTPS
+        )
+
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[LOGIN] Error: {e}")
+        raise HTTPException(status_code=400, detail="LOGIN_BAD_CREDENTIALS")
+
 
 @app.post("/auth/logout")
 async def logout(response: HTMLResponse):
