@@ -640,13 +640,21 @@ async def get_registered_faces(
             faces_dict[face_record.person_name].append(photo_url)
 
         # Convert to list format with one sample photo per person
+        # Also get the codeproject_user_id for each person
         registered_faces = []
         for name, photos in sorted(faces_dict.items()):
+            # Get the codeproject_user_id from the first record for this person
+            result = await session.execute(
+                select(RegisteredFace).where(RegisteredFace.person_name == name).limit(1)
+            )
+            face_record = result.scalar_one_or_none()
+
             registered_faces.append({
                 "name": name,
                 "photo": photos[0] if photos else None,  # Use first photo as profile picture
                 "photo_count": len(photos),
-                "all_photos": photos
+                "all_photos": photos,
+                "codeproject_user_id": face_record.codeproject_user_id if face_record else name
             })
 
         return {
