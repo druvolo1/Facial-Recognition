@@ -29,7 +29,6 @@ from fastapi_users_db_sqlalchemy.access_token import SQLAlchemyAccessTokenDataba
 
 from pydantic import EmailStr, BaseModel
 from dotenv import load_dotenv
-from httpx_oauth.clients.google import GoogleOAuth2
 import requests
 from PIL import Image
 
@@ -41,11 +40,6 @@ DATABASE_URL = os.getenv("DATABASE_URL", "mariadb+aiomysql://app_user:testpass12
 SECRET = os.getenv("SECRET_KEY", "changeme")
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@example.com")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123!")
-
-# Google OAuth
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/auth/google/callback")
 
 # CodeProject.AI configuration
 CODEPROJECT_HOST = os.getenv("CODEPROJECT_HOST", "172.16.1.150")
@@ -180,66 +174,6 @@ class CustomUserManager(IntegerIDMixin, BaseUserManager[User, int]):
     async def on_after_request_verify(self, user: User, token: str, request: Optional[Request] = None):
         print(f"[AUTH] Verification requested for user {user.email}. Token: {token}")
 
-    async def oauth_callback(
-        self,
-        oauth_name: str,
-        access_token: str,
-        account_id: str,
-        account_email: str,
-        expires_at: Optional[int] = None,
-        refresh_token: Optional[str] = None,
-        request: Optional[Request] = None,
-        *,
-        associate_by_email: bool = False,
-        is_verified_by_default: bool = False,
-    ) -> User:
-        """
-        Handle OAuth callback with custom logic for pending approval
-        """
-        oauth_account_dict = {
-            "oauth_name": oauth_name,
-            "access_token": access_token,
-            "account_id": account_id,
-            "account_email": account_email,
-            "expires_at": expires_at,
-            "refresh_token": refresh_token,
-        }
-
-        # Try to get existing OAuth account
-        try:
-            user = await self.user_db.get_by_oauth_account(oauth_name, account_id)
-        except Exception:
-            user = None
-
-        # If no OAuth account found, try to associate by email if enabled
-        if user is None and associate_by_email:
-            try:
-                user = await self.get_by_email(account_email)
-                if user:
-                    # Link OAuth account to existing user
-                    user = await self.user_db.add_oauth_account(user, oauth_account_dict)
-            except Exception:
-                user = None
-
-        # If still no user, create new one
-        if user is None:
-            # Generate random password for OAuth users
-            random_password = secrets.token_urlsafe(32)
-
-            user_create = UserCreate(
-                email=account_email,
-                password=random_password,
-                is_verified=is_verified_by_default,
-                is_active=False,  # Require admin approval even for OAuth users
-                is_suspended=False
-            )
-
-            user = await self.create(user_create, safe=True, request=request)
-            user = await self.user_db.add_oauth_account(user, oauth_account_dict)
-
-            print(f"[AUTH] New OAuth user created: {account_email} (pending approval)")
-
-        return user
 
 
 async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db)):
@@ -270,9 +204,6 @@ fastapi_users = FastAPIUsers[User, int](
 
 current_active_user = fastapi_users.current_user(active=True)
 current_superuser = fastapi_users.current_user(active=True, superuser=True)
-
-# Google OAuth client
-google_oauth_client = GoogleOAuth2(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET)
 
 
 # ============================================================================
@@ -415,84 +346,19 @@ async def dashboard(request: Request, user: User = Depends(current_active_user))
     })
 
 
+# Include FastAPI-Users authentication routes
+app.include_router(
+    fastapi_users.get_auth_router(auth_backend),
+    prefix="/auth/jwt",
+    tags=["auth"],
+)
+
 @app.post("/auth/logout")
 async def logout(response: HTMLResponse):
     """Logout user"""
     response = RedirectResponse(url="/login", status_code=302)
     response.delete_cookie("auth_cookie")
     return response
-
-
-# ============================================================================
-# GOOGLE OAUTH ROUTES
-# ============================================================================
-
-@app.get("/auth/google/authorize")
-async def google_authorize(request: Request):
-    """Redirect to Google OAuth authorization"""
-    redirect_uri = str(request.url_for("google_callback"))
-    auth_url = await google_oauth_client.get_authorization_url(
-        redirect_uri,
-        scope=["openid", "email", "profile"]
-    )
-    return {"authorization_url": auth_url}
-
-
-@app.get("/auth/google/callback", name="google_callback")
-async def google_callback(
-    request: Request,
-    code: str,
-    manager: CustomUserManager = Depends(get_user_manager),
-    strategy: JWTStrategy = Depends(get_jwt_strategy),
-):
-    """Handle Google OAuth callback"""
-    try:
-        # Get access token
-        token = await google_oauth_client.get_access_token(code, str(request.url_for("google_callback")))
-
-        # Get user info
-        user_info = await google_oauth_client.get_id_email(token["access_token"])
-        account_id = user_info[0]  # Google subject ID
-        account_email = user_info[1]  # Email
-
-        # Create/get user via OAuth
-        user = await manager.oauth_callback(
-            oauth_name="google",
-            access_token=token["access_token"],
-            account_id=account_id,
-            account_email=account_email,
-            expires_at=token.get("expires_at"),
-            refresh_token=token.get("refresh_token"),
-            associate_by_email=True,
-            is_verified_by_default=False,
-        )
-
-        # Check if suspended
-        if user.is_suspended:
-            return templates.TemplateResponse("suspended.html", {"request": request})
-
-        # Check if pending approval
-        if not user.is_active:
-            return templates.TemplateResponse("pending_approval.html", {"request": request})
-
-        # Create JWT token
-        token_str = await strategy.write_token(user)
-
-        # Redirect to dashboard with auth cookie
-        response = RedirectResponse(url="/dashboard", status_code=302)
-        response.set_cookie(
-            key="auth_cookie",
-            value=token_str,
-            httponly=True,
-            max_age=3600,
-            samesite="lax"
-        )
-
-        return response
-
-    except Exception as e:
-        print(f"[OAUTH] Error: {e}")
-        raise HTTPException(status_code=400, detail=f"OAuth error: {str(e)}")
 
 
 # ============================================================================
