@@ -414,6 +414,8 @@
                 `;
             }
 
+            const ipAddress = display.ip_address || 'Unknown';
+
             card.innerHTML = `
                 <div class="display-header">
                     <div class="display-id">${display.display_id}</div>
@@ -423,6 +425,7 @@
                     📍 ${display.location}
                 </div>
                 <div class="display-info">
+                    <div><strong>IP Address:</strong> ${ipAddress}</div>
                     <div>Registered: ${formatDate(new Date(display.registered_at))}</div>
                     <div>Last seen: ${timeSince}</div>
                     <div>Total detections: ${display.detection_count}</div>

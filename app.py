@@ -155,7 +155,7 @@ def save_displays(displays):
         json.dump(displays, f, indent=2)
 
 
-def register_or_update_display(display_id, location, capabilities=None):
+def register_or_update_display(display_id, location, capabilities=None, ip_address=None):
     """Register or update a display"""
     displays = load_displays()
 
@@ -167,6 +167,8 @@ def register_or_update_display(display_id, location, capabilities=None):
             display['last_seen'] = datetime.now().isoformat()
             if capabilities:
                 display['capabilities'] = capabilities
+            if ip_address:
+                display['ip_address'] = ip_address
             save_displays(displays)
             return display, False  # False = not newly created
 
@@ -178,7 +180,8 @@ def register_or_update_display(display_id, location, capabilities=None):
         "registered_at": datetime.now().isoformat(),
         "last_seen": datetime.now().isoformat(),
         "detection_count": 0,
-        "last_detection": None
+        "last_detection": None,
+        "ip_address": ip_address
     }
 
     displays.append(display_data)
@@ -1370,9 +1373,20 @@ def register_display():
         if not display_id:
             return jsonify({"success": False, "error": "display_id is required"}), 400
 
-        display, is_new = register_or_update_display(display_id, location, capabilities)
+        # Get client IP address (private/local IP)
+        client_ip = request.remote_addr
 
-        print(f"[DISPLAY] {'Registered' if is_new else 'Updated'} display: {display_id} at {location}")
+        # Check for forwarded IP (if behind proxy)
+        if request.headers.get('X-Forwarded-For'):
+            client_ip = request.headers.get('X-Forwarded-For').split(',')[0].strip()
+        elif request.headers.get('X-Real-IP'):
+            client_ip = request.headers.get('X-Real-IP')
+
+        print(f"[DISPLAY] Client IP: {client_ip}")
+
+        display, is_new = register_or_update_display(display_id, location, capabilities, client_ip)
+
+        print(f"[DISPLAY] {'Registered' if is_new else 'Updated'} display: {display_id} at {location} (IP: {client_ip})")
 
         return jsonify({
             "success": True,
