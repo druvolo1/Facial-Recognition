@@ -20,6 +20,10 @@
     <tizen:privilege name="http://tizen.org/privilege/camera"/>
     <tizen:privilege name="http://tizen.org/privilege/mediacapture"/>
 
+    <!-- Required features for camera/WebRTC -->
+    <feature name="http://tizen.org/feature/camera"/>
+    <feature name="http://tizen.org/feature/media.video_stream"/>
+
     <!-- Settings -->
     <tizen:setting screen-orientation="landscape" context-menu="disable"/>
 

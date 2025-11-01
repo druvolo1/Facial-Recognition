@@ -7,7 +7,10 @@
       "Bash(pip install:*)",
       "Bash(del install_rhubarb.sh RHUBARB_SETUP.md)",
       "Bash(del \"C:\\Users\\Dave\\Documents\\Programming\\Facial Recognition\\PIPER_SETUP.md\")",
-      "Bash(chmod +x \"C:\\Users\\Dave\\Documents\\Programming\\Facial Recognition\\install_festival.sh\")"
+      "Bash(chmod +x \"C:\\Users\\Dave\\Documents\\Programming\\Facial Recognition\\install_festival.sh\")",
+      "WebFetch(domain:docs.tizen.org)",
+      "WebSearch",
+      "Bash(zip:*)"
     ],
     "deny": [],
     "ask": []
