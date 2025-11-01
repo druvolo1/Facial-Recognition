@@ -428,9 +428,11 @@
         const avatarCanvas = document.getElementById('avatarCanvas');
         const loadingMessage = document.getElementById('loadingMessage');
 
-        // Audio context for lip sync
-        let audioContext, analyser, dataArray;
+        // Lip sync state
         let isSpeaking = false;
+        let currentViseme = null;
+        let visemeTimeline = [];
+        let speechStartTime = 0;
 
         // Face tracking
         let detectedFacePosition = { x: 0, y: 0 };
@@ -487,23 +489,8 @@
             // Handle window resize
             window.addEventListener('resize', onWindowResize, false);
 
-            // Initialize audio context
-            initAudioContext();
-
             // Start render loop
             animate();
-        }
-
-        // Initialize audio context for lip sync
-        function initAudioContext() {
-            try {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                analyser = audioContext.createAnalyser();
-                analyser.fftSize = 256;
-                dataArray = new Uint8Array(analyser.frequencyBinCount);
-            } catch (e) {
-                console.error('[AUDIO] Web Audio API not supported:', e);
-            }
         }
 
         // Load Ready Player Me avatar
@@ -715,31 +702,160 @@
             animate();
         }
 
-        // Update lip sync based on audio
+        // Phoneme to viseme mapping for lip sync
+        const phonemeToViseme = {
+            // Vowels
+            'a': { targets: [{ name: 'viseme_aa', value: 0.8 }, { name: 'jawOpen', value: 0.6 }] },
+            'e': { targets: [{ name: 'viseme_E', value: 0.7 }, { name: 'mouthSmile', value: 0.4 }] },
+            'i': { targets: [{ name: 'viseme_I', value: 0.8 }, { name: 'mouthSmile', value: 0.5 }] },
+            'o': { targets: [{ name: 'viseme_O', value: 0.9 }, { name: 'jawOpen', value: 0.4 }] },
+            'u': { targets: [{ name: 'viseme_U', value: 0.8 }, { name: 'mouthPucker', value: 0.5 }] },
+            // Consonants
+            'p': { targets: [{ name: 'viseme_PP', value: 0.9 }, { name: 'mouthClose', value: 0.7 }] },
+            'b': { targets: [{ name: 'viseme_PP', value: 0.9 }, { name: 'mouthClose', value: 0.7 }] },
+            'm': { targets: [{ name: 'viseme_PP', value: 0.9 }, { name: 'mouthClose', value: 0.7 }] },
+            'f': { targets: [{ name: 'viseme_FF', value: 0.8 }, { name: 'mouthLowerDownLeft', value: 0.3 }] },
+            'v': { targets: [{ name: 'viseme_FF', value: 0.8 }, { name: 'mouthLowerDownLeft', value: 0.3 }] },
+            'th': { targets: [{ name: 'viseme_TH', value: 0.7 }, { name: 'tongueOut', value: 0.4 }] },
+            's': { targets: [{ name: 'viseme_SS', value: 0.7 }, { name: 'mouthSmile', value: 0.3 }] },
+            'z': { targets: [{ name: 'viseme_SS', value: 0.7 }, { name: 'mouthSmile', value: 0.3 }] },
+            'sh': { targets: [{ name: 'viseme_CH', value: 0.8 }, { name: 'mouthFunnel', value: 0.4 }] },
+            'ch': { targets: [{ name: 'viseme_CH', value: 0.8 }, { name: 'mouthFunnel', value: 0.4 }] },
+            't': { targets: [{ name: 'viseme_DD', value: 0.7 }, { name: 'jawOpen', value: 0.3 }] },
+            'd': { targets: [{ name: 'viseme_DD', value: 0.7 }, { name: 'jawOpen', value: 0.3 }] },
+            'k': { targets: [{ name: 'viseme_kk', value: 0.7 }, { name: 'jawOpen', value: 0.4 }] },
+            'g': { targets: [{ name: 'viseme_kk', value: 0.7 }, { name: 'jawOpen', value: 0.4 }] },
+            'n': { targets: [{ name: 'viseme_nn', value: 0.6 }, { name: 'jawOpen', value: 0.3 }] },
+            'l': { targets: [{ name: 'viseme_DD', value: 0.6 }, { name: 'jawOpen', value: 0.3 }] },
+            'r': { targets: [{ name: 'viseme_RR', value: 0.7 }, { name: 'jawOpen', value: 0.3 }] },
+            'w': { targets: [{ name: 'viseme_U', value: 0.7 }, { name: 'mouthPucker', value: 0.5 }] },
+        };
+
+        // Text to phoneme approximation
+        function textToPhonemes(text) {
+            const words = text.toLowerCase().split(/\s+/);
+            const phonemes = [];
+            const avgDuration = 80; // ms per phoneme
+
+            words.forEach((word, wordIndex) => {
+                // Simple vowel/consonant detection
+                for (let i = 0; i < word.length; i++) {
+                    const char = word[i];
+                    let phoneme = null;
+                    let duration = avgDuration;
+
+                    // Check for digraphs
+                    if (i < word.length - 1) {
+                        const digraph = char + word[i + 1];
+                        if (phonemeToViseme[digraph]) {
+                            phoneme = digraph;
+                            i++; // Skip next character
+                            duration = avgDuration * 1.5;
+                        }
+                    }
+
+                    // Single character
+                    if (!phoneme) {
+                        if ('aeiou'.includes(char)) {
+                            phoneme = char;
+                            duration = avgDuration * 1.5; // Vowels longer
+                        } else if (phonemeToViseme[char]) {
+                            phoneme = char;
+                        }
+                    }
+
+                    if (phoneme) {
+                        phonemes.push({ phoneme, duration });
+                    }
+                }
+
+                // Add pause between words
+                if (wordIndex < words.length - 1) {
+                    phonemes.push({ phoneme: 'rest', duration: avgDuration * 0.5 });
+                }
+            });
+
+            return phonemes;
+        }
+
+        // Create viseme timeline from text
+        function createVisemeTimeline(text) {
+            const phonemes = textToPhonemes(text);
+            const timeline = [];
+            let currentTime = 0;
+
+            phonemes.forEach(({ phoneme, duration }) => {
+                timeline.push({
+                    time: currentTime,
+                    phoneme: phoneme,
+                    duration: duration
+                });
+                currentTime += duration;
+            });
+
+            return timeline;
+        }
+
+        // Update lip sync based on timeline
         function updateLipSync() {
-            if (!document.getElementById('enableLipSync').checked || !isSpeaking) {
-                // Close mouth when not speaking - try various morph target names
-                setMorphTarget('mouthOpen', 0);
+            if (!document.getElementById('enableLipSync').checked) {
+                // Reset all morph targets
                 setMorphTarget('jawOpen', 0);
-                setMorphTarget('viseme_aa', 0);
-                setMorphTarget('viseme_O', 0);
+                setMorphTarget('mouthSmile', 0);
+                setMorphTarget('mouthPucker', 0);
+                Object.keys(phonemeToViseme).forEach(phoneme => {
+                    phonemeToViseme[phoneme].targets.forEach(target => {
+                        setMorphTarget(target.name, 0);
+                    });
+                });
                 return;
             }
 
-            // Use simple time-based animation since Web Audio API doesn't capture speech synthesis
-            const t = Date.now() * 0.015;
-            const mouthValue = Math.abs(Math.sin(t)) * 0.6;
+            if (!isSpeaking || visemeTimeline.length === 0) {
+                // Close mouth when not speaking
+                setMorphTarget('jawOpen', 0);
+                setMorphTarget('mouthSmile', 0);
+                return;
+            }
 
-            // Try different Ready Player Me morph target names
-            let applied = false;
-            applied = setMorphTarget('mouthOpen', mouthValue) || applied;
-            applied = setMorphTarget('jawOpen', mouthValue * 0.7) || applied;
-            applied = setMorphTarget('viseme_aa', mouthValue) || applied;
-            applied = setMorphTarget('viseme_O', mouthValue * 0.8) || applied;
-            applied = setMorphTarget('viseme_I', mouthValue * 0.3) || applied;
+            // Calculate current time in speech
+            const elapsed = Date.now() - speechStartTime;
 
-            if (!applied) {
-                console.log('[LIP SYNC] No suitable morph targets found');
+            // Find current viseme
+            let currentVisemeData = null;
+            for (let i = 0; i < visemeTimeline.length; i++) {
+                const viseme = visemeTimeline[i];
+                if (elapsed >= viseme.time && elapsed < viseme.time + viseme.duration) {
+                    currentVisemeData = viseme;
+                    break;
+                }
+            }
+
+            if (!currentVisemeData) {
+                // Speech ended
+                isSpeaking = false;
+                setMorphTarget('jawOpen', 0);
+                return;
+            }
+
+            // Reset all morph targets
+            setMorphTarget('jawOpen', 0);
+            setMorphTarget('mouthSmile', 0);
+            setMorphTarget('mouthPucker', 0);
+            setMorphTarget('mouthClose', 0);
+
+            // Apply current viseme
+            if (currentVisemeData.phoneme !== 'rest') {
+                const visemeData = phonemeToViseme[currentVisemeData.phoneme];
+                if (visemeData) {
+                    // Calculate blend factor for smooth transitions
+                    const progress = (elapsed - currentVisemeData.time) / currentVisemeData.duration;
+                    const blend = Math.sin(progress * Math.PI); // Smooth in/out
+
+                    visemeData.targets.forEach(target => {
+                        setMorphTarget(target.name, target.value * blend * 0.8);
+                    });
+                }
             }
         }
 
@@ -1051,58 +1167,35 @@
         function speakWithLipSync(text) {
             synth.cancel();
 
+            // Create viseme timeline from text
+            visemeTimeline = createVisemeTimeline(text);
+            console.log('[LIP SYNC] Created timeline with', visemeTimeline.length, 'visemes');
+
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.rate = 1.0;
             utterance.pitch = 1.1;
             utterance.volume = 1.0;
 
-            // Setup audio analysis for lip sync
-            if (audioContext && analyser) {
-                // Create MediaStreamDestination
-                const destination = audioContext.createMediaStreamDestination();
-
-                // Start speaking flag
-                utterance.onstart = () => {
-                    isSpeaking = true;
-                    console.log('[SPEECH] Started speaking');
-                };
-
-                utterance.onend = () => {
-                    isSpeaking = false;
-                    console.log('[SPEECH] Finished speaking');
-                };
-            }
-
-            synth.speak(utterance);
-
-            // Fallback lip sync animation if Web Audio API fails
-            simulateLipSync(text.length * 100);
-        }
-
-        // Simulate lip sync for fallback
-        function simulateLipSync(duration) {
-            const startTime = Date.now();
-
-            const animate = () => {
-                const elapsed = Date.now() - startTime;
-
-                if (elapsed < duration) {
-                    // Simulate mouth movement
-                    const t = (elapsed / 100) % 1;
-                    const mouthValue = Math.abs(Math.sin(t * Math.PI)) * 0.5;
-
-                    setMorphTarget('mouthOpen', mouthValue);
-                    setMorphTarget('jawOpen', mouthValue * 0.7);
-
-                    requestAnimationFrame(animate);
-                } else {
-                    // Close mouth
-                    animateMorphTarget('mouthOpen', 0, 200);
-                    animateMorphTarget('jawOpen', 0, 200);
-                }
+            // Start speaking
+            utterance.onstart = () => {
+                isSpeaking = true;
+                speechStartTime = Date.now();
+                console.log('[SPEECH] Started speaking');
             };
 
-            animate();
+            utterance.onend = () => {
+                isSpeaking = false;
+                visemeTimeline = [];
+                console.log('[SPEECH] Finished speaking');
+
+                // Close mouth smoothly
+                setTimeout(() => {
+                    setMorphTarget('jawOpen', 0);
+                    setMorphTarget('mouthSmile', 0);
+                }, 100);
+            };
+
+            synth.speak(utterance);
         }
 
         // Draw bounding boxes
