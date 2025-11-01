@@ -130,6 +130,7 @@
                 <a href="/dashboard" style="color: #333; text-decoration: none; font-weight: 500;">Dashboard</a>
                 <a href="/register" style="color: #333; text-decoration: none; font-weight: 500;">Register Faces</a>
                 <a href="/recognize-face" style="color: #333; text-decoration: none; font-weight: 500;">Recognize Faces</a>
+                <a href="/registered-faces" style="color: #333; text-decoration: none; font-weight: 500;">Registered Faces</a>
                 {% if user.is_superuser %}
                 <a href="/admin/users" style="color: #333; text-decoration: none; font-weight: 500;">Manage Users</a>
                 {% endif %}
@@ -161,6 +162,12 @@
                 <div class="card-icon">🔍</div>
                 <h3>Recognize Faces</h3>
                 <p>Identify people using facial recognition</p>
+            </div>
+
+            <div class="card" onclick="location.href='/registered-faces'">
+                <div class="card-icon">📋</div>
+                <h3>Registered Faces</h3>
+                <p>View all registered people and their photos</p>
             </div>
 
             {% if user.is_superuser %}

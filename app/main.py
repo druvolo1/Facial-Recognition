@@ -543,6 +543,54 @@ async def recognize_face_page(request: Request, user: User = Depends(current_act
     return templates.TemplateResponse("recognize.html", {"request": request, "user": user})
 
 
+@app.get("/registered-faces", response_class=HTMLResponse)
+async def registered_faces_page(request: Request, user: User = Depends(current_active_user)):
+    """Registered faces gallery page (requires authentication)"""
+    return templates.TemplateResponse("registered_faces.html", {"request": request, "user": user})
+
+
+@app.get("/api/registered-faces")
+async def get_registered_faces(user: User = Depends(current_active_user)):
+    """Get all registered faces and their photos"""
+    try:
+        import glob
+        from collections import defaultdict
+
+        # Get all images from uploads folder
+        all_images = glob.glob(os.path.join(UPLOAD_FOLDER, "*.jpg"))
+
+        # Group images by person name
+        faces_dict = defaultdict(list)
+
+        for image_path in all_images:
+            filename = os.path.basename(image_path)
+            # Filename format: {name}_{timestamp}_{index}.jpg
+            parts = filename.rsplit('_', 2)
+            if len(parts) >= 3:
+                person_name = parts[0].replace('_', ' ')
+                faces_dict[person_name].append(f"/uploads/{filename}")
+
+        # Convert to list format with one sample photo per person
+        registered_faces = []
+        for name, photos in sorted(faces_dict.items()):
+            registered_faces.append({
+                "name": name,
+                "photo": photos[0] if photos else None,  # Use first photo as profile picture
+                "photo_count": len(photos),
+                "all_photos": photos
+            })
+
+        return {
+            "success": True,
+            "faces": registered_faces,
+            "total": len(registered_faces)
+        }
+
+    except Exception as e:
+        print(f"[REGISTERED-FACES] Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/register")
 async def register_face(
     data: RegisterRequest,
