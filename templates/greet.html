@@ -847,6 +847,51 @@
         let greetingTimeout = null;
         let qrTimeout = null;
 
+        // Update canvas size to match video display size
+        function updateCanvasSize() {
+            canvas.width = video.clientWidth;
+            canvas.height = video.clientHeight;
+            console.log('[VIDEO] Canvas size updated to:', canvas.width, 'x', canvas.height);
+            console.log('[VIDEO] Video element size:', video.clientWidth, 'x', video.clientHeight);
+            console.log('[VIDEO] Video native size:', video.videoWidth, 'x', video.videoHeight);
+        }
+
+        // Helper function to calculate scale factors for coordinate conversion
+        function getCoordinateScaling() {
+            const actualVideoWidth = video.videoWidth || 1280;
+            const actualVideoHeight = video.videoHeight || 720;
+            const displayWidth = canvas.width || video.clientWidth;
+            const displayHeight = canvas.height || video.clientHeight;
+
+            // Calculate what size was sent to the server (max 640x480)
+            const maxWidth = 640;
+            const maxHeight = 480;
+            let sentWidth, sentHeight;
+            const aspectRatio = actualVideoWidth / actualVideoHeight;
+
+            if (actualVideoWidth > maxWidth || actualVideoHeight > maxHeight) {
+                if (aspectRatio > maxWidth / maxHeight) {
+                    sentWidth = maxWidth;
+                    sentHeight = maxWidth / aspectRatio;
+                } else {
+                    sentHeight = maxHeight;
+                    sentWidth = maxHeight * aspectRatio;
+                }
+            } else {
+                sentWidth = actualVideoWidth;
+                sentHeight = actualVideoHeight;
+            }
+
+            return {
+                scaleX: displayWidth / sentWidth,
+                scaleY: displayHeight / sentHeight,
+                sentWidth,
+                sentHeight,
+                displayWidth,
+                displayHeight
+            };
+        }
+
         // Start greeter
         startBtn.addEventListener('click', async () => {
             try {
@@ -862,11 +907,12 @@
                 video.onloadedmetadata = () => {
                     // Wait for video to render then set canvas to match displayed size
                     setTimeout(() => {
-                        canvas.width = video.clientWidth;
-                        canvas.height = video.clientHeight;
-                        console.log('[VIDEO] Canvas size set to:', canvas.width, 'x', canvas.height);
+                        updateCanvasSize();
                     }, 100);
                 };
+
+                // Update canvas size on window resize
+                window.addEventListener('resize', updateCanvasSize);
 
                 startBtn.disabled = true;
                 stopBtn.disabled = false;
@@ -912,33 +958,14 @@
                     );
 
                     // Update face position for eye tracking
-                    // Need to use the actual sent image dimensions, not canvas size
-                    const maxWidth = 640;
-                    const maxHeight = 480;
-                    const actualVideoWidth = video.videoWidth;
-                    const actualVideoHeight = video.videoHeight;
-                    const aspectRatio = actualVideoWidth / actualVideoHeight;
-
-                    let sentWidth, sentHeight;
-                    if (actualVideoWidth > maxWidth || actualVideoHeight > maxHeight) {
-                        if (aspectRatio > maxWidth / maxHeight) {
-                            sentWidth = maxWidth;
-                            sentHeight = maxWidth / aspectRatio;
-                        } else {
-                            sentHeight = maxHeight;
-                            sentWidth = maxHeight * aspectRatio;
-                        }
-                    } else {
-                        sentWidth = actualVideoWidth;
-                        sentHeight = actualVideoHeight;
-                    }
+                    const scaling = getCoordinateScaling();
 
                     const faceX = (bestFace.x_min + bestFace.x_max) / 2;
                     const faceY = (bestFace.y_min + bestFace.y_max) / 2;
 
                     // Normalize to -1 to 1 range using sent dimensions
-                    detectedFacePosition.x = (faceX / sentWidth) * 2 - 1;
-                    detectedFacePosition.y = -((faceY / sentHeight) * 2 - 1);
+                    detectedFacePosition.x = (faceX / scaling.sentWidth) * 2 - 1;
+                    detectedFacePosition.y = -((faceY / scaling.sentHeight) * 2 - 1);
 
                     if (bestFace.userid !== 'unknown') {
                         greetPerson(bestFace.userid, bestFace.confidence);
@@ -1139,40 +1166,27 @@
         function drawBoundingBoxes(faces) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+            // Get scaling factors
+            const scaling = getCoordinateScaling();
+
+            console.log('[BBOX] Scaling info:', {
+                videoSize: `${video.videoWidth}x${video.videoHeight}`,
+                sentSize: `${scaling.sentWidth}x${scaling.sentHeight}`,
+                displaySize: `${scaling.displayWidth}x${scaling.displayHeight}`,
+                scaleFactors: `${scaling.scaleX.toFixed(2)}x, ${scaling.scaleY.toFixed(2)}y`
+            });
+
             faces.forEach((face) => {
-                // Get actual display dimensions
-                const displayWidth = canvas.width;
-                const displayHeight = canvas.height;
-                const actualVideoWidth = video.videoWidth;
-                const actualVideoHeight = video.videoHeight;
-
-                // Calculate what size was sent to the server (max 640x480)
-                const maxWidth = 640;
-                const maxHeight = 480;
-                let sentWidth, sentHeight;
-                const aspectRatio = actualVideoWidth / actualVideoHeight;
-
-                if (actualVideoWidth > maxWidth || actualVideoHeight > maxHeight) {
-                    if (aspectRatio > maxWidth / maxHeight) {
-                        sentWidth = maxWidth;
-                        sentHeight = maxWidth / aspectRatio;
-                    } else {
-                        sentHeight = maxHeight;
-                        sentWidth = maxHeight * aspectRatio;
-                    }
-                } else {
-                    sentWidth = actualVideoWidth;
-                    sentHeight = actualVideoHeight;
-                }
-
                 // Scale from server coordinates to display size
-                const scaleX = displayWidth / sentWidth;
-                const scaleY = displayHeight / sentHeight;
+                const x = face.x_min * scaling.scaleX;
+                const y = face.y_min * scaling.scaleY;
+                const width = (face.x_max - face.x_min) * scaling.scaleX;
+                const height = (face.y_max - face.y_min) * scaling.scaleY;
 
-                const x = face.x_min * scaleX;
-                const y = face.y_min * scaleY;
-                const width = (face.x_max - face.x_min) * scaleX;
-                const height = (face.y_max - face.y_min) * scaleY;
+                console.log('[BBOX] Face coords:', {
+                    server: `(${face.x_min}, ${face.y_min}, ${face.x_max}, ${face.y_max})`,
+                    display: `(${x.toFixed(0)}, ${y.toFixed(0)}, ${width.toFixed(0)}x${height.toFixed(0)})`
+                });
 
                 ctx.strokeStyle = face.userid === 'unknown' ? '#ff4444' : '#48bb78';
                 ctx.lineWidth = 3;
