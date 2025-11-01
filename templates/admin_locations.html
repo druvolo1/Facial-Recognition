@@ -1096,49 +1096,54 @@
             currentApproveDeviceId = null;
         }
 
-        // Handle approve device form
-        document.getElementById('approve-device-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        // Handle approve device form - wait for DOM to load
+        window.addEventListener('DOMContentLoaded', () => {
+            const approveDeviceForm = document.getElementById('approve-device-form');
+            if (approveDeviceForm) {
+                approveDeviceForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
 
-            const deviceName = document.getElementById('approve-device-name').value;
-            const locationId = parseInt(document.getElementById('approve-device-location').value);
-            const deviceType = document.getElementById('approve-device-type').value;
-            const endpoint = document.getElementById('approve-device-endpoint').value;
+                    const deviceName = document.getElementById('approve-device-name').value;
+                    const locationId = parseInt(document.getElementById('approve-device-location').value);
+                    const deviceType = document.getElementById('approve-device-type').value;
+                    const endpoint = document.getElementById('approve-device-endpoint').value;
 
-            if (!deviceName || !locationId || !deviceType || !endpoint) {
-                showAlert('All fields are required', 'error');
-                return;
-            }
+                    if (!deviceName || !locationId || !deviceType || !endpoint) {
+                        showAlert('All fields are required', 'error');
+                        return;
+                    }
 
-            try {
-                const response = await fetch(`/api/devices/${currentApproveDeviceId}/approve`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        device_name: deviceName,
-                        location_id: locationId,
-                        device_type: deviceType,
-                        codeproject_endpoint: endpoint
-                    })
+                    try {
+                        const response = await fetch(`/api/devices/${currentApproveDeviceId}/approve`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                device_name: deviceName,
+                                location_id: locationId,
+                                device_type: deviceType,
+                                codeproject_endpoint: endpoint
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.detail || 'Failed to approve device');
+                        }
+
+                        showAlert('Device approved successfully!');
+                        closeApproveDeviceModal();
+                        await loadPendingDevices();
+
+                        // If we're in the management view, reload that too
+                        if (currentManagedLocationId) {
+                            await loadManageDevices();
+                        }
+                    } catch (error) {
+                        showAlert(error.message, 'error');
+                    }
                 });
-
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.detail || 'Failed to approve device');
-                }
-
-                showAlert('Device approved successfully!');
-                closeApproveDeviceModal();
-                await loadPendingDevices();
-
-                // If we're in the management view, reload that too
-                if (currentManagedLocationId) {
-                    await loadManageDevices();
-                }
-            } catch (error) {
-                showAlert(error.message, 'error');
             }
         });
 
