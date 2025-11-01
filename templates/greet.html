@@ -115,54 +115,6 @@
             text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
         }
 
-        .avatar-controls {
-            margin-top: 20px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            padding: 15px;
-        }
-
-        .control-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 0;
-            color: white;
-            font-size: 14px;
-        }
-
-        .avatar-url-input {
-            width: 100%;
-            padding: 8px;
-            border-radius: 5px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            background: rgba(255, 255, 255, 0.9);
-            margin-top: 10px;
-            font-size: 13px;
-        }
-
-        .load-avatar-btn {
-            width: 100%;
-            margin-top: 10px;
-            padding: 10px;
-            background: #48bb78;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-
-        .load-avatar-btn:hover {
-            background: #38a169;
-        }
-
-        .helper-text {
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.7);
-            margin-top: 5px;
-        }
 
         .camera-section {
             display: flex;
@@ -235,54 +187,6 @@
             cursor: not-allowed;
         }
 
-        .settings-panel {
-            background: #f7fafc;
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 15px;
-        }
-
-        .settings-title {
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 15px;
-        }
-
-        .setting-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 0;
-        }
-
-        .setting-label {
-            font-size: 14px;
-            color: #4a5568;
-        }
-
-        input[type="checkbox"] {
-            width: 20px;
-            height: 20px;
-            cursor: pointer;
-        }
-
-        .info-box {
-            background: #d1ecf1;
-            border: 1px solid #bee5eb;
-            color: #0c5460;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-            font-size: 13px;
-            line-height: 1.6;
-        }
-
-        .info-box a {
-            color: #0c5460;
-            font-weight: 600;
-        }
-
         .loading-message {
             position: absolute;
             top: 50%;
@@ -305,87 +209,51 @@
             margin-left: 8px;
         }
 
-        /* QR Code Overlay */
-        #qrOverlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(0, 0, 0, 0.85);
-            z-index: 9999;
-            justify-content: center;
-            align-items: center;
-            animation: fadeIn 0.3s;
-        }
-
-        #qrOverlay.show {
-            display: flex;
-        }
-
-        .qr-modal {
-            background: white;
-            border-radius: 20px;
-            padding: 40px;
+        /* QR Code Panel */
+        .qr-panel {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 20px;
             text-align: center;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-            animation: slideUp 0.4s;
-            max-width: 500px;
+            animation: slideIn 0.5s ease-out;
         }
 
-        .qr-modal h2 {
-            color: #333;
+        .qr-panel-content h2 {
+            color: white;
             margin-bottom: 10px;
-            font-size: 28px;
+            font-size: 24px;
+            font-weight: 600;
         }
 
-        .qr-modal p {
-            color: #666;
-            margin-bottom: 25px;
+        .qr-panel-content p {
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 20px;
             font-size: 16px;
         }
 
-        #qrcode {
+        #qrcodeInline {
             display: inline-block;
-            padding: 20px;
+            padding: 15px;
             background: white;
             border-radius: 10px;
-            border: 3px solid #667eea;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
 
-        .qr-close-btn {
-            margin-top: 25px;
-            padding: 12px 40px;
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .qr-close-btn:hover {
-            background: #5568d3;
-            transform: translateY(-2px);
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
-        }
-
-        @keyframes slideUp {
-            from {
-                transform: translateY(30px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
         }
     </style>
 </head>
@@ -410,23 +278,6 @@
                 <canvas id="avatarCanvas"></canvas>
                 <div class="loading-message" id="loadingMessage">Loading avatar...</div>
 
-                <div class="avatar-controls">
-                    <div class="control-row">
-                        <span>Animation Speed:</span>
-                        <input type="range" id="animSpeed" min="0.5" max="2" step="0.1" value="1" style="width: 120px;">
-                    </div>
-                    <input
-                        type="text"
-                        id="avatarUrl"
-                        class="avatar-url-input"
-                        placeholder="Paste your Ready Player Me avatar URL here..."
-                        value="https://models.readyplayer.me/6905501491ee90a9d5fdb39c.glb"
-                    >
-                    <button class="load-avatar-btn" id="loadAvatarBtn">Load Avatar</button>
-                    <div class="helper-text">
-                        Create your avatar at <a href="https://readyplayer.me" target="_blank" style="color: white;">readyplayer.me</a>
-                    </div>
-                </div>
             </div>
 
             <div class="camera-section">
@@ -440,69 +291,15 @@
                     <button id="stopBtn" class="btn-danger" disabled>Stop Greeter</button>
                 </div>
 
-                <div class="settings-panel">
-                    <div class="settings-title">Greeting Settings</div>
-                    <div class="setting-row">
-                        <span class="setting-label">Enable Voice Greeting</span>
-                        <input type="checkbox" id="enableVoice" checked>
+                <!-- QR Code Panel (shows after greeting) -->
+                <div class="qr-panel" id="qrPanel" style="display: none;">
+                    <div class="qr-panel-content">
+                        <h2>Watch Our Video!</h2>
+                        <p>Scan this QR code with your phone</p>
+                        <div id="qrcodeInline"></div>
                     </div>
-                    <div class="setting-row">
-                        <span class="setting-label">Show Camera View</span>
-                        <input type="checkbox" id="showCamera" checked>
-                    </div>
-
-                    <div class="settings-title" style="margin-top: 15px;">Avatar Features</div>
-                    <div class="setting-row">
-                        <span class="setting-label">Lip Sync <span class="feature-badge">NEW</span></span>
-                        <input type="checkbox" id="enableLipSync" checked>
-                    </div>
-                    <div class="setting-row">
-                        <span class="setting-label">Eye Tracking <span class="feature-badge">NEW</span></span>
-                        <input type="checkbox" id="enableEyeTracking" checked>
-                    </div>
-                    <div class="setting-row">
-                        <span class="setting-label">Facial Expressions <span class="feature-badge">NEW</span></span>
-                        <input type="checkbox" id="enableExpressions" checked>
-                    </div>
-                    <div class="setting-row">
-                        <span class="setting-label">Auto-Rotate Avatar</span>
-                        <input type="checkbox" id="autoRotate">
-                    </div>
-                </div>
-
-                <div class="info-box">
-                    <strong>Coqui Neural TTS + Smart Lip-Sync:</strong><br>
-                    This system uses <strong>Coqui TTS with neural voices</strong> - professional quality AI speech.<br><br>
-
-                    <strong>Current Voice:</strong> <strong>Deep Male Voice (VCTK p273)</strong><br>
-                    Natural-sounding neural voice with human-like quality.<br><br>
-
-                    <strong>How It Works:</strong><br>
-                    • Server generates speech using Coqui neural TTS<br>
-                    • Deep learning model creates natural-sounding voice<br>
-                    • Analyzes text to create phoneme timeline<br>
-                    • Browser syncs avatar mouth to audio in real-time<br><br>
-
-                    <strong>Features:</strong><br>
-                    • <strong>Voice:</strong> Neural deep male voice (sounds human!)<br>
-                    • <strong>Lip Sync:</strong> Phoneme-based mouth animation<br>
-                    • <strong>Eye Tracking:</strong> Avatar looks at detected faces<br>
-                    • <strong>Facial Expressions:</strong> Smiles when greeting<br>
-                    • <strong>Animations:</strong> Natural idle and greeting movements<br>
-                    • <strong>100% Free:</strong> No APIs, no fees, works offline<br>
-                    • <strong>Open Source:</strong> Powered by Coqui TTS (Mozilla heritage)
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- QR Code Overlay -->
-    <div id="qrOverlay">
-        <div class="qr-modal">
-            <h2>Watch Our Video!</h2>
-            <p>Scan this QR code with your phone to watch our exclusive content</p>
-            <div id="qrcode"></div>
-            <button class="qr-close-btn" onclick="closeQRCode()">Close</button>
         </div>
     </div>
 
@@ -832,12 +629,7 @@
 
         // Update lip sync based on Rhubarb viseme timeline
         function updateLipSync() {
-            if (!document.getElementById('enableLipSync').checked) {
-                // Reset morph targets
-                setMorphTarget('mouthOpen', 0);
-                setMorphTarget('mouthSmile', 0);
-                return;
-            }
+            // Lip sync is always enabled
 
             if (!isSpeaking || !currentAudio || visemeTimeline.length === 0) {
                 // Close mouth when not speaking
@@ -874,7 +666,7 @@
 
         // Update eye tracking to look at detected face
         function updateEyeTracking() {
-            if (!document.getElementById('enableEyeTracking').checked || !avatarHead) return;
+            if (!avatarHead) return;
 
             // Smooth the look target
             const smoothing = 0.1;
@@ -908,7 +700,7 @@
 
         // Show facial expression
         function showExpression(expression, intensity = 1.0, duration = 1000) {
-            if (!document.getElementById('enableExpressions').checked) return;
+            // Expressions are always enabled
 
             // Ready Player Me uses Apple ARKit blend shape names
             const expressions = {
@@ -947,8 +739,7 @@
 
             // Update animations
             if (mixer) {
-                const speed = parseFloat(document.getElementById('animSpeed').value);
-                mixer.update(delta * speed);
+                mixer.update(delta); // Normal speed
             }
 
             // Update lip sync
@@ -956,11 +747,6 @@
 
             // Update eye tracking
             updateEyeTracking();
-
-            // Auto-rotate
-            if (document.getElementById('autoRotate').checked && avatar && !isDragging) {
-                avatar.rotation.y += 0.003;
-            }
 
             // Subtle breathing animation
             if (avatar) {
@@ -1006,19 +792,9 @@
         // Initialize scene on load
         initScene();
 
-        // Load default avatar
-        const defaultAvatarUrl = document.getElementById('avatarUrl').value;
-        if (defaultAvatarUrl) {
-            loadAvatar(defaultAvatarUrl);
-        }
-
-        // Load avatar button
-        document.getElementById('loadAvatarBtn').addEventListener('click', () => {
-            const url = document.getElementById('avatarUrl').value.trim();
-            if (url) {
-                loadAvatar(url);
-            }
-        });
+        // Load default avatar (hardcoded)
+        const defaultAvatarUrl = 'https://models.readyplayer.me/6905501491ee90a9d5fdb39c.glb';
+        loadAvatar(defaultAvatarUrl);
 
         // Face recognition code
         const video = document.getElementById('videoElement');
@@ -1029,14 +805,13 @@
 
         const startBtn = document.getElementById('startBtn');
         const stopBtn = document.getElementById('stopBtn');
-        const enableVoiceCheckbox = document.getElementById('enableVoice');
-        const showCameraCheckbox = document.getElementById('showCamera');
 
         let stream = null;
         let recognitionInterval = null;
         let isRecognizing = false;
         let lastGreetedPerson = null;
         let greetingTimeout = null;
+        let qrTimeout = null;
 
         // Start greeter
         startBtn.addEventListener('click', async () => {
@@ -1073,11 +848,6 @@
         // Stop greeter
         stopBtn.addEventListener('click', () => {
             stopGreeter();
-        });
-
-        // Toggle camera view
-        showCameraCheckbox.addEventListener('change', (e) => {
-            video.style.display = e.target.checked ? 'block' : 'none';
         });
 
         // Recognize faces
@@ -1156,10 +926,8 @@
             // Animate avatar
             playGreetingAnimation();
 
-            // Speak greeting with lip sync
-            if (enableVoiceCheckbox.checked) {
-                speakWithLipSync(`Hello ${displayName}, welcome!`);
-            }
+            // Speak greeting with lip sync (always enabled)
+            speakWithLipSync(`Hello ${displayName}, welcome!`);
 
             // Show QR code after 2 seconds
             setTimeout(() => {
@@ -1168,7 +936,7 @@
 
             greetingTimeout = setTimeout(() => {
                 resetGreeting();
-            }, 15000); // Extended to 15 seconds to give time for QR code
+            }, 15000);
         }
 
         // Reset greeting
@@ -1176,13 +944,27 @@
             lastGreetedPerson = null;
             greetingText.textContent = 'Welcome!';
             statusText.textContent = 'Looking for faces...';
+
+            // Hide QR code 10 seconds after person is no longer detected
+            if (qrTimeout) {
+                clearTimeout(qrTimeout);
+            }
+            qrTimeout = setTimeout(() => {
+                hideQRCode();
+            }, 10000); // 10 seconds after no longer detected
         }
 
-        // Show QR Code overlay
+        // Show QR Code in panel
         let qrCodeGenerated = false;
         function showQRCode() {
-            const overlay = document.getElementById('qrOverlay');
-            const qrcodeDiv = document.getElementById('qrcode');
+            const qrPanel = document.getElementById('qrPanel');
+            const qrcodeDiv = document.getElementById('qrcodeInline');
+
+            // Cancel any pending hide timeout
+            if (qrTimeout) {
+                clearTimeout(qrTimeout);
+                qrTimeout = null;
+            }
 
             // Generate QR code only once
             if (!qrCodeGenerated) {
@@ -1197,8 +979,8 @@
                 // Generate QR code
                 new QRCode(qrcodeDiv, {
                     text: videoUrl,
-                    width: 256,
-                    height: 256,
+                    width: 200,
+                    height: 200,
                     colorDark: "#000000",
                     colorLight: "#ffffff",
                     correctLevel: QRCode.CorrectLevel.H
@@ -1207,15 +989,15 @@
                 qrCodeGenerated = true;
             }
 
-            // Show overlay
-            overlay.classList.add('show');
+            // Show panel
+            qrPanel.style.display = 'block';
             console.log('[QR] QR code displayed');
         }
 
-        // Close QR Code overlay
-        function closeQRCode() {
-            const overlay = document.getElementById('qrOverlay');
-            overlay.classList.remove('show');
+        // Hide QR Code panel
+        function hideQRCode() {
+            const qrPanel = document.getElementById('qrPanel');
+            qrPanel.style.display = 'none';
             console.log('[QR] QR code hidden');
         }
 
