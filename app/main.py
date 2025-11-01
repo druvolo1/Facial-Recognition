@@ -88,6 +88,7 @@ class User(SQLAlchemyBaseUserTable[int], Base):
     last_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     is_suspended: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     dashboard_preferences: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    password_change_required: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
 
 class AccessToken(SQLAlchemyBaseAccessTokenTable[int], Base):
@@ -360,6 +361,53 @@ async def register_user(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@app.get("/change-password", response_class=HTMLResponse)
+async def change_password_page(request: Request, user: User = Depends(current_active_user)):
+    """Password change page"""
+    return templates.TemplateResponse("change_password.html", {
+        "request": request,
+        "user": user,
+        "required": user.password_change_required
+    })
+
+
+@app.post("/api/change-password")
+async def change_password(
+    password_data: ChangePasswordRequest,
+    user: User = Depends(current_active_user),
+    user_manager: CustomUserManager = Depends(get_user_manager),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """User changes their own password"""
+    try:
+        # Verify current password
+        is_valid = user_manager.password_helper.verify_and_update(
+            password_data.current_password,
+            user.hashed_password
+        )[0]
+
+        if not is_valid:
+            raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+        # Update to new password
+        user.hashed_password = user_manager.password_helper.hash(password_data.new_password)
+        user.password_change_required = False
+        await session.commit()
+
+        print(f"[AUTH] Password changed for user: {user.email}")
+
+        return {
+            "success": True,
+            "message": "Password changed successfully"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[AUTH] Password change error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     """Home page - redirects to login if not authenticated"""
@@ -406,8 +454,14 @@ async def custom_login(
         # Generate token
         token = await strategy.write_token(user)
 
+        # Check if password change is required
+        password_change_required = user.password_change_required
+
         # Return success response
-        response = JSONResponse(content={"detail": "Login successful"})
+        response = JSONResponse(content={
+            "detail": "Login successful",
+            "password_change_required": password_change_required
+        })
 
         # Set the auth cookie
         response.set_cookie(
@@ -586,6 +640,83 @@ async def remove_admin(
     return {"success": True, "message": f"Admin status removed from {user.email}"}
 
 
+@app.post("/api/admin/users/create")
+async def create_user_by_admin(
+    user_data: CreateUserRequest,
+    admin: User = Depends(current_superuser),
+    user_manager: CustomUserManager = Depends(get_user_manager)
+):
+    """Admin creates a new user with temporary password"""
+    try:
+        # Create user with fastapi-users
+        user_create = UserCreate(
+            email=user_data.email,
+            password=user_data.password,
+            is_active=user_data.is_active,
+            is_superuser=user_data.is_superuser,
+            is_verified=True,  # Admin-created users are verified
+            first_name=user_data.first_name,
+            last_name=user_data.last_name
+        )
+
+        new_user = await user_manager.create(user_create)
+
+        # Set password change required flag
+        new_user.password_change_required = True
+        async for session in get_async_session():
+            session.add(new_user)
+            await session.commit()
+            break
+
+        print(f"[ADMIN] User created by admin {admin.email}: {new_user.email}")
+
+        return {
+            "success": True,
+            "message": f"User {new_user.email} created successfully",
+            "user_id": new_user.id,
+            "email": new_user.email
+        }
+
+    except exceptions.UserAlreadyExists:
+        raise HTTPException(status_code=400, detail="User with this email already exists")
+    except Exception as e:
+        print(f"[ADMIN] Error creating user: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/admin/users/{user_id}/reset-password")
+async def reset_user_password(
+    user_id: int,
+    admin: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session),
+    user_manager: CustomUserManager = Depends(get_user_manager)
+):
+    """Admin resets a user's password to a temporary one"""
+    result = await session.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Generate temporary password (12 characters: letters, numbers, special chars)
+    import string
+    temp_password = ''.join(secrets.choice(string.ascii_letters + string.digits + '!@#$%') for _ in range(12))
+
+    # Update user's password
+    user.hashed_password = user_manager.password_helper.hash(temp_password)
+    user.password_change_required = True
+    await session.commit()
+
+    print(f"[ADMIN] Password reset by {admin.email} for user: {user.email}")
+
+    return {
+        "success": True,
+        "message": f"Password reset for {user.email}",
+        "temporary_password": temp_password,
+        "user_email": user.email
+    }
+
+
 # ============================================================================
 # FACIAL RECOGNITION API ROUTES (from original Flask app)
 # ============================================================================
@@ -597,6 +728,20 @@ class RegisterRequest(BaseModel):
 
 class RecognizeRequest(BaseModel):
     image: str
+
+
+class CreateUserRequest(BaseModel):
+    email: EmailStr
+    password: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    is_active: bool = True
+    is_superuser: bool = False
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
 
 
 @app.get("/register", response_class=HTMLResponse)

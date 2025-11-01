@@ -223,8 +223,15 @@
                 });
 
                 if (response.ok) {
-                    // Redirect to dashboard on success
-                    window.location.href = '/dashboard';
+                    const data = await response.json();
+
+                    // Check if password change is required
+                    if (data.password_change_required) {
+                        window.location.href = '/change-password';
+                    } else {
+                        // Redirect to dashboard on success
+                        window.location.href = '/dashboard';
+                    }
                 } else {
                     const data = await response.json();
                     errorDiv.textContent = data.detail || 'Invalid email or password';

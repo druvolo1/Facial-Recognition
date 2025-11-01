@@ -190,6 +190,145 @@
             padding: 40px;
             color: #666;
         }
+
+        .btn-create {
+            background: #28a745;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+
+        .btn-create:hover {
+            background: #218838;
+        }
+
+        .btn-reset {
+            background: #ff9800;
+            color: white;
+        }
+
+        .btn-reset:hover {
+            background: #e68900;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 25px;
+        }
+
+        .btn-cancel {
+            background: #6c757d;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .btn-cancel:hover {
+            background: #5a6268;
+        }
+
+        .btn-submit {
+            background: #667eea;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .btn-submit:hover {
+            background: #5568d3;
+        }
+
+        .password-display {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #667eea;
+            margin: 15px 0;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -218,6 +357,8 @@
             <h2>Manage User Accounts</h2>
             <p style="color: #666; margin-top: 5px;">Approve, suspend, or manage user access</p>
         </div>
+
+        <button class="btn-create" onclick="showCreateUserModal()">+ Create User</button>
 
         <div class="users-table">
             <table>
@@ -300,6 +441,11 @@
                     // Remove Admin button for admins (but not the current user)
                     if (user.is_superuser && user.id !== currentUserId) {
                         actions += `<button class="btn btn-remove-admin" onclick="removeAdmin(${user.id})">Remove Admin</button>`;
+                    }
+
+                    // Reset Password button for all users except current admin
+                    if (user.id !== currentUserId) {
+                        actions += `<button class="btn btn-reset" onclick="resetPassword(${user.id}, '${user.email}')">Reset Password</button>`;
                     }
 
                     const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ') || '-';
@@ -435,6 +581,154 @@
             }
             window.location.href = '/login';
         }
+
+        // Show create user modal
+        function showCreateUserModal() {
+            document.getElementById('createUserModal').style.display = 'flex';
+        }
+
+        // Close modals
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // Create user
+        async function createUser() {
+            const email = document.getElementById('newUserEmail').value;
+            const password = document.getElementById('newUserPassword').value;
+            const firstName = document.getElementById('newUserFirstName').value;
+            const lastName = document.getElementById('newUserLastName').value;
+            const isActive = document.getElementById('newUserActive').checked;
+            const isAdmin = document.getElementById('newUserAdmin').checked;
+
+            if (!email || !password) {
+                alert('Email and password are required');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/users/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email,
+                        password,
+                        first_name: firstName,
+                        last_name: lastName,
+                        is_active: isActive,
+                        is_superuser: isAdmin
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert(`User created successfully!\n\nEmail: ${result.email}\n\nThe user will be required to change their password on first login.`);
+                    closeModal('createUserModal');
+                    document.getElementById('createUserForm').reset();
+                    loadUsers();
+                } else {
+                    alert(`Failed to create user: ${result.detail}`);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error creating user');
+            }
+        }
+
+        // Reset password
+        async function resetPassword(userId, userEmail) {
+            if (!confirm(`Reset password for ${userEmail}?\n\nA temporary password will be generated and displayed to you.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/admin/users/${userId}/reset-password`, {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Show temporary password modal
+                    document.getElementById('tempPasswordEmail').textContent = result.user_email;
+                    document.getElementById('tempPasswordValue').textContent = result.temporary_password;
+                    document.getElementById('tempPasswordModal').style.display = 'flex';
+                    loadUsers();
+                } else {
+                    alert(`Failed to reset password: ${result.detail}`);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error resetting password');
+            }
+        }
+
+        // Copy password to clipboard
+        function copyPassword() {
+            const password = document.getElementById('tempPasswordValue').textContent;
+            navigator.clipboard.writeText(password).then(() => {
+                alert('Password copied to clipboard!');
+            });
+        }
     </script>
+
+    <!-- Create User Modal -->
+    <div id="createUserModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create New User</h3>
+                <p style="color: #666; font-size: 14px;">User will be required to change password on first login</p>
+            </div>
+            <form id="createUserForm" onsubmit="event.preventDefault(); createUser();">
+                <div class="form-group">
+                    <label>Email *</label>
+                    <input type="email" id="newUserEmail" required>
+                </div>
+                <div class="form-group">
+                    <label>Temporary Password *</label>
+                    <input type="password" id="newUserPassword" required minlength="8">
+                </div>
+                <div class="form-group">
+                    <label>First Name</label>
+                    <input type="text" id="newUserFirstName">
+                </div>
+                <div class="form-group">
+                    <label>Last Name</label>
+                    <input type="text" id="newUserLastName">
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="newUserActive" checked>
+                    <label for="newUserActive" style="margin: 0;">Activate immediately (allow login)</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="newUserAdmin">
+                    <label for="newUserAdmin" style="margin: 0;">Grant admin privileges</label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="closeModal('createUserModal')">Cancel</button>
+                    <button type="submit" class="btn-submit">Create User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Temporary Password Modal -->
+    <div id="tempPasswordModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Password Reset Successful</h3>
+                <p style="color: #666; font-size: 14px;">Temporary password for <strong id="tempPasswordEmail"></strong></p>
+            </div>
+            <p style="margin-bottom: 10px; color: #666; font-size: 14px;">
+                <strong>Important:</strong> Copy this password and send it to the user securely. They will be required to change it on next login.
+            </p>
+            <div class="password-display" id="tempPasswordValue"></div>
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" onclick="copyPassword()">Copy Password</button>
+                <button type="button" class="btn-submit" onclick="closeModal('tempPasswordModal')">Close</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
