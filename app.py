@@ -514,15 +514,48 @@ def text_to_speech():
             voices = engine.getProperty('voices')
             print(f"[TTS] Available voices: {len(voices)}")
 
-            # Try to use a female voice (usually index 1)
-            if len(voices) > 1:
-                engine.setProperty('voice', voices[1].id)
-                print(f"[TTS] Using voice: {voices[1].name}")
-            elif len(voices) > 0:
-                engine.setProperty('voice', voices[0].id)
-                print(f"[TTS] Using voice: {voices[0].name}")
+            # For espeak on Linux, explicitly set English language
+            if system == 'Linux':
+                # Set espeak to use English (US or UK)
+                try:
+                    # List all voices to find English ones
+                    for idx, voice in enumerate(voices):
+                        print(f"[TTS] Voice {idx}: {voice.id} - {voice.name}")
 
-            engine.setProperty('rate', 150)  # Speed
+                    # Try to find English female voice
+                    english_voice = None
+                    for voice in voices:
+                        voice_id = voice.id.lower()
+                        # Look for English voices (en, en-us, en-gb, english)
+                        if 'en' in voice_id or 'english' in voice_id:
+                            # Prefer female voices
+                            if 'female' in voice_id or 'f' in voice_id:
+                                english_voice = voice.id
+                                print(f"[TTS] Found English female voice: {voice.id}")
+                                break
+                            elif english_voice is None:
+                                english_voice = voice.id
+
+                    if english_voice:
+                        engine.setProperty('voice', english_voice)
+                        print(f"[TTS] Using English voice: {english_voice}")
+                    else:
+                        # Fallback: just use first voice
+                        if len(voices) > 0:
+                            engine.setProperty('voice', voices[0].id)
+                            print(f"[TTS] Using default voice: {voices[0].id}")
+                except Exception as e:
+                    print(f"[TTS] Warning: Could not set voice: {e}")
+            else:
+                # Windows/Mac - try to use a female voice (usually index 1)
+                if len(voices) > 1:
+                    engine.setProperty('voice', voices[1].id)
+                    print(f"[TTS] Using voice: {voices[1].name}")
+                elif len(voices) > 0:
+                    engine.setProperty('voice', voices[0].id)
+                    print(f"[TTS] Using voice: {voices[0].name}")
+
+            engine.setProperty('rate', 150)  # Speed (words per minute)
             engine.setProperty('volume', 1.0)
 
             # Save to file
