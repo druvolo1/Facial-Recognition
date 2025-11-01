@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Greeter - Advanced</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 1600px;
+            height: calc(100vh - 40px);
+            margin: 0 auto;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .back-link {
+            display: inline-block;
+            color: #667eea;
+            text-decoration: none;
+            margin-bottom: 20px;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .main-content {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            min-height: 0;
+        }
+
+        .avatar-section {
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            border-radius: 20px;
+            padding: 30px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #avatarCanvas {
+            flex: 1;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            cursor: grab;
+        }
+
+        #avatarCanvas:active {
+            cursor: grabbing;
+        }
+
+        .greeting-overlay {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            right: 30px;
+            text-align: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .greeting-text {
+            font-size: 48px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            margin-bottom: 10px;
+            min-height: 60px;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .status-text {
+            font-size: 18px;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+
+        .camera-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .video-container {
+            position: relative;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        #videoElement {
+            display: block;
+            width: 100%;
+            height: auto;
+            object-fit: contain;
+            background: #000;
+        }
+
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .controls button {
+            padding: 10px 25px;
+            font-size: 14px;
+        }
+
+        button {
+            padding: 12px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #e53e3e;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loading-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 18px;
+            text-align: center;
+            z-index: 5;
+        }
+
+        .feature-badge {
+            display: inline-block;
+            background: #48bb78;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        /* QR Code Panel */
+        .qr-panel {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            animation: slideIn 0.5s ease-out;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .qr-panel-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .qr-panel-content h2 {
+            color: white;
+            margin-bottom: 10px;
+            font-size: 22px;
+            font-weight: 600;
+        }
+
+        .qr-panel-content p {
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 20px;
+            font-size: 15px;
+        }
+
+        #qrcodeInline {
+            display: inline-block;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            margin-bottom: 15px;
+        }
+
+        .qr-link {
+            color: white;
+            font-size: 15px;
+            text-decoration: underline;
+            cursor: pointer;
+            display: inline-block;
+            font-weight: 500;
+        }
+
+        .qr-link:hover {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">← Back to Home</a>
+        <h1>AI Greeter - Advanced 3D Avatar</h1>
+        <p class="subtitle">
+            <span class="feature-badge">Lip Sync</span>
+            <span class="feature-badge">Eye Tracking</span>
+            <span class="feature-badge">Facial Expressions</span>
+            <span class="feature-badge">Animations</span>
+        </p>
+
+        <div class="main-content">
+            <div class="avatar-section">
+                <div class="greeting-overlay">
+                    <div class="greeting-text" id="greetingText">Welcome!</div>
+                    <div class="status-text" id="statusText">Waiting to recognize someone...</div>
+                </div>
+
+                <canvas id="avatarCanvas"></canvas>
+                <div class="loading-message" id="loadingMessage">Loading avatar...</div>
+
+            </div>
+
+            <div class="camera-section">
+                <div class="video-container">
+                    <video id="videoElement" autoplay playsinline muted></video>
+                    <canvas id="canvas"></canvas>
+                </div>
+
+                <div class="controls">
+                    <button id="startBtn" class="btn-primary">Start Greeter</button>
+                    <button id="stopBtn" class="btn-danger" disabled>Stop Greeter</button>
+                </div>
+
+                <!-- QR Code Panel (shows after greeting) -->
+                <div class="qr-panel" id="qrPanel" style="display: none;">
+                    <div class="qr-panel-content">
+                        <h2>Scan for Product Specs</h2>
+                        <div id="qrcodeInline"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Code Library -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+    <!-- Three.js ES Module -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+        // Three.js scene setup
+        let scene, camera, renderer, avatar, mixer, clock;
+        let avatarHead, avatarNeck, leftEye, rightEye;
+        let morphTargets = {};
+        let idleAction, currentAnimation = null;
+        let isAvatarLoaded = false;
+
+        const avatarCanvas = document.getElementById('avatarCanvas');
+        const loadingMessage = document.getElementById('loadingMessage');
+
+        // Lip sync state
+        let isSpeaking = false;
+        let currentAudio = null;
+        let visemeTimeline = [];
+        let speechStartTime = 0;
+
+        // Face tracking
+        let detectedFacePosition = { x: 0, y: 0 };
+        let smoothedLookTarget = { x: 0, y: 0 };
+
+        // Initialize Three.js scene
+        function initScene() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x2a3f5f);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(
+                45,
+                avatarCanvas.clientWidth / avatarCanvas.clientHeight,
+                0.1,
+                1000
+            );
+            camera.position.set(0, 1.6, 1.2);
+            camera.lookAt(0, 1.5, 0);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({
+                canvas: avatarCanvas,
+                antialias: true,
+                alpha: true
+            });
+            renderer.setSize(avatarCanvas.clientWidth, avatarCanvas.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+
+            const keyLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            keyLight.position.set(5, 10, 7.5);
+            keyLight.castShadow = true;
+            scene.add(keyLight);
+
+            const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+            fillLight.position.set(-5, 5, -5);
+            scene.add(fillLight);
+
+            const rimLight = new THREE.DirectionalLight(0x6688ff, 0.3);
+            rimLight.position.set(0, 5, -10);
+            scene.add(rimLight);
+
+            // Clock for animations
+            clock = new THREE.Clock();
+
+            // Mouse controls
+            setupMouseControls();
+
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize, false);
+
+            // Start render loop
+            animate();
+        }
+
+        // Load Ready Player Me avatar
+        function loadAvatar(url) {
+            loadingMessage.style.display = 'block';
+            loadingMessage.textContent = 'Loading avatar...';
+
+            // Remove existing avatar
+            if (avatar) {
+                scene.remove(avatar);
+            }
+
+            const loader = new GLTFLoader();
+
+            loader.load(
+                url,
+                (gltf) => {
+                    avatar = gltf.scene;
+                    scene.add(avatar);
+
+                    // Position avatar
+                    avatar.position.set(0, 0, 0);
+                    avatar.scale.set(1, 1, 1);
+
+                    // Find head, neck, and eyes for tracking
+                    console.log('[AVATAR] Scanning for bones and morph targets...');
+                    avatar.traverse((node) => {
+                        if (node.isBone) {
+                            const nodeName = node.name.toLowerCase();
+                            console.log('[AVATAR] Found bone:', node.name);
+
+                            // Try multiple possible head bone names
+                            if (nodeName.includes('head') || nodeName === 'head' || nodeName.includes('mixamorig_head')) {
+                                avatarHead = node;
+                                console.log('[AVATAR] ✓ Head bone found:', node.name);
+                            } else if (nodeName.includes('neck') || nodeName === 'neck' || nodeName.includes('mixamorig_neck')) {
+                                avatarNeck = node;
+                                console.log('[AVATAR] ✓ Neck bone found:', node.name);
+                            }
+                        }
+
+                        // Find morph targets for facial expressions and lip sync
+                        if (node.isMesh && node.morphTargetDictionary) {
+                            const dict = node.morphTargetDictionary;
+                            console.log('[AVATAR] Found mesh with morph targets:', node.name);
+                            console.log('[AVATAR] Available morph targets:', Object.keys(dict));
+
+                            // Store ALL meshes with morph targets (Ready Player Me may have multiple)
+                            if (!morphTargets.meshes) {
+                                morphTargets.meshes = [];
+                            }
+                            morphTargets.meshes.push({
+                                mesh: node,
+                                influences: node.morphTargetInfluences,
+                                dictionary: dict
+                            });
+
+                            // Keep first mesh as primary
+                            if (!morphTargets.mesh) {
+                                morphTargets.mesh = node;
+                                morphTargets.influences = node.morphTargetInfluences;
+                                morphTargets.dictionary = dict;
+                            }
+                        }
+
+                        // Find eyes - try multiple naming conventions
+                        const nodeName = node.name.toLowerCase();
+                        if (nodeName.includes('lefteye') || nodeName === 'eye_l' || nodeName.includes('eye.l')) {
+                            leftEye = node;
+                            console.log('[AVATAR] ✓ Left eye found:', node.name);
+                        }
+                        if (nodeName.includes('righteye') || nodeName === 'eye_r' || nodeName.includes('eye.r')) {
+                            rightEye = node;
+                            console.log('[AVATAR] ✓ Right eye found:', node.name);
+                        }
+                    });
+
+                    // Setup animations if available
+                    if (gltf.animations && gltf.animations.length > 0) {
+                        mixer = new THREE.AnimationMixer(avatar);
+
+                        gltf.animations.forEach((clip) => {
+                            const action = mixer.clipAction(clip);
+                            if (clip.name.toLowerCase().includes('idle')) {
+                                idleAction = action;
+                            }
+                        });
+
+                        // Play idle animation
+                        if (idleAction) {
+                            idleAction.play();
+                        }
+                    }
+
+                    loadingMessage.style.display = 'none';
+                    isAvatarLoaded = true;
+                    console.log('[AVATAR] Loaded successfully');
+                    console.log('[AVATAR] Head bone:', avatarHead ? 'Found' : 'Not found');
+
+                    // Log ALL available morph targets for debugging
+                    if (morphTargets.meshes && morphTargets.meshes.length > 0) {
+                        console.log('[AVATAR] Total meshes with morph targets:', morphTargets.meshes.length);
+                        morphTargets.meshes.forEach((meshData, i) => {
+                            console.log(`[AVATAR] Mesh ${i} morph targets:`, Object.keys(meshData.dictionary));
+                        });
+                    }
+                },
+                (progress) => {
+                    const percent = (progress.loaded / progress.total * 100).toFixed(0);
+                    loadingMessage.textContent = `Loading avatar... ${percent}%`;
+                },
+                (error) => {
+                    console.error('[AVATAR] Error loading:', error);
+                    loadingMessage.textContent = 'Failed to load avatar. Please check the URL.';
+                    loadingMessage.style.color = '#ff4444';
+                }
+            );
+        }
+
+        // Setup mouse controls for rotating avatar
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+
+        function setupMouseControls() {
+            avatarCanvas.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+
+            avatarCanvas.addEventListener('mousemove', (e) => {
+                if (isDragging && avatar) {
+                    const deltaX = e.clientX - previousMousePosition.x;
+                    avatar.rotation.y += deltaX * 0.01;
+                    previousMousePosition = { x: e.clientX, y: e.clientY };
+                }
+            });
+
+            avatarCanvas.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+
+            avatarCanvas.addEventListener('mouseleave', () => {
+                isDragging = false;
+            });
+        }
+
+        // Set morph target value by name - try all meshes
+        function setMorphTarget(name, value) {
+            let found = false;
+
+            // Try all meshes with morph targets
+            if (morphTargets.meshes) {
+                morphTargets.meshes.forEach(meshData => {
+                    const index = meshData.dictionary[name];
+                    if (index !== undefined) {
+                        meshData.influences[index] = Math.max(0, Math.min(1, value)); // Clamp 0-1
+                        found = true;
+                    }
+                });
+            }
+
+            // Fallback to primary mesh
+            if (!found && morphTargets.mesh && morphTargets.dictionary) {
+                const index = morphTargets.dictionary[name];
+                if (index !== undefined) {
+                    morphTargets.influences[index] = Math.max(0, Math.min(1, value)); // Clamp 0-1
+                    found = true;
+                }
+            }
+
+            return found;
+        }
+
+        // Get morph target value by name
+        function getMorphTarget(name) {
+            // Try all meshes
+            if (morphTargets.meshes) {
+                for (let meshData of morphTargets.meshes) {
+                    const index = meshData.dictionary[name];
+                    if (index !== undefined) {
+                        return meshData.influences[index];
+                    }
+                }
+            }
+
+            // Fallback to primary mesh
+            if (morphTargets.mesh && morphTargets.dictionary) {
+                const index = morphTargets.dictionary[name];
+                if (index !== undefined) {
+                    return morphTargets.influences[index];
+                }
+            }
+            return 0;
+        }
+
+        // Animate morph target smoothly
+        function animateMorphTarget(name, targetValue, duration = 300) {
+            const startValue = getMorphTarget(name) || 0;
+            const startTime = Date.now();
+
+            const animate = () => {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = progress < 0.5
+                    ? 2 * progress * progress
+                    : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+                const currentValue = startValue + (targetValue - startValue) * eased;
+                setMorphTarget(name, currentValue);
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                }
+            };
+
+            animate();
+        }
+
+        // Rhubarb viseme to Ready Player Me morph target mapping
+        // Simplified for avatars with limited morph targets (mouthOpen + mouthSmile only)
+        // Rhubarb uses letters A-H and X for visemes
+        const rhubarbVisemeToMorph = {
+            'X': [], // Rest/silence - mouth closed
+            'A': [{ name: 'mouthOpen', value: 1.0 }], // Wide open (ah, aa)
+            'B': [], // Lips together (m, b, p) - close mouth
+            'C': [{ name: 'mouthOpen', value: 0.6 }], // Rounded (oh, oo) - medium open
+            'D': [{ name: 'mouthSmile', value: 0.9 }], // Spread lips (ee, ay) - smile
+            'E': [{ name: 'mouthOpen', value: 0.4 }], // Neutral/slight open (eh)
+            'F': [{ name: 'mouthOpen', value: 0.3 }], // Lower lip/upper teeth (f, v) - slight open
+            'G': [{ name: 'mouthOpen', value: 0.5 }], // Tongue up (k, g, ng) - medium open
+            'H': [{ name: 'mouthOpen', value: 0.3 }], // Tongue/teeth (th, l, r) - slight open
+        };
+
+
+        // Update lip sync based on Rhubarb viseme timeline
+        function updateLipSync() {
+            // Lip sync is always enabled
+
+            if (!isSpeaking || !currentAudio || visemeTimeline.length === 0) {
+                // Close mouth when not speaking
+                setMorphTarget('mouthOpen', 0);
+                setMorphTarget('mouthSmile', 0);
+                return;
+            }
+
+            // Get current time from audio element
+            const currentTime = currentAudio.currentTime;
+
+            // Find current viseme cue
+            let currentViseme = 'X'; // Default to rest
+            for (let i = 0; i < visemeTimeline.length; i++) {
+                const cue = visemeTimeline[i];
+                if (currentTime >= cue.start && currentTime < cue.end) {
+                    currentViseme = cue.value;
+                    break;
+                }
+            }
+
+            // Reset morph targets first
+            setMorphTarget('mouthOpen', 0);
+            setMorphTarget('mouthSmile', 0);
+
+            // Apply current viseme morphs
+            const morphs = rhubarbVisemeToMorph[currentViseme];
+            if (morphs && morphs.length > 0) {
+                morphs.forEach(target => {
+                    setMorphTarget(target.name, target.value);
+                });
+            }
+        }
+
+        // Update eye tracking to look at detected face
+        function updateEyeTracking() {
+            if (!avatarHead) return;
+
+            // Smooth the look target
+            const smoothing = 0.1;
+            smoothedLookTarget.x += (detectedFacePosition.x - smoothedLookTarget.x) * smoothing;
+            smoothedLookTarget.y += (detectedFacePosition.y - smoothedLookTarget.y) * smoothing;
+
+            // Rotate head to look at target
+            const maxHeadRotation = 0.3;
+            const targetRotationY = smoothedLookTarget.x * maxHeadRotation;
+            const targetRotationX = -smoothedLookTarget.y * maxHeadRotation * 0.5;
+
+            if (avatarHead) {
+                avatarHead.rotation.y += (targetRotationY - avatarHead.rotation.y) * 0.1;
+                avatarHead.rotation.x += (targetRotationX - avatarHead.rotation.x) * 0.1;
+            }
+
+            if (avatarNeck) {
+                avatarNeck.rotation.y += (targetRotationY * 0.3 - avatarNeck.rotation.y) * 0.1;
+            }
+
+            // Move eyes
+            if (leftEye) {
+                leftEye.rotation.y = smoothedLookTarget.x * 0.5;
+                leftEye.rotation.x = -smoothedLookTarget.y * 0.3;
+            }
+            if (rightEye) {
+                rightEye.rotation.y = smoothedLookTarget.x * 0.5;
+                rightEye.rotation.x = -smoothedLookTarget.y * 0.3;
+            }
+        }
+
+        // Show facial expression
+        function showExpression(expression, intensity = 1.0, duration = 1000) {
+            // Expressions are always enabled
+
+            // Ready Player Me uses Apple ARKit blend shape names
+            const expressions = {
+                smile: ['mouthSmile', 'mouthSmileLeft', 'mouthSmileRight', 'viseme_aa'],
+                happy: ['mouthSmile', 'mouthSmileLeft', 'mouthSmileRight', 'eyeSquintLeft', 'eyeSquintRight'],
+                surprised: ['jawOpen', 'eyeWideLeft', 'eyeWideRight', 'browInnerUp'],
+                neutral: []
+            };
+
+            const morphs = expressions[expression] || [];
+
+            console.log('[EXPRESSION] Trying to show:', expression, 'with morphs:', morphs);
+
+            // Animate expression
+            morphs.forEach(morph => {
+                const success = setMorphTarget(morph, intensity);
+                if (success) {
+                    console.log('[EXPRESSION] ✓ Applied:', morph);
+                }
+                animateMorphTarget(morph, intensity, duration / 2);
+            });
+
+            // Return to neutral after duration
+            setTimeout(() => {
+                morphs.forEach(morph => {
+                    animateMorphTarget(morph, 0, duration / 2);
+                });
+            }, duration);
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+
+            // Update animations
+            if (mixer) {
+                mixer.update(delta); // Normal speed
+            }
+
+            // Update lip sync
+            updateLipSync();
+
+            // Update eye tracking
+            updateEyeTracking();
+
+            // Subtle breathing animation
+            if (avatar) {
+                const breathe = Math.sin(Date.now() * 0.001) * 0.002;
+                avatar.position.y = breathe;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
+        function onWindowResize() {
+            camera.aspect = avatarCanvas.clientWidth / avatarCanvas.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(avatarCanvas.clientWidth, avatarCanvas.clientHeight);
+        }
+
+        // Avatar greeting animation
+        function playGreetingAnimation() {
+            if (!avatar) return;
+
+            // Head nod
+            const startRotation = avatar.rotation.x;
+            const nodAngle = -0.15;
+            let progress = 0;
+
+            const nod = setInterval(() => {
+                progress += 0.08;
+                if (progress <= 0.5) {
+                    avatar.rotation.x = startRotation + (nodAngle * (progress * 2));
+                } else if (progress <= 1) {
+                    avatar.rotation.x = startRotation + (nodAngle * (2 - progress * 2));
+                } else {
+                    avatar.rotation.x = startRotation;
+                    clearInterval(nod);
+                }
+            }, 30);
+
+            // Show happy expression
+            showExpression('smile', 0.8, 2000);
+        }
+
+        // Initialize scene on load
+        initScene();
+
+        // Load default avatar (hardcoded)
+        const defaultAvatarUrl = 'https://models.readyplayer.me/6905501491ee90a9d5fdb39c.glb';
+        loadAvatar(defaultAvatarUrl);
+
+        // Face recognition code
+        const video = document.getElementById('videoElement');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const greetingText = document.getElementById('greetingText');
+        const statusText = document.getElementById('statusText');
+
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+
+        let stream = null;
+        let recognitionInterval = null;
+        let isRecognizing = false;
+        let lastGreetedPerson = null;
+        let currentlyDetectedPerson = null;
+        let hasGreetedCurrentPerson = false;
+        let greetingTimeout = null;
+        let qrTimeout = null;
+        let noDetectionCount = 0;
+
+        // Update canvas size to match video display size
+        function updateCanvasSize() {
+            // When using object-fit: contain, the video maintains aspect ratio
+            // and may have letterboxing. We need to match the actual video content size.
+            const videoAspect = video.videoWidth / video.videoHeight;
+            const containerAspect = video.clientWidth / video.clientHeight;
+
+            let displayWidth, displayHeight, offsetX, offsetY;
+
+            if (containerAspect > videoAspect) {
+                // Container is wider - video will have pillarboxing (black bars on sides)
+                displayHeight = video.clientHeight;
+                displayWidth = displayHeight * videoAspect;
+                offsetX = (video.clientWidth - displayWidth) / 2;
+                offsetY = 0;
+            } else {
+                // Container is taller - video will have letterboxing (black bars top/bottom)
+                displayWidth = video.clientWidth;
+                displayHeight = displayWidth / videoAspect;
+                offsetX = 0;
+                offsetY = (video.clientHeight - displayHeight) / 2;
+            }
+
+            // Set canvas to match the video element container
+            canvas.width = video.clientWidth;
+            canvas.height = video.clientHeight;
+
+            console.log('[VIDEO] Canvas size updated to:', canvas.width, 'x', canvas.height);
+            console.log('[VIDEO] Video element size:', video.clientWidth, 'x', video.clientHeight);
+            console.log('[VIDEO] Video native size:', video.videoWidth, 'x', video.videoHeight);
+            console.log('[VIDEO] Actual video display:', displayWidth.toFixed(0), 'x', displayHeight.toFixed(0));
+            console.log('[VIDEO] Video offset:', offsetX.toFixed(0), ',', offsetY.toFixed(0));
+
+            // Store these for bounding box calculations
+            video.dataset.displayWidth = displayWidth;
+            video.dataset.displayHeight = displayHeight;
+            video.dataset.offsetX = offsetX;
+            video.dataset.offsetY = offsetY;
+        }
+
+        // Helper function to calculate scale factors for coordinate conversion
+        function getCoordinateScaling() {
+            const actualVideoWidth = video.videoWidth || 1280;
+            const actualVideoHeight = video.videoHeight || 720;
+
+            // Get the actual displayed video size (accounting for object-fit: contain)
+            // If dataset values don't exist yet, recalculate them
+            if (!video.dataset.displayWidth) {
+                console.warn('[BBOX] Display dimensions not set, calculating now...');
+                updateCanvasSize();
+            }
+
+            const displayWidth = parseFloat(video.dataset.displayWidth) || video.clientWidth;
+            const displayHeight = parseFloat(video.dataset.displayHeight) || video.clientHeight;
+            const offsetX = parseFloat(video.dataset.offsetX) || 0;
+            const offsetY = parseFloat(video.dataset.offsetY) || 0;
+
+            // Calculate what size was sent to the server (max 640x480)
+            const maxWidth = 640;
+            const maxHeight = 480;
+            let sentWidth, sentHeight;
+            const aspectRatio = actualVideoWidth / actualVideoHeight;
+
+            if (actualVideoWidth > maxWidth || actualVideoHeight > maxHeight) {
+                if (aspectRatio > maxWidth / maxHeight) {
+                    sentWidth = maxWidth;
+                    sentHeight = maxWidth / aspectRatio;
+                } else {
+                    sentHeight = maxHeight;
+                    sentWidth = maxHeight * aspectRatio;
+                }
+            } else {
+                sentWidth = actualVideoWidth;
+                sentHeight = actualVideoHeight;
+            }
+
+            return {
+                scaleX: displayWidth / sentWidth,
+                scaleY: displayHeight / sentHeight,
+                sentWidth,
+                sentHeight,
+                displayWidth,
+                displayHeight,
+                offsetX,
+                offsetY
+            };
+        }
+
+        // Start greeter
+        startBtn.addEventListener('click', async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'user'
+                    }
+                });
+                video.srcObject = stream;
+
+                video.onloadedmetadata = () => {
+                    // Wait for video to render then set canvas to match displayed size
+                    setTimeout(() => {
+                        updateCanvasSize();
+
+                        // Start recognition AFTER canvas is sized correctly
+                        startBtn.disabled = true;
+                        stopBtn.disabled = false;
+                        isRecognizing = true;
+
+                        recognitionInterval = setInterval(recognizeFaces, 2000);
+                        recognizeFaces();
+                    }, 200);
+                };
+
+                // Update canvas size on window resize
+                window.addEventListener('resize', () => {
+                    updateCanvasSize();
+                });
+
+                statusText.textContent = 'Looking for faces...';
+
+            } catch (error) {
+                console.error('Camera error:', error);
+                statusText.textContent = 'Camera access denied';
+            }
+        });
+
+        // Stop greeter
+        stopBtn.addEventListener('click', () => {
+            stopGreeter();
+        });
+
+        // Recognize faces
+        async function recognizeFaces() {
+            if (!isRecognizing || !video.videoWidth) return;
+
+            try {
+                // Clear and capture the current video frame
+                // Create a temporary canvas that matches the video's native resolution
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = video.videoWidth;
+                tempCanvas.height = video.videoHeight;
+                const tempCtx = tempCanvas.getContext('2d');
+
+                // Draw the video frame at full resolution
+                tempCtx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+
+                // Get the image data to send to server
+                const imageData = tempCanvas.toDataURL('image/jpeg', 0.8);
+
+                console.log('[RECOGNIZE] Captured frame:', video.videoWidth, 'x', video.videoHeight);
+
+                const response = await fetch('/api/recognize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: imageData })
+                });
+
+                const result = await response.json();
+
+                if (result.success && result.faces && result.faces.length > 0) {
+                    const bestFace = result.faces.reduce((prev, current) =>
+                        (prev.confidence > current.confidence) ? prev : current
+                    );
+
+                    // Update face position for eye tracking
+                    const scaling = getCoordinateScaling();
+
+                    // Get face center in server coordinates
+                    const faceX = (bestFace.x_min + bestFace.x_max) / 2;
+                    const faceY = (bestFace.y_min + bestFace.y_max) / 2;
+
+                    // Scale to display coordinates
+                    const displayFaceX = faceX * scaling.scaleX + scaling.offsetX;
+                    const displayFaceY = faceY * scaling.scaleY + scaling.offsetY;
+
+                    // Normalize to -1 to 1 range using display dimensions
+                    detectedFacePosition.x = (displayFaceX / scaling.displayWidth) * 2 - 1;
+                    detectedFacePosition.y = -((displayFaceY / scaling.displayHeight) * 2 - 1);
+
+                    if (bestFace.userid !== 'unknown') {
+                        // Check if this is a new person or returning person
+                        if (currentlyDetectedPerson !== bestFace.userid) {
+                            // New person detected or person changed
+                            currentlyDetectedPerson = bestFace.userid;
+                            hasGreetedCurrentPerson = false;
+                            noDetectionCount = 0;
+                        }
+
+                        // Only greet if we haven't greeted this person yet
+                        if (!hasGreetedCurrentPerson) {
+                            greetPerson(bestFace.userid, bestFace.confidence);
+                            hasGreetedCurrentPerson = true;
+                        }
+
+                        noDetectionCount = 0; // Reset no detection counter
+                    } else {
+                        // Unknown person detected
+                        if (currentlyDetectedPerson !== null) {
+                            noDetectionCount++;
+                            if (noDetectionCount > 2) { // After 3 cycles of no detection (6 seconds)
+                                resetGreeting();
+                            }
+                        }
+                    }
+
+                    drawBoundingBoxes(result.faces);
+                } else {
+                    // No face detected, reset eye tracking to center
+                    detectedFacePosition = { x: 0, y: 0 };
+
+                    if (currentlyDetectedPerson !== null) {
+                        noDetectionCount++;
+                        if (noDetectionCount > 2) { // After 3 cycles of no detection (6 seconds)
+                            resetGreeting();
+                        }
+                    }
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+
+            } catch (error) {
+                console.error('Recognition error:', error);
+            }
+        }
+
+        // Greet person
+        function greetPerson(name, confidence) {
+            console.log('[GREETING] Greeting person:', name);
+
+            lastGreetedPerson = name;
+
+            const firstName = name.split('_')[0];
+            const displayName = firstName.charAt(0).toUpperCase() + firstName.slice(1);
+
+            greetingText.textContent = `Hello, ${displayName}!`;
+            statusText.textContent = `Confidence: ${(confidence * 100).toFixed(1)}%`;
+
+            // Animate avatar
+            playGreetingAnimation();
+
+            // Speak greeting with lip sync (always enabled)
+            speakWithLipSync(`Hello ${displayName}. If you would like to see product specs, scan the QR code below.`);
+
+            // Show QR code after 2 seconds
+            setTimeout(() => {
+                showQRCode();
+            }, 2000);
+        }
+
+        // Reset greeting
+        function resetGreeting() {
+            console.log('[GREETING] Resetting - person has left');
+            lastGreetedPerson = null;
+            currentlyDetectedPerson = null;
+            hasGreetedCurrentPerson = false;
+            noDetectionCount = 0;
+            greetingText.textContent = 'Welcome!';
+            statusText.textContent = 'Looking for faces...';
+
+            // Hide QR code 10 seconds after person is no longer detected
+            if (qrTimeout) {
+                clearTimeout(qrTimeout);
+            }
+            qrTimeout = setTimeout(() => {
+                hideQRCode();
+            }, 10000); // 10 seconds after no longer detected
+        }
+
+        // Show QR Code in panel
+        let qrCodeGenerated = false;
+        function showQRCode() {
+            const qrPanel = document.getElementById('qrPanel');
+            const qrcodeDiv = document.getElementById('qrcodeInline');
+
+            // Cancel any pending hide timeout
+            if (qrTimeout) {
+                clearTimeout(qrTimeout);
+                qrTimeout = null;
+            }
+
+            // Generate QR code only once
+            if (!qrCodeGenerated) {
+                qrcodeDiv.innerHTML = ''; // Clear any existing QR code
+
+                // Get the current URL and construct video page URL
+                const currentUrl = window.location.origin;
+                const videoUrl = `${currentUrl}/video`;
+
+                console.log('[QR] Generating QR code for:', videoUrl);
+
+                // Generate QR code
+                new QRCode(qrcodeDiv, {
+                    text: videoUrl,
+                    width: 200,
+                    height: 200,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+
+                qrCodeGenerated = true;
+            }
+
+            // Show panel
+            qrPanel.style.display = 'block';
+            console.log('[QR] QR code displayed');
+        }
+
+        // Hide QR Code panel
+        function hideQRCode() {
+            const qrPanel = document.getElementById('qrPanel');
+            qrPanel.style.display = 'none';
+            console.log('[QR] QR code hidden');
+        }
+
+        // Text-to-speech with Rhubarb lip sync
+        async function speakWithLipSync(text) {
+            console.log('[TTS] Generating speech with Rhubarb lip sync');
+
+            try {
+                // Call server to generate audio and viseme data
+                const response = await fetch('/api/tts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error('[TTS] Server error:', errorData);
+                    alert(`TTS Error: ${errorData.error}\n${errorData.suggestion || ''}`);
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    console.error('[TTS] Failed:', data.error);
+                    alert(`TTS Error: ${data.error}`);
+                    return;
+                }
+
+                console.log('[TTS] Received audio and viseme data');
+                console.log('[TTS] Audio URL:', data.audio_url);
+                console.log('[TTS] Viseme cues:', data.visemes.mouthCues?.length);
+                console.log('[TTS] Cached:', data.cached);
+
+                // Extract viseme timeline
+                visemeTimeline = data.visemes.mouthCues || [];
+
+                // Create audio element and play
+                if (currentAudio) {
+                    currentAudio.pause();
+                    currentAudio = null;
+                }
+
+                currentAudio = new Audio(data.audio_url);
+
+                currentAudio.onplay = () => {
+                    isSpeaking = true;
+                    console.log('[TTS] Audio playing');
+                };
+
+                currentAudio.onended = () => {
+                    isSpeaking = false;
+                    currentAudio = null;
+                    console.log('[TTS] Audio finished');
+
+                    // Close mouth
+                    setTimeout(() => {
+                        setMorphTarget('mouthOpen', 0);
+                        setMorphTarget('mouthSmile', 0);
+                    }, 100);
+                };
+
+                currentAudio.onerror = (e) => {
+                    console.error('[TTS] Audio playback error:', e);
+                    isSpeaking = false;
+                    currentAudio = null;
+                };
+
+                // Play audio
+                await currentAudio.play();
+
+            } catch (error) {
+                console.error('[TTS] Exception:', error);
+                alert(`TTS Error: ${error.message}`);
+            }
+        }
+
+        // Draw bounding boxes
+        function drawBoundingBoxes(faces) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Get scaling factors
+            const scaling = getCoordinateScaling();
+
+            console.log('[BBOX] Scaling info:', {
+                videoSize: `${video.videoWidth}x${video.videoHeight}`,
+                sentSize: `${scaling.sentWidth.toFixed(0)}x${scaling.sentHeight.toFixed(0)}`,
+                displaySize: `${scaling.displayWidth.toFixed(0)}x${scaling.displayHeight.toFixed(0)}`,
+                offset: `${scaling.offsetX.toFixed(0)},${scaling.offsetY.toFixed(0)}`,
+                scaleFactors: `${scaling.scaleX.toFixed(3)}x, ${scaling.scaleY.toFixed(3)}y`
+            });
+
+            faces.forEach((face) => {
+                // Scale from server coordinates to display size and add offset
+                const x = face.x_min * scaling.scaleX + scaling.offsetX;
+                const y = face.y_min * scaling.scaleY + scaling.offsetY;
+                const width = (face.x_max - face.x_min) * scaling.scaleX;
+                const height = (face.y_max - face.y_min) * scaling.scaleY;
+
+                console.log('[BBOX] Face coords:', {
+                    server: `(${face.x_min}, ${face.y_min}) - (${face.x_max}, ${face.y_max})`,
+                    display: `(${x.toFixed(0)}, ${y.toFixed(0)}) ${width.toFixed(0)}x${height.toFixed(0)}`
+                });
+
+                ctx.strokeStyle = face.userid === 'unknown' ? '#ff4444' : '#48bb78';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(x, y, width, height);
+
+                const label = face.userid === 'unknown' ? 'Unknown' : face.userid;
+                const confidence = (face.confidence * 100).toFixed(0) + '%';
+                const labelText = `${label} (${confidence})`;
+
+                ctx.font = 'bold 16px "Segoe UI"';
+                const textWidth = ctx.measureText(labelText).width;
+
+                ctx.fillStyle = face.userid === 'unknown' ? '#ff4444' : '#48bb78';
+                ctx.fillRect(x, y - 30, textWidth + 20, 30);
+
+                ctx.fillStyle = 'white';
+                ctx.fillText(labelText, x + 10, y - 10);
+            });
+        }
+
+        // Stop greeter
+        function stopGreeter() {
+            isRecognizing = false;
+
+            if (recognitionInterval) {
+                clearInterval(recognitionInterval);
+                recognitionInterval = null;
+            }
+
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                stream = null;
+            }
+
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+
+            // Reset all greeting state
+            lastGreetedPerson = null;
+            currentlyDetectedPerson = null;
+            hasGreetedCurrentPerson = false;
+            noDetectionCount = 0;
+
+            greetingText.textContent = 'Welcome!';
+            statusText.textContent = 'Greeter stopped';
+
+            // Hide QR code immediately
+            hideQRCode();
+            if (qrTimeout) {
+                clearTimeout(qrTimeout);
+                qrTimeout = null;
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Reset face position
+            detectedFacePosition = { x: 0, y: 0 };
+        }
+
+        // Cleanup
+        window.addEventListener('beforeunload', () => {
+            stopGreeter();
+        });
+    </script>
+</body>
+</html>

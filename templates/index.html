@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Recognition System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+        }
+
+        .nav-btn {
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+            background: #667eea;
+            color: white;
+        }
+
+        .nav-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 30px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .camera-section {
+            position: relative;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        #videoElement {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            background: #000;
+        }
+
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        button {
+            padding: 12px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #38a169;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #e53e3e;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .status-panel {
+            background: #f7fafc;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .status-row:last-child {
+            border-bottom: none;
+        }
+
+        .status-label {
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .status-value {
+            color: #2d3748;
+        }
+
+        .status-value.active {
+            color: #48bb78;
+            font-weight: 600;
+        }
+
+        .status-value.inactive {
+            color: #cbd5e0;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .recognized-faces {
+            background: #f7fafc;
+            border-radius: 10px;
+            padding: 20px;
+            min-height: 400px;
+        }
+
+        .recognized-faces h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .face-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 10px 0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .face-info h3 {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .face-info p {
+            margin: 5px 0 0 0;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .confidence-badge {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 16px;
+            margin-top: 10px;
+            display: inline-block;
+        }
+
+        .no-faces {
+            text-align: center;
+            color: #a0aec0;
+            padding: 40px 20px;
+            font-size: 16px;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .recognition-active {
+            display: inline-block;
+            background: #48bb78;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Face Recognition System</h1>
+        <p class="subtitle">Powered by CodeProject.AI</p>
+
+        <div class="nav-buttons">
+            <a href="/register" class="nav-btn">Register New Face</a>
+            <a href="/recognize" class="nav-btn">Recognition Page</a>
+            <a href="/greet" class="nav-btn">AI Greeter</a>
+            <a href="/manage" class="nav-btn">Manage Users</a>
+            <a href="/monitor" class="nav-btn">Display Monitor</a>
+            <a href="/diagnostics" class="nav-btn">System Diagnostics</a>
+        </div>
+
+        <div class="main-content">
+            <div class="camera-section">
+                <div class="video-container">
+                    <video id="videoElement" autoplay playsinline></video>
+                    <canvas id="canvas"></canvas>
+                </div>
+
+                <div class="button-group">
+                    <button id="startCamera" class="btn-primary">Start Camera</button>
+                    <button id="startRecognition" class="btn-secondary" disabled>Start Recognition</button>
+                    <button id="stopRecognition" class="btn-danger" disabled>Stop Recognition</button>
+                </div>
+
+                <div class="status-panel">
+                    <div class="status-row">
+                        <span class="status-label">Camera Status:</span>
+                        <span class="status-value inactive" id="cameraStatus">Inactive</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">Recognition Status:</span>
+                        <span class="status-value inactive" id="recognitionStatus">Inactive</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">Faces Detected:</span>
+                        <span class="status-value" id="faceCount">0</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">Last Check:</span>
+                        <span class="status-value" id="lastCheck">Never</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="recognized-faces" id="recognizedFaces">
+                    <h2>Detected Faces</h2>
+                    <div class="no-faces">
+                        Start camera and recognition to detect faces
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+    </div>
+
+    <script>
+        const video = document.getElementById('videoElement');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        const startCameraBtn = document.getElementById('startCamera');
+        const startRecognitionBtn = document.getElementById('startRecognition');
+        const stopRecognitionBtn = document.getElementById('stopRecognition');
+
+        const cameraStatus = document.getElementById('cameraStatus');
+        const recognitionStatus = document.getElementById('recognitionStatus');
+        const faceCount = document.getElementById('faceCount');
+        const lastCheck = document.getElementById('lastCheck');
+        const recognizedFaces = document.getElementById('recognizedFaces');
+        const errorMessage = document.getElementById('errorMessage');
+
+        let stream = null;
+        let recognitionInterval = null;
+        let isRecognizing = false;
+
+        // Start camera
+        startCameraBtn.addEventListener('click', async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'user'
+                    }
+                });
+                video.srcObject = stream;
+
+                // Wait for video to load to set canvas size
+                video.onloadedmetadata = () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                };
+
+                startCameraBtn.disabled = true;
+                startRecognitionBtn.disabled = false;
+                cameraStatus.textContent = 'Active';
+                cameraStatus.classList.remove('inactive');
+                cameraStatus.classList.add('active');
+
+                hideError();
+            } catch (error) {
+                showError('Unable to access camera. Please ensure camera permissions are granted.');
+                console.error('Camera error:', error);
+            }
+        });
+
+        // Start recognition
+        startRecognitionBtn.addEventListener('click', () => {
+            if (isRecognizing) return;
+
+            isRecognizing = true;
+            startRecognitionBtn.disabled = true;
+            stopRecognitionBtn.disabled = false;
+
+            recognitionStatus.innerHTML = '<span class="recognition-active">ACTIVE</span>';
+            recognitionStatus.classList.remove('inactive');
+            recognitionStatus.classList.add('active');
+
+            // Start recognition loop (every 2 seconds)
+            recognitionInterval = setInterval(recognizeFaces, 2000);
+
+            // Run immediately
+            recognizeFaces();
+        });
+
+        // Stop recognition
+        stopRecognitionBtn.addEventListener('click', () => {
+            stopRecognition();
+        });
+
+        // Recognize faces in current frame
+        async function recognizeFaces() {
+            if (!isRecognizing || !video.videoWidth) return;
+
+            try {
+                // Capture current frame
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                // Convert to base64
+                const imageData = canvas.toDataURL('image/jpeg', 0.8);
+
+                // Send to Flask backend
+                const response = await fetch('/api/recognize', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ image: imageData })
+                });
+
+                const result = await response.json();
+
+                // Update last check time
+                const now = new Date();
+                lastCheck.textContent = now.toLocaleTimeString();
+
+                if (result.success) {
+                    const faces = result.faces || [];
+                    faceCount.textContent = faces.length;
+
+                    // Display recognized faces
+                    displayRecognizedFaces(faces);
+
+                    // Draw bounding boxes on canvas
+                    drawBoundingBoxes(faces);
+                } else {
+                    showError(result.error);
+                }
+
+            } catch (error) {
+                console.error('Recognition error:', error);
+                showError('Failed to recognize faces: ' + error.message);
+            }
+        }
+
+        // Display recognized faces in sidebar
+        function displayRecognizedFaces(faces) {
+            const header = '<h2>Detected Faces</h2>';
+
+            if (faces.length === 0) {
+                recognizedFaces.innerHTML = header + '<div class="no-faces">No faces detected in frame</div>';
+                return;
+            }
+
+            let facesHTML = header;
+
+            faces.forEach((face, index) => {
+                const confidencePercent = (face.confidence * 100).toFixed(1);
+                const userName = face.userid === 'unknown' ? 'Unknown Person' : face.userid;
+
+                facesHTML += `
+                    <div class="face-card">
+                        <div class="face-info">
+                            <h3>${userName}</h3>
+                            <p>Face #${index + 1}</p>
+                        </div>
+                        <div class="confidence-badge">${confidencePercent}%</div>
+                    </div>
+                `;
+            });
+
+            recognizedFaces.innerHTML = facesHTML;
+        }
+
+        // Draw bounding boxes on canvas overlay
+        function drawBoundingBoxes(faces) {
+            // Clear previous drawings
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            faces.forEach((face) => {
+                // Get actual video dimensions
+                const actualWidth = canvas.width;
+                const actualHeight = canvas.height;
+
+                // CodeProject.AI received a resized image (max 640x480)
+                // We need to figure out what size was actually sent
+                const maxWidth = 640;
+                const maxHeight = 480;
+
+                // Calculate the scale ratio
+                // The image was resized maintaining aspect ratio
+                let sentWidth, sentHeight;
+                const aspectRatio = actualWidth / actualHeight;
+
+                if (actualWidth > maxWidth || actualHeight > maxHeight) {
+                    // Image was resized
+                    if (aspectRatio > maxWidth / maxHeight) {
+                        // Width was the limiting factor
+                        sentWidth = maxWidth;
+                        sentHeight = maxWidth / aspectRatio;
+                    } else {
+                        // Height was the limiting factor
+                        sentHeight = maxHeight;
+                        sentWidth = maxHeight * aspectRatio;
+                    }
+                } else {
+                    // Image was not resized
+                    sentWidth = actualWidth;
+                    sentHeight = actualHeight;
+                }
+
+                // Calculate scale factors
+                const scaleX = actualWidth / sentWidth;
+                const scaleY = actualHeight / sentHeight;
+
+                // Scale coordinates from resized image to actual canvas size
+                const x = face.x_min * scaleX;
+                const y = face.y_min * scaleY;
+                const width = (face.x_max - face.x_min) * scaleX;
+                const height = (face.y_max - face.y_min) * scaleY;
+
+                // Draw rectangle
+                ctx.strokeStyle = face.userid === 'unknown' ? '#ff4444' : '#48bb78';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(x, y, width, height);
+
+                // Draw label background
+                const label = face.userid === 'unknown' ? 'Unknown' : face.userid;
+                const confidence = (face.confidence * 100).toFixed(0) + '%';
+                const labelText = `${label} (${confidence})`;
+
+                ctx.font = 'bold 16px "Segoe UI"';
+                const textWidth = ctx.measureText(labelText).width;
+
+                ctx.fillStyle = face.userid === 'unknown' ? '#ff4444' : '#48bb78';
+                ctx.fillRect(x, y - 30, textWidth + 20, 30);
+
+                // Draw label text
+                ctx.fillStyle = 'white';
+                ctx.fillText(labelText, x + 10, y - 10);
+            });
+        }
+
+        // Stop recognition
+        function stopRecognition() {
+            isRecognizing = false;
+
+            if (recognitionInterval) {
+                clearInterval(recognitionInterval);
+                recognitionInterval = null;
+            }
+
+            startRecognitionBtn.disabled = false;
+            stopRecognitionBtn.disabled = true;
+
+            recognitionStatus.textContent = 'Stopped';
+            recognitionStatus.classList.remove('active');
+            recognitionStatus.classList.add('inactive');
+
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // Stop camera
+        function stopCamera() {
+            stopRecognition();
+
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                stream = null;
+            }
+
+            startCameraBtn.disabled = false;
+            startRecognitionBtn.disabled = true;
+
+            cameraStatus.textContent = 'Inactive';
+            cameraStatus.classList.remove('active');
+            cameraStatus.classList.add('inactive');
+        }
+
+        // Show error message
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+        }
+
+        // Hide error message
+        function hideError() {
+            errorMessage.style.display = 'none';
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            stopCamera();
+        });
+    </script>
+</body>
+</html>

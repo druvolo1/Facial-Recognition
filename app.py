@@ -1575,36 +1575,6 @@ def delete_display(display_id):
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-# SSSP App Distribution Routes
-@app.route('/sssp/install')
-def sssp_install_page():
-    """Installation page for SSSP app"""
-    return render_template('sssp_install.html')
-
-@app.route('/sssp/download')
-def sssp_download():
-    """Download the SSSP app .wgt file"""
-    try:
-        sssp_app_path = os.path.join(os.path.dirname(__file__), 'sssp_app', 'FaceRecMonitor_updated.wgt')
-
-        if not os.path.exists(sssp_app_path):
-            print(f"[SSSP] App file not found: {sssp_app_path}")
-            return "SSSP app file not found", 404
-
-        print(f"[SSSP] Serving app from: {sssp_app_path}")
-
-        return send_file(
-            sssp_app_path,
-            mimetype='application/widget',
-            as_attachment=True,
-            download_name='FaceRecMonitor.wgt'
-        )
-
-    except Exception as e:
-        print(f"[SSSP] Error serving app: {e}")
-        return f"Error: {str(e)}", 500
-
-
 @app.route('/api/health-check', methods=['GET'])
 def health_check():
     """
