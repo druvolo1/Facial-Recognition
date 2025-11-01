@@ -1,3 +1,17 @@
-register:497 Camera error: TypeError: Cannot read properties of undefined (reading 'getUserMedia')
-    at HTMLButtonElement.<anonymous> (register:481:55)
-(anonymous) @ register:497
+(venv) dave@Garden1:~/Facial-Recognition/app $ python main.py
+[CONFIG] Database URL: mariadb+aiomysql://app_user:testpass123@172.16.1.150:3306/facial_recognition
+[CONFIG] Base directory: /home/dave/Facial-Recognition
+[CONFIG] Upload folder: /home/dave/Facial-Recognition/uploads
+[CONFIG] CodeProject.AI: http://172.16.1.150:32168/v1
+/home/dave/Facial-Recognition/app/main.py:247: DeprecationWarning:
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+  @app.on_event("startup")
+Traceback (most recent call last):
+  File "/home/dave/Facial-Recognition/app/main.py", line 376, in <module>
+    password_data: ChangePasswordRequest,
+                   ^^^^^^^^^^^^^^^^^^^^^
+NameError: name 'ChangePasswordRequest' is not defined

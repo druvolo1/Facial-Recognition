@@ -138,6 +138,33 @@ async def get_access_token_db(session: AsyncSession = Depends(get_async_session)
 
 
 # ============================================================================
+# PYDANTIC REQUEST MODELS
+# ============================================================================
+
+class CreateUserRequest(BaseModel):
+    email: EmailStr
+    password: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    is_active: bool = True
+    is_superuser: bool = False
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class RegisterRequest(BaseModel):
+    name: str
+    photos: List[str]
+
+
+class RecognizeRequest(BaseModel):
+    image: str
+
+
+# ============================================================================
 # USER SCHEMAS
 # ============================================================================
 
@@ -720,29 +747,6 @@ async def reset_user_password(
 # ============================================================================
 # FACIAL RECOGNITION API ROUTES (from original Flask app)
 # ============================================================================
-
-class RegisterRequest(BaseModel):
-    name: str
-    photos: List[str]
-
-
-class RecognizeRequest(BaseModel):
-    image: str
-
-
-class CreateUserRequest(BaseModel):
-    email: EmailStr
-    password: str
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    is_active: bool = True
-    is_superuser: bool = False
-
-
-class ChangePasswordRequest(BaseModel):
-    current_password: str
-    new_password: str
-
 
 @app.get("/register", response_class=HTMLResponse)
 async def register_face_page(request: Request, user: User = Depends(current_active_user)):
