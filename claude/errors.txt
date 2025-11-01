@@ -1,4 +1,6 @@
-users:860 Uncaught TypeError: Cannot read properties of null (reading 'addEventListener')
-    at users:860:54
-(anonymous) @ users:860
 users:1 [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) <input type=​"password" id=​"newUserPassword" required minlength=​"8">​
+users:810 Uncaught (in promise) ReferenceError: openModal is not defined
+    at manageUserLocations (users:810:13)
+manageUserLocations @ users:810
+await in manageUserLocations
+onclick @ users:1

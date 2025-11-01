@@ -807,7 +807,7 @@
             await loadUserAssignments(userId);
 
             // Show modal
-            openModal('manageLocationsModal');
+            document.getElementById('manageLocationsModal').style.display = 'flex';
         }
 
         async function loadAllLocations() {
