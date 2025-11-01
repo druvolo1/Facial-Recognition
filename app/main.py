@@ -113,6 +113,33 @@ class RegisteredFace(Base):
     registered_by_user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("user.id"), nullable=True)
 
 
+class Location(Base):
+    """Physical locations where devices will be deployed"""
+    __tablename__ = "location"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    address: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    timezone: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, default='UTC')
+    contact_info: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_by_user_id: Mapped[int] = mapped_column(Integer, ForeignKey("user.id"), nullable=False)
+
+
+class UserLocationRole(Base):
+    """Many-to-many relationship between users and locations with roles"""
+    __tablename__ = "user_location_role"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("user.id"), nullable=False)
+    location_id: Mapped[int] = mapped_column(Integer, ForeignKey("location.id"), nullable=False)
+    # Role can be: 'location_admin' or 'location_user'
+    role: Mapped[str] = mapped_column(String(50), nullable=False)
+    assigned_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    assigned_by_user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("user.id"), nullable=True)
+
+
 # Database engine and session
 engine = create_async_engine(DATABASE_URL, echo=False, pool_pre_ping=True)
 async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
@@ -162,6 +189,27 @@ class RegisterRequest(BaseModel):
 
 class RecognizeRequest(BaseModel):
     image: str
+
+
+class CreateLocationRequest(BaseModel):
+    name: str
+    address: Optional[str] = None
+    description: Optional[str] = None
+    timezone: Optional[str] = 'UTC'
+    contact_info: Optional[str] = None
+
+
+class UpdateLocationRequest(BaseModel):
+    name: Optional[str] = None
+    address: Optional[str] = None
+    description: Optional[str] = None
+    timezone: Optional[str] = None
+    contact_info: Optional[str] = None
+
+
+class AssignUserToLocationRequest(BaseModel):
+    user_id: int
+    role: str  # 'location_admin' or 'location_user'
 
 
 # ============================================================================
@@ -446,9 +494,34 @@ async def home(request: Request):
         return RedirectResponse(url="/login", status_code=302)
 
 
+@app.get("/no-location", response_class=HTMLResponse)
+async def no_location_page(request: Request, user: User = Depends(current_active_user)):
+    """Page shown to users who are not assigned to any locations"""
+    return templates.TemplateResponse("no_location.html", {
+        "request": request,
+        "user": user
+    })
+
+
 @app.get("/dashboard", response_class=HTMLResponse)
-async def dashboard(request: Request, user: User = Depends(current_active_user)):
-    """Main dashboard (requires authentication)"""
+async def dashboard(
+    request: Request,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Main dashboard (requires authentication and location assignment)"""
+    # Superadmins have access to all locations, so they bypass the check
+    if not user.is_superuser:
+        # Check if user has any location assignments
+        result = await session.execute(
+            select(UserLocationRole).where(UserLocationRole.user_id == user.id)
+        )
+        user_locations = result.scalars().all()
+
+        # If no locations assigned, redirect to no-location page
+        if not user_locations:
+            return RedirectResponse(url="/no-location", status_code=302)
+
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
         "user": user
@@ -525,6 +598,12 @@ async def logout(response: HTMLResponse):
 async def admin_users_page(request: Request, user: User = Depends(current_superuser)):
     """Admin user management page"""
     return templates.TemplateResponse("admin_users.html", {"request": request, "user": user})
+
+
+@app.get("/admin/locations", response_class=HTMLResponse)
+async def admin_locations_page(request: Request, user: User = Depends(current_superuser)):
+    """Admin location management page"""
+    return templates.TemplateResponse("admin_locations.html", {"request": request, "user": user})
 
 
 @app.get("/api/admin/users")
@@ -774,6 +853,424 @@ async def delete_user(
     return {
         "success": True,
         "message": f"User {user_email} deleted successfully"
+    }
+
+
+# ============================================================================
+# LOCATION MANAGEMENT API ROUTES
+# ============================================================================
+
+@app.post("/api/locations")
+async def create_location(
+    location_data: CreateLocationRequest,
+    admin: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Create a new location (superadmin only)"""
+    try:
+        # Check if location name already exists
+        result = await session.execute(
+            select(Location).where(Location.name == location_data.name)
+        )
+        existing_location = result.scalar_one_or_none()
+
+        if existing_location:
+            raise HTTPException(status_code=400, detail="Location with this name already exists")
+
+        # Create new location
+        new_location = Location(
+            name=location_data.name,
+            address=location_data.address,
+            description=location_data.description,
+            timezone=location_data.timezone,
+            contact_info=location_data.contact_info,
+            created_by_user_id=admin.id
+        )
+
+        session.add(new_location)
+        await session.commit()
+        await session.refresh(new_location)
+
+        print(f"[LOCATION] Location created by {admin.email}: {new_location.name}")
+
+        return {
+            "success": True,
+            "message": f"Location '{new_location.name}' created successfully",
+            "location_id": new_location.id,
+            "location": {
+                "id": new_location.id,
+                "name": new_location.name,
+                "address": new_location.address,
+                "description": new_location.description,
+                "timezone": new_location.timezone,
+                "contact_info": new_location.contact_info,
+                "created_at": new_location.created_at.isoformat()
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[LOCATION] Error creating location: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/locations")
+async def list_locations(
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """List locations accessible to the user"""
+    try:
+        # Superadmins see all locations
+        if user.is_superuser:
+            result = await session.execute(select(Location))
+            locations = result.scalars().all()
+        else:
+            # Regular users see only their assigned locations
+            result = await session.execute(
+                select(Location).join(UserLocationRole).where(
+                    UserLocationRole.user_id == user.id
+                )
+            )
+            locations = result.scalars().all()
+
+        return {
+            "success": True,
+            "locations": [
+                {
+                    "id": loc.id,
+                    "name": loc.name,
+                    "address": loc.address,
+                    "description": loc.description,
+                    "timezone": loc.timezone,
+                    "contact_info": loc.contact_info,
+                    "created_at": loc.created_at.isoformat()
+                }
+                for loc in locations
+            ],
+            "total": len(locations)
+        }
+
+    except Exception as e:
+        print(f"[LOCATION] Error listing locations: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/locations/{location_id}")
+async def get_location(
+    location_id: int,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Get location details"""
+    result = await session.execute(select(Location).where(Location.id == location_id))
+    location = result.scalar_one_or_none()
+
+    if not location:
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    # Check permissions
+    if not user.is_superuser:
+        # Check if user has access to this location
+        access_check = await session.execute(
+            select(UserLocationRole).where(
+                UserLocationRole.user_id == user.id,
+                UserLocationRole.location_id == location_id
+            )
+        )
+        user_role = access_check.scalar_one_or_none()
+
+        if not user_role:
+            raise HTTPException(status_code=403, detail="Access denied to this location")
+
+    return {
+        "success": True,
+        "location": {
+            "id": location.id,
+            "name": location.name,
+            "address": location.address,
+            "description": location.description,
+            "timezone": location.timezone,
+            "contact_info": location.contact_info,
+            "created_at": location.created_at.isoformat()
+        }
+    }
+
+
+@app.put("/api/locations/{location_id}")
+async def update_location(
+    location_id: int,
+    location_data: UpdateLocationRequest,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Update location (superadmin or location admin)"""
+    result = await session.execute(select(Location).where(Location.id == location_id))
+    location = result.scalar_one_or_none()
+
+    if not location:
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    # Check permissions
+    if not user.is_superuser:
+        # Check if user is location admin
+        role_check = await session.execute(
+            select(UserLocationRole).where(
+                UserLocationRole.user_id == user.id,
+                UserLocationRole.location_id == location_id,
+                UserLocationRole.role == 'location_admin'
+            )
+        )
+        user_role = role_check.scalar_one_or_none()
+
+        if not user_role:
+            raise HTTPException(status_code=403, detail="Only location admins can update this location")
+
+    # Update fields
+    if location_data.name is not None:
+        location.name = location_data.name
+    if location_data.address is not None:
+        location.address = location_data.address
+    if location_data.description is not None:
+        location.description = location_data.description
+    if location_data.timezone is not None:
+        location.timezone = location_data.timezone
+    if location_data.contact_info is not None:
+        location.contact_info = location_data.contact_info
+
+    await session.commit()
+
+    print(f"[LOCATION] Location updated by {user.email}: {location.name}")
+
+    return {
+        "success": True,
+        "message": f"Location '{location.name}' updated successfully"
+    }
+
+
+@app.delete("/api/locations/{location_id}")
+async def delete_location(
+    location_id: int,
+    admin: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Delete a location (superadmin only)"""
+    result = await session.execute(select(Location).where(Location.id == location_id))
+    location = result.scalar_one_or_none()
+
+    if not location:
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    location_name = location.name
+
+    # Delete associated user-location roles
+    await session.execute(
+        select(UserLocationRole).where(UserLocationRole.location_id == location_id)
+    )
+    # Note: The delete will cascade if we set up the foreign key properly
+
+    await session.delete(location)
+    await session.commit()
+
+    print(f"[LOCATION] Location deleted by {admin.email}: {location_name}")
+
+    return {
+        "success": True,
+        "message": f"Location '{location_name}' deleted successfully"
+    }
+
+
+@app.post("/api/locations/{location_id}/users")
+async def assign_user_to_location(
+    location_id: int,
+    assignment_data: AssignUserToLocationRequest,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Assign a user to a location with a role (superadmin or location admin)"""
+    # Check location exists
+    location_result = await session.execute(select(Location).where(Location.id == location_id))
+    location = location_result.scalar_one_or_none()
+
+    if not location:
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    # Check user exists
+    user_result = await session.execute(select(User).where(User.id == assignment_data.user_id))
+    target_user = user_result.scalar_one_or_none()
+
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Check permissions
+    if not user.is_superuser:
+        # Check if user is location admin for this location
+        role_check = await session.execute(
+            select(UserLocationRole).where(
+                UserLocationRole.user_id == user.id,
+                UserLocationRole.location_id == location_id,
+                UserLocationRole.role == 'location_admin'
+            )
+        )
+        user_role = role_check.scalar_one_or_none()
+
+        if not user_role:
+            raise HTTPException(status_code=403, detail="Only location admins can assign users")
+
+    # Validate role
+    if assignment_data.role not in ['location_admin', 'location_user']:
+        raise HTTPException(status_code=400, detail="Role must be 'location_admin' or 'location_user'")
+
+    # Check if already assigned
+    existing_assignment = await session.execute(
+        select(UserLocationRole).where(
+            UserLocationRole.user_id == assignment_data.user_id,
+            UserLocationRole.location_id == location_id
+        )
+    )
+    existing = existing_assignment.scalar_one_or_none()
+
+    if existing:
+        # Update role if different
+        if existing.role != assignment_data.role:
+            existing.role = assignment_data.role
+            await session.commit()
+            print(f"[LOCATION] User role updated by {user.email}: {target_user.email} -> {assignment_data.role} at {location.name}")
+            return {
+                "success": True,
+                "message": f"User role updated to {assignment_data.role}"
+            }
+        else:
+            return {
+                "success": True,
+                "message": "User already assigned with this role"
+            }
+
+    # Create new assignment
+    new_assignment = UserLocationRole(
+        user_id=assignment_data.user_id,
+        location_id=location_id,
+        role=assignment_data.role,
+        assigned_by_user_id=user.id
+    )
+
+    session.add(new_assignment)
+    await session.commit()
+
+    print(f"[LOCATION] User assigned by {user.email}: {target_user.email} -> {assignment_data.role} at {location.name}")
+
+    return {
+        "success": True,
+        "message": f"User assigned as {assignment_data.role}"
+    }
+
+
+@app.delete("/api/locations/{location_id}/users/{user_id}")
+async def remove_user_from_location(
+    location_id: int,
+    user_id: int,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Remove a user from a location (superadmin or location admin)"""
+    # Check location exists
+    location_result = await session.execute(select(Location).where(Location.id == location_id))
+    location = location_result.scalar_one_or_none()
+
+    if not location:
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    # Check permissions
+    if not user.is_superuser:
+        # Check if user is location admin for this location
+        role_check = await session.execute(
+            select(UserLocationRole).where(
+                UserLocationRole.user_id == user.id,
+                UserLocationRole.location_id == location_id,
+                UserLocationRole.role == 'location_admin'
+            )
+        )
+        user_role = role_check.scalar_one_or_none()
+
+        if not user_role:
+            raise HTTPException(status_code=403, detail="Only location admins can remove users")
+
+    # Find and delete assignment
+    assignment_result = await session.execute(
+        select(UserLocationRole).where(
+            UserLocationRole.user_id == user_id,
+            UserLocationRole.location_id == location_id
+        )
+    )
+    assignment = assignment_result.scalar_one_or_none()
+
+    if not assignment:
+        raise HTTPException(status_code=404, detail="User assignment not found")
+
+    await session.delete(assignment)
+    await session.commit()
+
+    print(f"[LOCATION] User removed from location by {user.email}: user_id={user_id} from {location.name}")
+
+    return {
+        "success": True,
+        "message": "User removed from location"
+    }
+
+
+@app.get("/api/locations/{location_id}/users")
+async def list_location_users(
+    location_id: int,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """List users assigned to a location"""
+    # Check location exists
+    location_result = await session.execute(select(Location).where(Location.id == location_id))
+    location = location_result.scalar_one_or_none()
+
+    if not location:
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    # Check permissions
+    if not user.is_superuser:
+        # Check if user has access to this location
+        access_check = await session.execute(
+            select(UserLocationRole).where(
+                UserLocationRole.user_id == user.id,
+                UserLocationRole.location_id == location_id
+            )
+        )
+        user_access = access_check.scalar_one_or_none()
+
+        if not user_access:
+            raise HTTPException(status_code=403, detail="Access denied to this location")
+
+    # Get all user assignments for this location
+    result = await session.execute(
+        select(UserLocationRole, User).join(User).where(
+            UserLocationRole.location_id == location_id
+        )
+    )
+    assignments = result.all()
+
+    return {
+        "success": True,
+        "location_id": location_id,
+        "location_name": location.name,
+        "users": [
+            {
+                "user_id": user_obj.id,
+                "email": user_obj.email,
+                "first_name": user_obj.first_name,
+                "last_name": user_obj.last_name,
+                "role": assignment.role,
+                "assigned_at": assignment.assigned_at.isoformat()
+            }
+            for assignment, user_obj in assignments
+        ],
+        "total": len(assignments)
     }
 
 

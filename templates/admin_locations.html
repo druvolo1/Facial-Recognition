@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Locations - Facial Recognition App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .nav-links {
+            margin-top: 15px;
+            display: flex;
+            gap: 15px;
+        }
+
+        .nav-links a {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            padding: 8px 15px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .nav-links a:hover {
+            background: #f0f0f0;
+        }
+
+        .content {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #d32f2f;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th {
+            background: #f5f5f5;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+            color: #666;
+        }
+
+        tr:hover {
+            background: #fafafa;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-admin {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .badge-user {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .modal-header h2 {
+            color: #333;
+            font-size: 24px;
+        }
+
+        .close {
+            font-size: 28px;
+            color: #999;
+            cursor: pointer;
+            background: none;
+            border: none;
+        }
+
+        .close:hover {
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .alert {
+            padding: 12px 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .alert-error {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+        }
+
+        .alert-success {
+            background: #efe;
+            border: 1px solid #cfc;
+            color: #3c3;
+        }
+
+        .users-list {
+            margin-top: 15px;
+        }
+
+        .user-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .location-details {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .location-details p {
+            margin-bottom: 8px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .location-details strong {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📍 Manage Locations</h1>
+            <p>Create and manage locations for your facial recognition system</p>
+            <div class="nav-links">
+                <a href="/dashboard">← Back to Dashboard</a>
+                <a href="/admin/users">Manage Users</a>
+                <a href="/logout">Logout</a>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="actions">
+                <h2 style="color: #333;">Locations</h2>
+                <button class="btn btn-primary" onclick="showCreateLocationModal()">
+                    + Create Location
+                </button>
+            </div>
+
+            <div id="alert-container"></div>
+
+            <table id="locations-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Address</th>
+                        <th>Timezone</th>
+                        <th>Assigned Users</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="locations-tbody">
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 40px;">
+                            Loading locations...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Create Location Modal -->
+    <div id="create-location-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Create New Location</h2>
+                <button class="close" onclick="closeCreateLocationModal()">&times;</button>
+            </div>
+            <form id="create-location-form">
+                <div class="form-group">
+                    <label for="location-name">Location Name *</label>
+                    <input type="text" id="location-name" name="name" required placeholder="e.g., Main Office">
+                </div>
+                <div class="form-group">
+                    <label for="location-address">Address</label>
+                    <input type="text" id="location-address" name="address" placeholder="123 Main St, City, State 12345">
+                </div>
+                <div class="form-group">
+                    <label for="location-description">Description</label>
+                    <textarea id="location-description" name="description" placeholder="Brief description of this location"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="location-timezone">Timezone</label>
+                    <select id="location-timezone" name="timezone">
+                        <option value="UTC">UTC</option>
+                        <option value="America/New_York">Eastern Time</option>
+                        <option value="America/Chicago">Central Time</option>
+                        <option value="America/Denver">Mountain Time</option>
+                        <option value="America/Los_Angeles">Pacific Time</option>
+                        <option value="America/Phoenix">Arizona Time</option>
+                        <option value="America/Anchorage">Alaska Time</option>
+                        <option value="Pacific/Honolulu">Hawaii Time</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="location-contact">Contact Information</label>
+                    <input type="text" id="location-contact" name="contact_info" placeholder="Phone, email, or contact person">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Create Location</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Location Modal -->
+    <div id="edit-location-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Location</h2>
+                <button class="close" onclick="closeEditLocationModal()">&times;</button>
+            </div>
+            <form id="edit-location-form">
+                <input type="hidden" id="edit-location-id">
+                <div class="form-group">
+                    <label for="edit-location-name">Location Name *</label>
+                    <input type="text" id="edit-location-name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-location-address">Address</label>
+                    <input type="text" id="edit-location-address" name="address">
+                </div>
+                <div class="form-group">
+                    <label for="edit-location-description">Description</label>
+                    <textarea id="edit-location-description" name="description"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="edit-location-timezone">Timezone</label>
+                    <select id="edit-location-timezone" name="timezone">
+                        <option value="UTC">UTC</option>
+                        <option value="America/New_York">Eastern Time</option>
+                        <option value="America/Chicago">Central Time</option>
+                        <option value="America/Denver">Mountain Time</option>
+                        <option value="America/Los_Angeles">Pacific Time</option>
+                        <option value="America/Phoenix">Arizona Time</option>
+                        <option value="America/Anchorage">Alaska Time</option>
+                        <option value="Pacific/Honolulu">Hawaii Time</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit-location-contact">Contact Information</label>
+                    <input type="text" id="edit-location-contact" name="contact_info">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Update Location</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Manage Users Modal -->
+    <div id="manage-users-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Manage Users</h2>
+                <button class="close" onclick="closeManageUsersModal()">&times;</button>
+            </div>
+
+            <div class="location-details" id="location-details"></div>
+
+            <h3 style="margin-bottom: 15px; color: #333;">Assign User</h3>
+            <form id="assign-user-form" style="margin-bottom: 30px;">
+                <input type="hidden" id="assign-location-id">
+                <div class="form-group">
+                    <label for="assign-user-select">Select User</label>
+                    <select id="assign-user-select" name="user_id" required>
+                        <option value="">-- Select a user --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="assign-role-select">Role</label>
+                    <select id="assign-role-select" name="role" required>
+                        <option value="location_user">Location User</option>
+                        <option value="location_admin">Location Admin</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Assign User</button>
+            </form>
+
+            <h3 style="margin-bottom: 15px; color: #333;">Assigned Users</h3>
+            <div class="users-list" id="assigned-users-list">
+                <div style="text-align: center; padding: 20px; color: #999;">
+                    Loading users...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentLocationId = null;
+        let allUsers = [];
+        let locations = [];
+
+        // Load locations on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadLocations();
+            loadAllUsers();
+        });
+
+        // Show/hide modals
+        function showCreateLocationModal() {
+            document.getElementById('create-location-modal').classList.add('active');
+        }
+
+        function closeCreateLocationModal() {
+            document.getElementById('create-location-modal').classList.remove('active');
+            document.getElementById('create-location-form').reset();
+        }
+
+        function closeEditLocationModal() {
+            document.getElementById('edit-location-modal').classList.remove('active');
+            document.getElementById('edit-location-form').reset();
+        }
+
+        function closeManageUsersModal() {
+            document.getElementById('manage-users-modal').classList.remove('active');
+            currentLocationId = null;
+        }
+
+        // Show alert message
+        function showAlert(message, type = 'success') {
+            const alertContainer = document.getElementById('alert-container');
+            alertContainer.innerHTML = `
+                <div class="alert alert-${type}">
+                    ${message}
+                </div>
+            `;
+            setTimeout(() => {
+                alertContainer.innerHTML = '';
+            }, 5000);
+        }
+
+        // Load all locations
+        async function loadLocations() {
+            try {
+                const response = await fetch('/api/locations');
+                if (!response.ok) throw new Error('Failed to load locations');
+
+                locations = await response.json();
+                renderLocations();
+            } catch (error) {
+                console.error('Error loading locations:', error);
+                document.getElementById('locations-tbody').innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 40px; color: #c33;">
+                            Error loading locations. Please refresh the page.
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Render locations table
+        function renderLocations() {
+            const tbody = document.getElementById('locations-tbody');
+
+            if (locations.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="empty-state">
+                            <div>
+                                <p style="font-size: 18px; margin-bottom: 10px;">No locations yet</p>
+                                <p>Click "Create Location" to get started</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = locations.map(location => `
+                <tr>
+                    <td><strong>${escapeHtml(location.name)}</strong></td>
+                    <td>${escapeHtml(location.address || 'N/A')}</td>
+                    <td>${escapeHtml(location.timezone || 'UTC')}</td>
+                    <td>
+                        <button class="btn btn-secondary btn-small" onclick="showManageUsersModal(${location.id})">
+                            View Users
+                        </button>
+                    </td>
+                    <td>${new Date(location.created_at).toLocaleDateString()}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-secondary btn-small" onclick="showEditLocationModal(${location.id})">
+                                Edit
+                            </button>
+                            <button class="btn btn-danger btn-small" onclick="deleteLocation(${location.id}, '${escapeHtml(location.name)}')">
+                                Delete
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Create location
+        document.getElementById('create-location-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(e.target);
+            const data = {
+                name: formData.get('name'),
+                address: formData.get('address') || null,
+                description: formData.get('description') || null,
+                timezone: formData.get('timezone'),
+                contact_info: formData.get('contact_info') || null
+            };
+
+            try {
+                const response = await fetch('/api/locations', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to create location');
+                }
+
+                showAlert('Location created successfully!');
+                closeCreateLocationModal();
+                loadLocations();
+            } catch (error) {
+                showAlert(error.message, 'error');
+            }
+        });
+
+        // Show edit location modal
+        async function showEditLocationModal(locationId) {
+            const location = locations.find(l => l.id === locationId);
+            if (!location) return;
+
+            document.getElementById('edit-location-id').value = location.id;
+            document.getElementById('edit-location-name').value = location.name;
+            document.getElementById('edit-location-address').value = location.address || '';
+            document.getElementById('edit-location-description').value = location.description || '';
+            document.getElementById('edit-location-timezone').value = location.timezone || 'UTC';
+            document.getElementById('edit-location-contact').value = location.contact_info || '';
+
+            document.getElementById('edit-location-modal').classList.add('active');
+        }
+
+        // Edit location
+        document.getElementById('edit-location-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const locationId = document.getElementById('edit-location-id').value;
+            const formData = new FormData(e.target);
+            const data = {
+                name: formData.get('name'),
+                address: formData.get('address') || null,
+                description: formData.get('description') || null,
+                timezone: formData.get('timezone'),
+                contact_info: formData.get('contact_info') || null
+            };
+
+            try {
+                const response = await fetch(`/api/locations/${locationId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to update location');
+                }
+
+                showAlert('Location updated successfully!');
+                closeEditLocationModal();
+                loadLocations();
+            } catch (error) {
+                showAlert(error.message, 'error');
+            }
+        });
+
+        // Delete location
+        async function deleteLocation(locationId, locationName) {
+            if (!confirm(`Are you sure you want to delete "${locationName}"?\n\nThis action cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/locations/${locationId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to delete location');
+                }
+
+                showAlert('Location deleted successfully!');
+                loadLocations();
+            } catch (error) {
+                showAlert(error.message, 'error');
+            }
+        }
+
+        // Load all users for assignment dropdown
+        async function loadAllUsers() {
+            try {
+                const response = await fetch('/api/admin/users');
+                if (!response.ok) throw new Error('Failed to load users');
+
+                allUsers = await response.json();
+            } catch (error) {
+                console.error('Error loading users:', error);
+            }
+        }
+
+        // Show manage users modal
+        async function showManageUsersModal(locationId) {
+            currentLocationId = locationId;
+            const location = locations.find(l => l.id === locationId);
+
+            if (!location) return;
+
+            // Show location details
+            document.getElementById('location-details').innerHTML = `
+                <p><strong>Location:</strong> ${escapeHtml(location.name)}</p>
+                <p><strong>Address:</strong> ${escapeHtml(location.address || 'N/A')}</p>
+                ${location.description ? `<p><strong>Description:</strong> ${escapeHtml(location.description)}</p>` : ''}
+            `;
+
+            document.getElementById('assign-location-id').value = locationId;
+
+            // Populate user dropdown
+            const userSelect = document.getElementById('assign-user-select');
+            userSelect.innerHTML = '<option value="">-- Select a user --</option>' +
+                allUsers.map(user => `
+                    <option value="${user.id}">
+                        ${escapeHtml(user.email)} ${user.first_name ? `(${escapeHtml(user.first_name)} ${escapeHtml(user.last_name || '')})` : ''}
+                    </option>
+                `).join('');
+
+            // Load assigned users
+            await loadLocationUsers(locationId);
+
+            document.getElementById('manage-users-modal').classList.add('active');
+        }
+
+        // Load users for a location
+        async function loadLocationUsers(locationId) {
+            try {
+                const response = await fetch(`/api/locations/${locationId}/users`);
+                if (!response.ok) throw new Error('Failed to load users');
+
+                const users = await response.json();
+                renderLocationUsers(users);
+            } catch (error) {
+                console.error('Error loading location users:', error);
+                document.getElementById('assigned-users-list').innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: #c33;">
+                        Error loading users
+                    </div>
+                `;
+            }
+        }
+
+        // Render location users
+        function renderLocationUsers(users) {
+            const container = document.getElementById('assigned-users-list');
+
+            if (users.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: #999;">
+                        No users assigned to this location yet
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = users.map(user => `
+                <div class="user-item">
+                    <div class="user-info">
+                        <div>
+                            <strong>${escapeHtml(user.email)}</strong>
+                            ${user.first_name ? `<br><small>${escapeHtml(user.first_name)} ${escapeHtml(user.last_name || '')}</small>` : ''}
+                        </div>
+                        <span class="badge badge-${user.role === 'location_admin' ? 'admin' : 'user'}">
+                            ${user.role === 'location_admin' ? 'Admin' : 'User'}
+                        </span>
+                    </div>
+                    <button class="btn btn-danger btn-small" onclick="removeUserFromLocation(${user.user_id})">
+                        Remove
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // Assign user to location
+        document.getElementById('assign-user-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(e.target);
+            const data = {
+                user_id: parseInt(formData.get('user_id')),
+                role: formData.get('role')
+            };
+
+            try {
+                const response = await fetch(`/api/locations/${currentLocationId}/users`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to assign user');
+                }
+
+                showAlert('User assigned successfully!');
+                e.target.reset();
+                loadLocationUsers(currentLocationId);
+            } catch (error) {
+                showAlert(error.message, 'error');
+            }
+        });
+
+        // Remove user from location
+        async function removeUserFromLocation(userId) {
+            if (!confirm('Remove this user from the location?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/locations/${currentLocationId}/users/${userId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to remove user');
+                }
+
+                showAlert('User removed successfully!');
+                loadLocationUsers(currentLocationId);
+            } catch (error) {
+                showAlert(error.message, 'error');
+            }
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
