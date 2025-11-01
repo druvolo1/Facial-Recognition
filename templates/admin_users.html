@@ -167,6 +167,24 @@
             background: #138496;
         }
 
+        .btn-make-admin {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .btn-make-admin:hover {
+            background: #e0a800;
+        }
+
+        .btn-remove-admin {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-remove-admin:hover {
+            background: #5a6268;
+        }
+
         .loading {
             text-align: center;
             padding: 40px;
@@ -216,10 +234,15 @@
     </div>
 
     <script>
+        let currentUserId = null;
+
         async function loadUsers() {
             try {
                 const response = await fetch('/api/admin/users');
                 const data = await response.json();
+
+                // Store current user ID
+                currentUserId = data.current_user_id;
 
                 const tbody = document.getElementById('users-list');
                 tbody.innerHTML = '';
@@ -247,14 +270,30 @@
 
                     // Actions
                     let actions = '';
+
+                    // Approve button for pending users
                     if (!user.is_active && !user.is_suspended) {
                         actions += `<button class="btn btn-approve" onclick="approveUser(${user.id})">Approve</button>`;
                     }
+
+                    // Suspend button for active non-admin users
                     if (user.is_active && !user.is_suspended && !user.is_superuser) {
                         actions += `<button class="btn btn-suspend" onclick="suspendUser(${user.id})">Suspend</button>`;
                     }
+
+                    // Unsuspend button for suspended users
                     if (user.is_suspended) {
                         actions += `<button class="btn btn-unsuspend" onclick="unsuspendUser(${user.id})">Unsuspend</button>`;
+                    }
+
+                    // Make Admin button for active non-admin users
+                    if (user.is_active && !user.is_suspended && !user.is_superuser) {
+                        actions += `<button class="btn btn-make-admin" onclick="makeAdmin(${user.id})">Make Admin</button>`;
+                    }
+
+                    // Remove Admin button for admins (but not the current user)
+                    if (user.is_superuser && user.id !== currentUserId) {
+                        actions += `<button class="btn btn-remove-admin" onclick="removeAdmin(${user.id})">Remove Admin</button>`;
                     }
 
                     const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ') || '-';
@@ -333,6 +372,48 @@
             } catch (error) {
                 console.error('Error:', error);
                 alert('Error unsuspending user');
+            }
+        }
+
+        async function makeAdmin(userId) {
+            if (!confirm('Grant admin privileges to this user?')) return;
+
+            try {
+                const response = await fetch(`/api/admin/users/${userId}/make-admin`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    alert('User promoted to admin successfully');
+                    loadUsers();
+                } else {
+                    const data = await response.json();
+                    alert('Failed to make user admin: ' + (data.detail || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error making user admin');
+            }
+        }
+
+        async function removeAdmin(userId) {
+            if (!confirm('Remove admin privileges from this user?')) return;
+
+            try {
+                const response = await fetch(`/api/admin/users/${userId}/remove-admin`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    alert('Admin privileges removed successfully');
+                    loadUsers();
+                } else {
+                    const data = await response.json();
+                    alert('Failed to remove admin: ' + (data.detail || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error removing admin privileges');
             }
         }
 

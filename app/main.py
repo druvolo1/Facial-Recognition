@@ -439,6 +439,7 @@ async def list_all_users(
     users = result.scalars().all()
 
     return {
+        "current_user_id": user.id,
         "users": [
             {
                 "id": u.id,
@@ -516,6 +517,56 @@ async def unsuspend_user(
     print(f"[ADMIN] User unsuspended: {user.email}")
 
     return {"success": True, "message": f"User {user.email} unsuspended"}
+
+
+@app.post("/api/admin/users/{user_id}/make-admin")
+async def make_admin(
+    user_id: int,
+    admin: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Make a user an admin (superuser)"""
+    result = await session.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Don't allow removing your own admin status accidentally
+    if user.id == admin.id:
+        raise HTTPException(status_code=400, detail="Cannot modify your own admin status")
+
+    user.is_superuser = True
+    await session.commit()
+
+    print(f"[ADMIN] User promoted to admin: {user.email}")
+
+    return {"success": True, "message": f"User {user.email} is now an admin"}
+
+
+@app.post("/api/admin/users/{user_id}/remove-admin")
+async def remove_admin(
+    user_id: int,
+    admin: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Remove admin status from a user"""
+    result = await session.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Don't allow removing your own admin status
+    if user.id == admin.id:
+        raise HTTPException(status_code=400, detail="Cannot remove your own admin status")
+
+    user.is_superuser = False
+    await session.commit()
+
+    print(f"[ADMIN] Admin status removed from user: {user.email}")
+
+    return {"success": True, "message": f"Admin status removed from {user.email}"}
 
 
 # ============================================================================
