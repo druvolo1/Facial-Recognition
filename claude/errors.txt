@@ -1,119 +1,148 @@
-greet:525 [AVATAR] Scanning for bones and morph targets...
-greet:529 [AVATAR] Found bone: Hips
-greet:529 [AVATAR] Found bone: Spine
-greet:529 [AVATAR] Found bone: Spine1
-greet:529 [AVATAR] Found bone: Spine2
-greet:529 [AVATAR] Found bone: Neck
-greet:537 [AVATAR] ✓ Neck bone found: Neck
-greet:529 [AVATAR] Found bone: Head
-greet:534 [AVATAR] ✓ Head bone found: Head
-greet:529 [AVATAR] Found bone: HeadTop_End
-greet:534 [AVATAR] ✓ Head bone found: HeadTop_End
-greet:529 [AVATAR] Found bone: LeftEye
-greet:569 [AVATAR] ✓ Left eye found: LeftEye
-greet:529 [AVATAR] Found bone: RightEye
-greet:573 [AVATAR] ✓ Right eye found: RightEye
-greet:529 [AVATAR] Found bone: LeftShoulder
-greet:529 [AVATAR] Found bone: LeftArm
-greet:529 [AVATAR] Found bone: LeftForeArm
-greet:529 [AVATAR] Found bone: LeftHand
-greet:529 [AVATAR] Found bone: LeftHandThumb1
-greet:529 [AVATAR] Found bone: LeftHandThumb2
-greet:529 [AVATAR] Found bone: LeftHandThumb3
-greet:529 [AVATAR] Found bone: LeftHandThumb4
-greet:529 [AVATAR] Found bone: LeftHandIndex1
-greet:529 [AVATAR] Found bone: LeftHandIndex2
-greet:529 [AVATAR] Found bone: LeftHandIndex3
-greet:529 [AVATAR] Found bone: LeftHandIndex4
-greet:529 [AVATAR] Found bone: LeftHandMiddle1
-greet:529 [AVATAR] Found bone: LeftHandMiddle2
-greet:529 [AVATAR] Found bone: LeftHandMiddle3
-greet:529 [AVATAR] Found bone: LeftHandMiddle4
-greet:529 [AVATAR] Found bone: LeftHandRing1
-greet:529 [AVATAR] Found bone: LeftHandRing2
-greet:529 [AVATAR] Found bone: LeftHandRing3
-greet:529 [AVATAR] Found bone: LeftHandRing4
-greet:529 [AVATAR] Found bone: LeftHandPinky1
-greet:529 [AVATAR] Found bone: LeftHandPinky2
-greet:529 [AVATAR] Found bone: LeftHandPinky3
-greet:529 [AVATAR] Found bone: LeftHandPinky4
-greet:529 [AVATAR] Found bone: RightShoulder
-greet:529 [AVATAR] Found bone: RightArm
-greet:529 [AVATAR] Found bone: RightForeArm
-greet:529 [AVATAR] Found bone: RightHand
-greet:529 [AVATAR] Found bone: RightHandThumb1
-greet:529 [AVATAR] Found bone: RightHandThumb2
-greet:529 [AVATAR] Found bone: RightHandThumb3
-greet:529 [AVATAR] Found bone: RightHandThumb4
-greet:529 [AVATAR] Found bone: RightHandIndex1
-greet:529 [AVATAR] Found bone: RightHandIndex2
-greet:529 [AVATAR] Found bone: RightHandIndex3
-greet:529 [AVATAR] Found bone: RightHandIndex4
-greet:529 [AVATAR] Found bone: RightHandMiddle1
-greet:529 [AVATAR] Found bone: RightHandMiddle2
-greet:529 [AVATAR] Found bone: RightHandMiddle3
-greet:529 [AVATAR] Found bone: RightHandMiddle4
-greet:529 [AVATAR] Found bone: RightHandRing1
-greet:529 [AVATAR] Found bone: RightHandRing2
-greet:529 [AVATAR] Found bone: RightHandRing3
-greet:529 [AVATAR] Found bone: RightHandRing4
-greet:529 [AVATAR] Found bone: RightHandPinky1
-greet:529 [AVATAR] Found bone: RightHandPinky2
-greet:529 [AVATAR] Found bone: RightHandPinky3
-greet:529 [AVATAR] Found bone: RightHandPinky4
-greet:529 [AVATAR] Found bone: LeftUpLeg
-greet:529 [AVATAR] Found bone: LeftLeg
-greet:529 [AVATAR] Found bone: LeftFoot
-greet:529 [AVATAR] Found bone: LeftToeBase
-greet:529 [AVATAR] Found bone: LeftToe_End
-greet:529 [AVATAR] Found bone: RightUpLeg
-greet:529 [AVATAR] Found bone: RightLeg
-greet:529 [AVATAR] Found bone: RightFoot
-greet:529 [AVATAR] Found bone: RightToeBase
-greet:529 [AVATAR] Found bone: RightToe_End
-greet:544 [AVATAR] Found mesh with morph targets: EyeLeft
-greet:545 [AVATAR] Available morph targets: (2) ['mouthOpen', 'mouthSmile']
-greet:544 [AVATAR] Found mesh with morph targets: EyeRight
-greet:545 [AVATAR] Available morph targets: (2) ['mouthOpen', 'mouthSmile']
-greet:544 [AVATAR] Found mesh with morph targets: Wolf3D_Head
-greet:545 [AVATAR] Available morph targets: (2) ['mouthOpen', 'mouthSmile']
-greet:544 [AVATAR] Found mesh with morph targets: Wolf3D_Teeth
-greet:545 [AVATAR] Available morph targets: (2) ['mouthOpen', 'mouthSmile']
-greet:596 [AVATAR] Loaded successfully
-greet:597 [AVATAR] Head bone: Found
-greet:601 [AVATAR] Total meshes with morph targets: 4
-greet:603 [AVATAR] Mesh 0 morph targets: (2) ['mouthOpen', 'mouthSmile']
-greet:603 [AVATAR] Mesh 1 morph targets: (2) ['mouthOpen', 'mouthSmile']
-greet:603 [AVATAR] Mesh 2 morph targets: (2) ['mouthOpen', 'mouthSmile']
-greet:603 [AVATAR] Mesh 3 morph targets: (2) ['mouthOpen', 'mouthSmile']
-greet:844 [Violation] 'requestAnimationFrame' handler took 218ms
-greet:824 [EXPRESSION] Trying to show: smile with morphs: (4) ['mouthSmile', 'mouthSmileLeft', 'mouthSmileRight', 'viseme_aa']
-greet:830 [EXPRESSION] ✓ Applied: mouthSmile
-greet:1079 [TTS] Generating speech with Rhubarb lip sync
-greet:1104 [TTS] Received audio and viseme data
-greet:1105 [TTS] Audio URL: /audio/tts_4515b05c47eb.wav
-greet:1106 [TTS] Viseme cues: 17
-greet:1107 [TTS] Cached: true
-greet:1122 [TTS] Audio playing
-favicon.ico:1  GET https://nrf.ruvolo.loseyourip.com/favicon.ico 404 (NOT FOUND)
-greet:1128 [TTS] Audio finished
+(venv) dave@Garden1:~/Facial-Recognition $ python app.py
 
+************************************************************
+*                                                          *
+*  Face Recognition Server with CodeProject.AI            *
+*                                                          *
+************************************************************
 
+Configuration:
+  CodeProject.AI: http://172.16.1.150:32168/v1
+  Flask Server: http://localhost:5000
 
+Endpoints:
+  - Home:         http://localhost:5000/
+  - Registration: http://localhost:5000/register
+  - Recognition:  http://localhost:5000/recognize
+  - Diagnostics:  http://localhost:5000/diagnostics
 
-[TTS] Text-to-speech request at 21:10:56
+============================================================
+[STARTUP] Testing CodeProject.AI connection...
+[STARTUP] Server: http://172.16.1.150:32168/v1
+[STARTUP] ✓ CodeProject.AI server is REACHABLE (status: 200)
+[STARTUP] ✓ Face recognition endpoints should be available
+[STARTUP]   Register: POST http://172.16.1.150:32168/v1/vision/face/register
+[STARTUP]   Recognize: POST http://172.16.1.150:32168/v1/vision/face/recognize
+============================================================
+
+Starting Flask server...
+Press Ctrl+C to stop
+
+ * Serving Flask app 'app'
+ * Debug mode: on
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.16.1.102:5000
+Press CTRL+C to quit
+ * Restarting with stat
+
+************************************************************
+*                                                          *
+*  Face Recognition Server with CodeProject.AI            *
+*                                                          *
+************************************************************
+
+Configuration:
+  CodeProject.AI: http://172.16.1.150:32168/v1
+  Flask Server: http://localhost:5000
+
+Endpoints:
+  - Home:         http://localhost:5000/
+  - Registration: http://localhost:5000/register
+  - Recognition:  http://localhost:5000/recognize
+  - Diagnostics:  http://localhost:5000/diagnostics
+
+============================================================
+[STARTUP] Testing CodeProject.AI connection...
+[STARTUP] Server: http://172.16.1.150:32168/v1
+[STARTUP] ✓ CodeProject.AI server is REACHABLE (status: 200)
+[STARTUP] ✓ Face recognition endpoints should be available
+[STARTUP]   Register: POST http://172.16.1.150:32168/v1/vision/face/register
+[STARTUP]   Recognize: POST http://172.16.1.150:32168/v1/vision/face/recognize
+============================================================
+
+Starting Flask server...
+Press Ctrl+C to stop
+
+ * Debugger is active!
+ * Debugger PIN: 127-923-956
+
+============================================================
+[RECOGNIZE] New recognition request at 21:24:19
+[RECOGNIZE] Base64 data length: 78408 characters
+[RECOGNIZE] Original image size: 57.43 KB
+[RESIZE] Image resized from (1280, 720) to (640, 360)
+[RESIZE] Size reduced from 57.43KB to 25.37KB
+[RECOGNIZE] Final image size: 25.37 KB
+[RECOGNIZE] Sending POST to: http://172.16.1.150:32168/v1/vision/face/recognize
+[RECOGNIZE] Timeout set to: 30 seconds
+[RECOGNIZE] Response received in 0.05 seconds
+[RECOGNIZE] Status code: 200
+[RECOGNIZE] Response JSON: {'message': 'A face was recognised', 'count': 1, 'predictions': [{'confidence': 0.8231339156627655, 'userid': 'dave', 'x_min': 294, 'y_min': 178, 'x_max': 364, 'y_max': 272}], 'success': True, 'inferenceMs': 32, 'processMs': 44, 'code': 200, 'command': 'recognize', 'moduleId': 'FaceProcessing', 'executionProvider': 'CUDA', 'analysisRoundTripMs': 47}
+[RECOGNIZE] Found 1 face prediction(s)
+[RECOGNIZE]   Face #1: dave (confidence: 82.31%)
+[RECOGNIZE] ✓ SUCCESS - Total time: 0.14s
+============================================================
+
+172.16.1.150 - - [31/Oct/2025 21:24:19] "POST /api/recognize HTTP/1.1" 200 -
+
+============================================================
+[TTS] Text-to-speech request at 21:24:19
 [TTS] Text: Hello Dave, welcome!
-[TTS] Using cached audio and visemes
-172.16.1.150 - - [31/Oct/2025 21:10:56] "POST /api/tts HTTP/1.1" 200 -
-172.16.1.150 - - [31/Oct/2025 21:10:56] "GET /audio/tts_4515b05c47eb.wav HTTP/1.1" 206 -
-172.16.1.150 - - [31/Oct/2025 21:10:56] "GET /audio/tts_4515b05c47eb.wav HTTP/1.1" 206 -
-172.16.1.150 - - [31/Oct/2025 21:10:56] "GET /favicon.ico HTTP/1.1" 404 -
+[TTS] Generating audio with espeak (male voice)...
+[TTS] Using espeak driver
+[TTS] ✓ Set voice to: english-us+m3 (male, deeper)
+[TTS] ✓ Audio generated: tts_4515b05c47eb.wav
+[TTS] Generating simple lip sync data...
+[TTS] Estimated audio duration: 1.70s (from 3 words)
+[TTS] ✓ Lip sync data generated
+[TTS] ✓ Viseme cues: 17
+============================================================
 
+172.16.1.150 - - [31/Oct/2025 21:24:19] "POST /api/tts HTTP/1.1" 200 -
+172.16.1.150 - - [31/Oct/2025 21:24:19] "GET /audio/tts_4515b05c47eb.wav HTTP/1.1" 404 -
+Exception ignored on calling ctypes callback function: <bound method EspeakDriver._onSynth of <pyttsx3.drivers.espeak.EspeakDriver object at 0x7fabe246d0>>
+Traceback (most recent call last):
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pyttsx3/drivers/espeak.py", line 171, in _onSynth
+    self._proxy.notify('finished-utterance', completed=True)
+    ^^^^^^^^^^^^^^^^^^
+ReferenceError: weakly-referenced object no longer exists
 
+============================================================
+[RECOGNIZE] New recognition request at 21:24:21
+[RECOGNIZE] Base64 data length: 78080 characters
+[RECOGNIZE] Original image size: 57.19 KB
+[RESIZE] Image resized from (1280, 720) to (640, 360)
+[RESIZE] Size reduced from 57.19KB to 25.30KB
+[RECOGNIZE] Final image size: 25.30 KB
+[RECOGNIZE] Sending POST to: http://172.16.1.150:32168/v1/vision/face/recognize
+[RECOGNIZE] Timeout set to: 30 seconds
+[RECOGNIZE] Response received in 0.04 seconds
+[RECOGNIZE] Status code: 200
+[RECOGNIZE] Response JSON: {'message': 'A face was recognised', 'count': 1, 'predictions': [{'confidence': 0.8019854724407196, 'userid': 'dave', 'x_min': 293, 'y_min': 178, 'x_max': 362, 'y_max': 272}], 'success': True, 'inferenceMs': 28, 'processMs': 31, 'code': 200, 'command': 'recognize', 'moduleId': 'FaceProcessing', 'executionProvider': 'CUDA', 'analysisRoundTripMs': 33}
+[RECOGNIZE] Found 1 face prediction(s)
+[RECOGNIZE]   Face #1: dave (confidence: 80.20%)
+[RECOGNIZE] ✓ SUCCESS - Total time: 0.11s
+============================================================
 
+172.16.1.150 - - [31/Oct/2025 21:24:22] "POST /api/recognize HTTP/1.1" 200 -
 
+============================================================
+[RECOGNIZE] New recognition request at 21:24:23
+[RECOGNIZE] Base64 data length: 78056 characters
+[RECOGNIZE] Original image size: 57.17 KB
+[RESIZE] Image resized from (1280, 720) to (640, 360)
+[RESIZE] Size reduced from 57.17KB to 25.28KB
+[RECOGNIZE] Final image size: 25.28 KB
+[RECOGNIZE] Sending POST to: http://172.16.1.150:32168/v1/vision/face/recognize
+[RECOGNIZE] Timeout set to: 30 seconds
+[RECOGNIZE] Response received in 0.04 seconds
+[RECOGNIZE] Status code: 200
+[RECOGNIZE] Response JSON: {'message': 'A face was recognised', 'count': 1, 'predictions': [{'confidence': 0.8376799821853638, 'userid': 'dave', 'x_min': 293, 'y_min': 178, 'x_max': 363, 'y_max': 270}], 'success': True, 'inferenceMs': 27, 'processMs': 30, 'code': 200, 'command': 'recognize', 'moduleId': 'FaceProcessing', 'executionProvider': 'CUDA', 'analysisRoundTripMs': 32}
+[RECOGNIZE] Found 1 face prediction(s)
+[RECOGNIZE]   Face #1: dave (confidence: 83.77%)
+[RECOGNIZE] ✓ SUCCESS - Total time: 0.10s
+============================================================
 
-
-
-
-
+172.16.1.150 - - [31/Oct/2025 21:24:23] "POS

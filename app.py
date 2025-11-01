@@ -31,12 +31,15 @@ CODEPROJECT_HOST = "172.16.1.150"
 CODEPROJECT_PORT = 32168
 CODEPROJECT_BASE_URL = f"http://{CODEPROJECT_HOST}:{CODEPROJECT_PORT}/v1"
 
+# Get the absolute path to the application directory
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # Create uploads directory if it doesn't exist
-UPLOAD_FOLDER = "uploads"
+UPLOAD_FOLDER = os.path.join(APP_DIR, "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Create audio directory for TTS files
-AUDIO_FOLDER = "audio"
+AUDIO_FOLDER = os.path.join(APP_DIR, "audio")
 os.makedirs(AUDIO_FOLDER, exist_ok=True)
 
 # User database file
@@ -510,6 +513,8 @@ def text_to_speech():
             engine.setProperty('pitch', 50)  # Lower pitch for male voice
 
             # Save to file
+            final_audio_filename = audio_filename
+            print(f"[TTS] Saving to: {audio_path}")
             engine.save_to_file(text, audio_path)
             engine.runAndWait()
 
@@ -519,8 +524,16 @@ def text_to_speech():
             except:
                 pass
 
-            final_audio_filename = audio_filename
-            print(f"[TTS] ✓ Audio generated: {final_audio_filename}")
+            # Verify file was created
+            if os.path.exists(audio_path):
+                file_size = os.path.getsize(audio_path)
+                print(f"[TTS] ✓ Audio file created: {audio_path} ({file_size} bytes)")
+            else:
+                print(f"[TTS] ✗ Error: File not found at {audio_path}")
+                return jsonify({
+                    "success": False,
+                    "error": "Audio file was not created"
+                }), 500
 
         except Exception as e:
             print(f"[TTS] ✗ Error generating audio: {e}")
