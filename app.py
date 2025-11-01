@@ -14,6 +14,14 @@ import hashlib
 from gtts import gTTS
 import wave
 
+# Try to import Google Cloud TTS (optional, falls back to gTTS)
+try:
+    from google.cloud import texttospeech
+    GOOGLE_CLOUD_TTS_AVAILABLE = True
+except ImportError:
+    GOOGLE_CLOUD_TTS_AVAILABLE = False
+    print("[STARTUP] Google Cloud TTS not available, will use gTTS")
+
 app = Flask(__name__)
 
 # Enable CORS for all routes (allows SSSP displays to make API requests)
@@ -489,54 +497,86 @@ def text_to_speech():
                 "cached": True
             })
 
-        # Generate audio using Google TTS
-        print(f"[TTS] Generating audio with Google TTS...")
-        try:
-            # Create gTTS object with English language
-            # Options: 'en' (US), 'en-uk' (British), 'en-au' (Australian), 'en-ca' (Canadian)
-            tts = gTTS(text=text, lang='en', slow=False)
+        # Generate audio using Google Cloud TTS (with fallback to gTTS)
+        print(f"[TTS] Generating audio...")
 
-            # Save to MP3 file first (gTTS outputs MP3)
-            mp3_path = audio_path.replace('.wav', '.mp3')
-            tts.save(mp3_path)
-            print(f"[TTS] ✓ Google TTS audio generated (MP3)")
+        # Try Google Cloud TTS first (better quality, specific voices)
+        use_google_cloud = GOOGLE_CLOUD_TTS_AVAILABLE and os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')
 
-            # Convert MP3 to WAV using ffmpeg (if available) or just use MP3
+        if use_google_cloud:
+            print(f"[TTS] Using Google Cloud Text-to-Speech (Deep Male Voice)")
             try:
-                # Try to convert to WAV for better compatibility
-                import subprocess
-                result = subprocess.run(
-                    ['ffmpeg', '-i', mp3_path, '-acodec', 'pcm_s16le', '-ar', '22050', audio_path, '-y'],
-                    capture_output=True,
-                    timeout=10
+                # Initialize the client
+                client = texttospeech.TextToSpeechClient()
+
+                # Set the text input
+                synthesis_input = texttospeech.SynthesisInput(text=text)
+
+                # Build the voice request
+                # Voice options:
+                # en-US-Neural2-D: Deep male voice (recommended for male avatar)
+                # en-GB-Neural2-B: Male British voice
+                # en-GB-Neural2-D: Deep male British voice
+                voice = texttospeech.VoiceSelectionParams(
+                    language_code="en-US",
+                    name="en-US-Neural2-D",  # Deep male voice
+                    ssml_gender=texttospeech.SsmlVoiceGender.MALE
                 )
-                if result.returncode == 0:
-                    print(f"[TTS] ✓ Converted to WAV format")
-                    # Remove MP3 file
-                    os.remove(mp3_path)
-                    # Update filename to use WAV
-                    final_audio_filename = audio_filename
-                else:
-                    print(f"[TTS] ⚠ FFmpeg conversion failed, using MP3")
-                    # Use MP3 instead
-                    audio_path = mp3_path
-                    final_audio_filename = audio_filename.replace('.wav', '.mp3')
-            except (FileNotFoundError, subprocess.TimeoutExpired):
-                print(f"[TTS] ⚠ FFmpeg not available, using MP3 format")
-                # Use MP3 instead
+
+                # Select the audio encoding
+                audio_config = texttospeech.AudioConfig(
+                    audio_encoding=texttospeech.AudioEncoding.MP3,
+                    speaking_rate=1.0,  # Normal speed
+                    pitch=0.0  # Normal pitch
+                )
+
+                # Perform the text-to-speech request
+                response = client.synthesize_speech(
+                    input=synthesis_input,
+                    voice=voice,
+                    audio_config=audio_config
+                )
+
+                # Save the audio to MP3 file
+                mp3_path = audio_path.replace('.wav', '.mp3')
+                with open(mp3_path, 'wb') as out:
+                    out.write(response.audio_content)
+
+                print(f"[TTS] ✓ Google Cloud TTS audio generated (Deep Male Voice)")
+
                 audio_path = mp3_path
                 final_audio_filename = audio_filename.replace('.wav', '.mp3')
 
-            print(f"[TTS] ✓ Audio file ready: {final_audio_filename}")
+            except Exception as e:
+                print(f"[TTS] ✗ Google Cloud TTS failed: {e}")
+                print(f"[TTS] Falling back to gTTS...")
+                use_google_cloud = False
 
-        except Exception as e:
-            print(f"[TTS] ✗ Error generating audio: {e}")
-            import traceback
-            traceback.print_exc()
-            return jsonify({
-                "success": False,
-                "error": f"Failed to generate audio: {str(e)}. Check internet connection."
-            }), 500
+        if not use_google_cloud:
+            # Fallback to gTTS (free, no API key needed)
+            print(f"[TTS] Using gTTS (basic voice)")
+            try:
+                # Create gTTS object with English language
+                tts = gTTS(text=text, lang='en', slow=False)
+
+                # Save to MP3 file
+                mp3_path = audio_path.replace('.wav', '.mp3')
+                tts.save(mp3_path)
+                print(f"[TTS] ✓ gTTS audio generated (MP3)")
+
+                audio_path = mp3_path
+                final_audio_filename = audio_filename.replace('.wav', '.mp3')
+
+            except Exception as e:
+                print(f"[TTS] ✗ Error generating audio: {e}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({
+                    "success": False,
+                    "error": f"Failed to generate audio: {str(e)}. Check internet connection."
+                }), 500
+
+        print(f"[TTS] ✓ Audio file ready: {final_audio_filename}")
 
         # Generate simple viseme data from text (no rhubarb needed)
         print(f"[TTS] Generating simple lip sync data...")
