@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 import subprocess
 import hashlib
 import pyttsx3
+import wave
 
 app = Flask(__name__)
 
@@ -353,6 +354,96 @@ def serve_audio(filename):
     return send_from_directory(AUDIO_FOLDER, filename)
 
 
+def text_to_simple_visemes(text, audio_duration):
+    """
+    Generate simple viseme timeline from text without rhubarb
+    Maps text to Rhubarb-style visemes (A-H, X) for compatibility
+    """
+    # Simple phoneme to Rhubarb viseme mapping
+    char_to_viseme = {
+        # Vowels
+        'a': 'A',  # Wide open (ah)
+        'e': 'D',  # Spread lips (ee)
+        'i': 'D',  # Spread lips (ee)
+        'o': 'C',  # Rounded (oh)
+        'u': 'C',  # Rounded (oo)
+        # Consonants
+        'b': 'B', 'p': 'B', 'm': 'B',  # Lips together
+        'f': 'F', 'v': 'F',  # Lower lip/upper teeth
+        'd': 'E', 't': 'E', 'n': 'E',  # Neutral
+        'k': 'G', 'g': 'G',  # Tongue up
+        's': 'D', 'z': 'D',  # Spread
+        'l': 'H', 'r': 'H', 'th': 'H',  # Tongue/teeth
+        'w': 'C',  # Rounded
+        'y': 'D',  # Spread
+    }
+
+    # Clean text
+    text = text.lower()
+    words = text.split()
+
+    # Calculate timing
+    # Average speech rate: ~150 words per minute = 2.5 words per second
+    # Average 5 letters per word = 12.5 phonemes per second = 80ms per phoneme
+    phoneme_duration = 0.08  # 80ms average
+
+    viseme_cues = []
+    current_time = 0.0
+
+    for word in words:
+        # Process each character
+        i = 0
+        while i < len(word):
+            char = word[i]
+
+            # Check for digraphs
+            if i < len(word) - 1:
+                digraph = char + word[i + 1]
+                if digraph == 'th':
+                    viseme = 'H'
+                    duration = phoneme_duration * 1.2
+                    viseme_cues.append({
+                        'start': current_time,
+                        'end': current_time + duration,
+                        'value': viseme
+                    })
+                    current_time += duration
+                    i += 2
+                    continue
+
+            # Single character
+            if char in char_to_viseme:
+                viseme = char_to_viseme[char]
+                # Vowels are longer
+                duration = phoneme_duration * 1.5 if char in 'aeiou' else phoneme_duration
+
+                viseme_cues.append({
+                    'start': current_time,
+                    'end': current_time + duration,
+                    'value': viseme
+                })
+                current_time += duration
+
+            i += 1
+
+        # Add brief pause between words
+        viseme_cues.append({
+            'start': current_time,
+            'end': current_time + 0.05,
+            'value': 'X'
+        })
+        current_time += 0.05
+
+    # Normalize timing to match actual audio duration
+    if current_time > 0 and audio_duration > 0:
+        scale_factor = audio_duration / current_time
+        for cue in viseme_cues:
+            cue['start'] *= scale_factor
+            cue['end'] *= scale_factor
+
+    return viseme_cues
+
+
 @app.route('/api/tts', methods=['POST'])
 def text_to_speech():
     """
@@ -455,47 +546,42 @@ def text_to_speech():
                 "error": f"Failed to generate audio: {str(e)}. On Linux, install espeak: sudo apt-get install espeak espeak-ng"
             }), 500
 
-        # Run rhubarb-lip-sync on the audio file
-        print(f"[TTS] Running rhubarb-lip-sync...")
+        # Generate simple viseme data from text (no rhubarb needed)
+        print(f"[TTS] Generating simple lip sync data...")
         try:
-            # Run rhubarb with JSON output
-            result = subprocess.run(
-                ['rhubarb', '-f', 'json', audio_path],
-                capture_output=True,
-                text=True,
-                timeout=30,
-                check=True
-            )
+            # Get audio duration from WAV file
+            with wave.open(audio_path, 'r') as wav_file:
+                frames = wav_file.getnframes()
+                rate = wav_file.getframerate()
+                audio_duration = frames / float(rate)
+                print(f"[TTS] Audio duration: {audio_duration:.2f}s")
 
-            # Parse JSON output
-            viseme_data = json.loads(result.stdout)
+            # Generate viseme timeline
+            mouth_cues = text_to_simple_visemes(text, audio_duration)
+
+            # Format in Rhubarb-compatible JSON structure
+            viseme_data = {
+                "metadata": {
+                    "soundFile": audio_filename,
+                    "duration": audio_duration
+                },
+                "mouthCues": mouth_cues
+            }
 
             # Save viseme data for caching
             with open(json_path, 'w') as f:
                 json.dump(viseme_data, f)
 
             print(f"[TTS] ✓ Lip sync data generated")
-            print(f"[TTS] ✓ Viseme cues: {len(viseme_data.get('mouthCues', []))}")
+            print(f"[TTS] ✓ Viseme cues: {len(mouth_cues)}")
 
-        except subprocess.TimeoutExpired:
-            print(f"[TTS] ✗ Rhubarb timed out")
+        except Exception as e:
+            print(f"[TTS] ✗ Error generating viseme data: {e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({
                 "success": False,
-                "error": "Lip sync generation timed out"
-            }), 500
-        except subprocess.CalledProcessError as e:
-            print(f"[TTS] ✗ Rhubarb error: {e.stderr}")
-            return jsonify({
-                "success": False,
-                "error": f"Rhubarb error: {e.stderr}",
-                "suggestion": "Make sure rhubarb-lip-sync is installed and in PATH"
-            }), 500
-        except FileNotFoundError:
-            print(f"[TTS] ✗ Rhubarb not found in PATH")
-            return jsonify({
-                "success": False,
-                "error": "rhubarb-lip-sync not found",
-                "suggestion": "Install rhubarb-lip-sync and add to PATH. See RHUBARB_SETUP.md"
+                "error": f"Failed to generate lip sync: {str(e)}"
             }), 500
 
         print(f"{'='*60}\n")

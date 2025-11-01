@@ -1,211 +1,69 @@
-(venv) dave@Garden1:~/Facial-Recognition $ python app.py
 
-************************************************************
-*                                                          *
-*  Face Recognition Server with CodeProject.AI            *
-*                                                          *
-************************************************************
-
-Configuration:
-  CodeProject.AI: http://172.16.1.150:32168/v1
-  Flask Server: http://localhost:5000
-
-Endpoints:
-  - Home:         http://localhost:5000/
-  - Registration: http://localhost:5000/register
-  - Recognition:  http://localhost:5000/recognize
-  - Diagnostics:  http://localhost:5000/diagnostics
-
-============================================================
-[STARTUP] Testing CodeProject.AI connection...
-[STARTUP] Server: http://172.16.1.150:32168/v1
-[STARTUP] ✓ CodeProject.AI server is REACHABLE (status: 200)
-[STARTUP] ✓ Face recognition endpoints should be available
-[STARTUP]   Register: POST http://172.16.1.150:32168/v1/vision/face/register
-[STARTUP]   Recognize: POST http://172.16.1.150:32168/v1/vision/face/recognize
-============================================================
-
-Starting Flask server...
-Press Ctrl+C to stop
-
- * Serving Flask app 'app'
- * Debug mode: on
-WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
- * Running on all addresses (0.0.0.0)
- * Running on http://127.0.0.1:5000
- * Running on http://172.16.1.102:5000
-Press CTRL+C to quit
- * Restarting with stat
-
-************************************************************
-*                                                          *
-*  Face Recognition Server with CodeProject.AI            *
-*                                                          *
-************************************************************
-
-Configuration:
-  CodeProject.AI: http://172.16.1.150:32168/v1
-  Flask Server: http://localhost:5000
-
-Endpoints:
-  - Home:         http://localhost:5000/
-  - Registration: http://localhost:5000/register
-  - Recognition:  http://localhost:5000/recognize
-  - Diagnostics:  http://localhost:5000/diagnostics
-
-============================================================
-[STARTUP] Testing CodeProject.AI connection...
-[STARTUP] Server: http://172.16.1.150:32168/v1
-[STARTUP] ✓ CodeProject.AI server is REACHABLE (status: 200)
-[STARTUP] ✓ Face recognition endpoints should be available
-[STARTUP]   Register: POST http://172.16.1.150:32168/v1/vision/face/register
-[STARTUP]   Recognize: POST http://172.16.1.150:32168/v1/vision/face/recognize
-============================================================
-
-Starting Flask server...
-Press Ctrl+C to stop
-
- * Debugger is active!
- * Debugger PIN: 127-923-956
-172.16.1.150 - - [31/Oct/2025 20:51:34] "GET / HTTP/1.1" 200 -
-172.16.1.150 - - [31/Oct/2025 20:51:34] "OPTIONS /api/displays/recognize HTTP/1.1" 200 -
-
-[DISPLAY-REC] Recognition request from display_1761955874425 (Test Location)
-[RESIZE] Image size (640, 480) is OK, no resize needed
-[DISPLAY-REC] Detected 1 face(s) in 0.04s
-172.16.1.150 - - [31/Oct/2025 20:51:34] "POST /api/displays/recognize HTTP/1.1" 200 -
-172.16.1.150 - - [31/Oct/2025 20:51:36] "GET /greet HTTP/1.1" 200 -
-172.16.1.150 - - [31/Oct/2025 20:51:36] "OPTIONS /api/displays/recognize HTTP/1.1" 200 -
-
-[DISPLAY-REC] Recognition request from display_1761955874425 (Test Location)
-[RESIZE] Image size (640, 480) is OK, no resize needed
-[DISPLAY-REC] Detected 1 face(s) in 0.04s
-172.16.1.150 - - [31/Oct/2025 20:51:36] "POST /api/displays/recognize HTTP/1.1" 200 -
-172.16.1.150 - - [31/Oct/2025 20:51:38] "OPTIONS /api/displays/recognize HTTP/1.1" 200 -
-
-[DISPLAY-REC] Recognition request from display_1761955874425 (Test Location)
-[RESIZE] Image size (640, 480) is OK, no resize needed
-[DISPLAY-REC] Detected 1 face(s) in 0.04s
-172.16.1.150 - - [31/Oct/2025 20:51:38] "POST /api/displays/recognize HTTP/1.1" 200 -
-
-============================================================
-[RECOGNIZE] New recognition request at 20:51:40
-[RECOGNIZE] Base64 data length: 34760 characters
-[RECOGNIZE] Original image size: 25.46 KB
-[RESIZE] Image size (640, 480) is OK, no resize needed
-[RECOGNIZE] Final image size: 25.46 KB
-[RECOGNIZE] Sending POST to: http://172.16.1.150:32168/v1/vision/face/recognize
-[RECOGNIZE] Timeout set to: 30 seconds
-[RECOGNIZE] Response received in 0.04 seconds
-[RECOGNIZE] Status code: 200
-[RECOGNIZE] Response JSON: {'message': 'A face was recognised', 'count': 1, 'predictions': [{'confidence': 0.778805136680603, 'userid': 'dave', 'x_min': 286, 'y_min': 238, 'x_max': 376, 'y_max': 350}], 'success': True, 'inferenceMs': 28, 'processMs': 31, 'code': 200, 'command': 'recognize', 'moduleId': 'FaceProcessing', 'executionProvider': 'CUDA', 'analysisRoundTripMs': 34}
-[RECOGNIZE] Found 1 face prediction(s)
-[RECOGNIZE]   Face #1: dave (confidence: 77.88%)
-[RECOGNIZE] ✓ SUCCESS - Total time: 0.04s
-============================================================
-
-172.16.1.150 - - [31/Oct/2025 20:51:40] "POST /api/recognize HTTP/1.1" 200 -
-
-============================================================
-[TTS] Text-to-speech request at 20:51:40
-[TTS] Text: Hello Dave, welcome!
-[TTS] Generating audio with pyttsx3...
-[TTS] ✗ Error generating audio: libespeak.so.1: cannot open shared object file: No such file or directory
-Traceback (most recent call last):
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pyttsx3/__init__.py", line 20, in init
-    eng = _activeEngines[driverName]
-          ~~~~~~~~~~~~~~^^^^^^^^^^^^
-  File "/usr/lib/python3.11/weakref.py", line 136, in __getitem__
-    o = self.data[key]()
-        ~~~~~~~~~^^^^^
-KeyError: 'sapi5'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "/home/dave/Facial-Recognition/app.py", line 406, in text_to_speech
-    engine = pyttsx3.init('sapi5')  # Windows SAPI5
-             ^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pyttsx3/__init__.py", line 22, in init
-    eng = Engine(driverName, debug)
-          ^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pyttsx3/engine.py", line 30, in __init__
-    self.proxy = driver.DriverProxy(weakref.proxy(self), driverName, debug)
-                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pyttsx3/driver.py", line 50, in __init__
-    self._module = importlib.import_module(name)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/lib/python3.11/importlib/__init__.py", line 126, in import_module
-    return _bootstrap._gcd_import(name[level:], package, level)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "<frozen importlib._bootstrap>", line 1206, in _gcd_import
-  File "<frozen importlib._bootstrap>", line 1178, in _find_and_load
-  File "<frozen importlib._bootstrap>", line 1149, in _find_and_load_unlocked
-  File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
-  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
-  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pyttsx3/drivers/sapi5.py", line 1, in <module>
-    import comtypes.client  # Importing comtypes.client will make the gen subpackage
-    ^^^^^^^^^^^^^^^^^^^^^^
-ModuleNotFoundError: No module named 'comtypes'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pyttsx3/__init__.py", line 20, in init
-    eng = _activeEngines[driverName]
-          ~~~~~~~~~~~~~~^^^^^^^^^^^^
-  File "/usr/lib/python3.11/weakref.py", line 136, in __getitem__
-    o = self.data[key]()
-        ~~~~~~~~~^^^^^
-KeyError: None
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "/home/dave/Facial-Recognition/app.py", line 408, in text_to_speech
-    engine = pyttsx3.init()  # Fallback to default
-             ^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pyttsx3/__init__.py", line 22, in init
-    eng = Engine(driverName, debug)
-          ^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pyttsx3/engine.py", line 30, in __init__
-    self.proxy = driver.DriverProxy(weakref.proxy(self), driverName, debug)
-                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pyttsx3/driver.py", line 50, in __init__
-    self._module = importlib.import_module(name)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/lib/python3.11/importlib/__init__.py", line 126, in import_module
-    return _bootstrap._gcd_import(name[level:], package, level)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "<frozen importlib._bootstrap>", line 1206, in _gcd_import
-  File "<frozen importlib._bootstrap>", line 1178, in _find_and_load
-  File "<frozen importlib._bootstrap>", line 1149, in _find_and_load_unlocked
-  File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
-  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
-  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pyttsx3/drivers/espeak.py", line 9, in <module>
-    from . import _espeak, toUtf8, fromUtf8
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pyttsx3/drivers/_espeak.py", line 18, in <module>
-    dll = cdll.LoadLibrary('libespeak.so.1')
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/lib/python3.11/ctypes/__init__.py", line 454, in LoadLibrary
-    return self._dlltype(name)
-           ^^^^^^^^^^^^^^^^^^^
-  File "/usr/lib/python3.11/ctypes/__init__.py", line 376, in __init__
-    self._handle = _dlopen(self._name, mode)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^
-OSError: libespeak.so.1: cannot open shared object file: No such file or directory
-172.16.1.150 - - [31/Oct/2025 20:51:40] "POST /api/tts HTTP/1.1" 500 -
-172.16.1.150 - - [31/Oct/2025 20:51:40] "OPTIONS /api/displays/recognize HTTP/1.1" 200 -
-
-[DISPLAY-REC] Recognition request from display_1761955874425 (Test Location)
-[RESIZE] Image size (640, 480) is OK, no resize needed
-[DISPLAY-REC] Detected 1 face(s) in 0.04s
-172.16.1.150 - - [31/Oct/2025 20:51:40] "POST /api/displays/recognize HTTP/1.1" 200 -
-172.16.1.150 - - [31/Oct/2025 20:51:42] "OPTIONS /api/displays/recognize HTTP/1.1" 200 -
-
-[DISPLAY-REC] Recognition request from display_1761955874425 (Test Location)
-[RESIZE] Image size (640, 480) is OK, no resize needed
-[DISPLAY-REC] Detected 1 face(s) in 0.04s
-172.16.1.150 - - [31/Oct/2025 20:51:42] "POST /api/displays/recognize HTTP/1.1" 200 -
+^C(venv) dave@Garden1:~/Facial-Recognition $ sudo apt-get install espeak espeakg
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+The following packages were automatically installed and are no longer required:
+  liblzo2-2 libvncclient1 vlc-l10n vlc-plugin-access-extra vlc-plugin-notify
+  vlc-plugin-samba vlc-plugin-video-splitter vlc-plugin-visualization
+Use 'sudo apt autoremove' to remove them.
+The following additional packages will be installed:
+  espeak-data espeak-ng-data libespeak-ng1 libespeak1 libpcaudio0
+  libportaudio2 libsonic0
+The following NEW packages will be installed:
+  espeak espeak-data espeak-ng espeak-ng-data libespeak-ng1 libespeak1
+  libpcaudio0 libportaudio2 libsonic0
+0 upgraded, 9 newly installed, 0 to remove and 51 not upgraded.
+Need to get 6,092 kB of archives.
+After this operation, 17.1 MB of additional disk space will be used.
+Do you want to continue? [Y/n] y
+Get:1 http://deb.debian.org/debian bookworm/main arm64 libportaudio2 arm64 19.6.0-1.2 [61.2 kB]
+Get:2 http://deb.debian.org/debian bookworm/main arm64 libsonic0 arm64 0.2.0-12 [10.4 kB]
+Get:3 http://deb.debian.org/debian bookworm/main arm64 espeak-data arm64 1.48.15+dfsg-3 [1,011 kB]
+Get:4 http://deb.debian.org/debian bookworm/main arm64 libespeak1 arm64 1.48.15+dfsg-3 [147 kB]
+Get:5 http://deb.debian.org/debian bookworm/main arm64 espeak arm64 1.48.15+dfsg-3 [72.0 kB]
+Get:6 http://deb.debian.org/debian bookworm/main arm64 libpcaudio0 arm64 1.2-2 [8,584 B]
+Get:7 http://deb.debian.org/debian bookworm/main arm64 espeak-ng-data arm64 1.51+dfsg-10+deb12u2 [4,256 kB]
+Get:8 http://deb.debian.org/debian bookworm/main arm64 libespeak-ng1 arm64 1.51+dfsg-10+deb12u2 [186 kB]
+Get:9 http://deb.debian.org/debian bookworm/main arm64 espeak-ng arm64 1.51+dfsg-10+deb12u2 [340 kB]
+Fetched 6,092 kB in 0s (18.9 MB/s)
+Selecting previously unselected package libportaudio2:arm64.
+(Reading database ... 129911 files and directories currently installed.)
+Preparing to unpack .../0-libportaudio2_19.6.0-1.2_arm64.deb ...
+Unpacking libportaudio2:arm64 (19.6.0-1.2) ...
+Selecting previously unselected package libsonic0:arm64.
+Preparing to unpack .../1-libsonic0_0.2.0-12_arm64.deb ...
+Unpacking libsonic0:arm64 (0.2.0-12) ...
+Selecting previously unselected package espeak-data:arm64.
+Preparing to unpack .../2-espeak-data_1.48.15+dfsg-3_arm64.deb ...
+Unpacking espeak-data:arm64 (1.48.15+dfsg-3) ...
+Selecting previously unselected package libespeak1:arm64.
+Preparing to unpack .../3-libespeak1_1.48.15+dfsg-3_arm64.deb ...
+Unpacking libespeak1:arm64 (1.48.15+dfsg-3) ...
+Selecting previously unselected package espeak.
+Preparing to unpack .../4-espeak_1.48.15+dfsg-3_arm64.deb ...
+Unpacking espeak (1.48.15+dfsg-3) ...
+Selecting previously unselected package libpcaudio0:arm64.
+Preparing to unpack .../5-libpcaudio0_1.2-2_arm64.deb ...
+Unpacking libpcaudio0:arm64 (1.2-2) ...
+Selecting previously unselected package espeak-ng-data:arm64.
+Preparing to unpack .../6-espeak-ng-data_1.51+dfsg-10+deb12u2_arm64.deb ...
+Unpacking espeak-ng-data:arm64 (1.51+dfsg-10+deb12u2) ...
+Selecting previously unselected package libespeak-ng1:arm64.
+Preparing to unpack .../7-libespeak-ng1_1.51+dfsg-10+deb12u2_arm64.deb ...
+Unpacking libespeak-ng1:arm64 (1.51+dfsg-10+deb12u2) ...
+Selecting previously unselected package espeak-ng.
+Preparing to unpack .../8-espeak-ng_1.51+dfsg-10+deb12u2_arm64.deb ...
+Unpacking espeak-ng (1.51+dfsg-10+deb12u2) ...
+Setting up libportaudio2:arm64 (19.6.0-1.2) ...
+Setting up libpcaudio0:arm64 (1.2-2) ...
+Setting up libsonic0:arm64 (0.2.0-12) ...
+Setting up espeak-data:arm64 (1.48.15+dfsg-3) ...
+Setting up espeak-ng-data:arm64 (1.51+dfsg-10+deb12u2) ...
+Setting up libespeak1:arm64 (1.48.15+dfsg-3) ...
+Setting up espeak (1.48.15+dfsg-3) ...
+Setting up libespeak-ng1:arm64 (1.51+dfsg-10+deb12u2) ...
+Setting up espeak-ng (1.51+dfsg-10+deb12u2) ...
+Processing triggers for man-db (2.11.2-2) ...
+Processing triggers for libc-bin (2.36-9+rpt2+deb12u12) ...
+(venv) dave@Garden1:~/Facial-Recognition $ python app.py   

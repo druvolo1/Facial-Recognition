@@ -388,22 +388,22 @@
                 </div>
 
                 <div class="info-box">
-                    <strong>Rhubarb Lip-Sync Setup:</strong><br>
-                    This system uses <strong>rhubarb-lip-sync</strong> - a free, open-source lip sync tool.<br><br>
+                    <strong>Smart Lip-Sync System:</strong><br>
+                    This system uses <strong>intelligent text-to-phoneme mapping</strong> for natural lip sync.<br><br>
 
-                    <strong>Setup Instructions:</strong><br>
-                    1. Download from <a href="https://github.com/DanielSWolf/rhubarb-lip-sync/releases" target="_blank">GitHub</a><br>
-                    2. Extract to <code>C:\Program Files\rhubarb-lip-sync\</code><br>
-                    3. Add to Windows PATH<br>
-                    4. Run: <code>pip install pyttsx3</code><br>
-                    5. See <strong>RHUBARB_SETUP.md</strong> for detailed instructions<br><br>
+                    <strong>How It Works:</strong><br>
+                    • Server generates speech audio using espeak (Linux TTS)<br>
+                    • Analyzes text to create phoneme timeline<br>
+                    • Maps phonemes to mouth shapes (visemes)<br>
+                    • Browser syncs avatar mouth to audio in real-time<br><br>
 
                     <strong>Features:</strong><br>
-                    • <strong>Lip Sync:</strong> High-quality viseme-based animation<br>
+                    • <strong>Lip Sync:</strong> Phoneme-based mouth animation<br>
                     • <strong>Eye Tracking:</strong> Avatar looks at detected faces<br>
                     • <strong>Facial Expressions:</strong> Smiles when greeting<br>
                     • <strong>Animations:</strong> Natural idle and greeting movements<br>
-                    • <strong>100% Free:</strong> No API keys or subscriptions needed!
+                    • <strong>100% Free:</strong> No API keys, no external dependencies!<br>
+                    • <strong>Raspberry Pi Compatible:</strong> Works on ARM architecture
                 </div>
             </div>
         </div>
