@@ -671,7 +671,8 @@ async def remove_admin(
 async def create_user_by_admin(
     user_data: CreateUserRequest,
     admin: User = Depends(current_superuser),
-    user_manager: CustomUserManager = Depends(get_user_manager)
+    user_manager: CustomUserManager = Depends(get_user_manager),
+    session: AsyncSession = Depends(get_async_session)
 ):
     """Admin creates a new user with temporary password"""
     try:
@@ -688,12 +689,13 @@ async def create_user_by_admin(
 
         new_user = await user_manager.create(user_create)
 
-        # Set password change required flag
-        new_user.password_change_required = True
-        async for session in get_async_session():
-            session.add(new_user)
+        # Query the user again in our session to update the password_change_required flag
+        result = await session.execute(select(User).where(User.id == new_user.id))
+        user_to_update = result.scalar_one_or_none()
+
+        if user_to_update:
+            user_to_update.password_change_required = True
             await session.commit()
-            break
 
         print(f"[ADMIN] User created by admin {admin.email}: {new_user.email}")
 
