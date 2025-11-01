@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Greeter</title>
+    <title>AI Greeter - Advanced</title>
     <style>
         * {
             margin: 0;
@@ -45,7 +45,14 @@
         h1 {
             text-align: center;
             color: #333;
-            margin-bottom: 30px;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 14px;
         }
 
         .main-content {
@@ -84,6 +91,7 @@
             right: 30px;
             text-align: center;
             pointer-events: none;
+            z-index: 10;
         }
 
         .greeting-text {
@@ -234,6 +242,13 @@
             margin-top: 15px;
         }
 
+        .settings-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 15px;
+        }
+
         .setting-row {
             display: flex;
             justify-content: space-between;
@@ -276,13 +291,31 @@
             color: white;
             font-size: 18px;
             text-align: center;
+            z-index: 5;
+        }
+
+        .feature-badge {
+            display: inline-block;
+            background: #48bb78;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <a href="/" class="back-link">← Back to Home</a>
-        <h1>AI Greeter with 3D Avatar</h1>
+        <h1>AI Greeter - Advanced 3D Avatar</h1>
+        <p class="subtitle">
+            <span class="feature-badge">Lip Sync</span>
+            <span class="feature-badge">Eye Tracking</span>
+            <span class="feature-badge">Facial Expressions</span>
+            <span class="feature-badge">Animations</span>
+        </p>
 
         <div class="main-content">
             <div class="avatar-section">
@@ -297,7 +330,7 @@
                 <div class="avatar-controls">
                     <div class="control-row">
                         <span>Animation Speed:</span>
-                        <input type="range" id="animSpeed" min="0.5" max="2" step="0.1" value="1" style="width: 150px;">
+                        <input type="range" id="animSpeed" min="0.5" max="2" step="0.1" value="1" style="width: 120px;">
                     </div>
                     <input
                         type="text"
@@ -325,6 +358,7 @@
                 </div>
 
                 <div class="settings-panel">
+                    <div class="settings-title">Greeting Settings</div>
                     <div class="setting-row">
                         <span class="setting-label">Enable Voice Greeting</span>
                         <input type="checkbox" id="enableVoice" checked>
@@ -333,6 +367,20 @@
                         <span class="setting-label">Show Camera View</span>
                         <input type="checkbox" id="showCamera" checked>
                     </div>
+
+                    <div class="settings-title" style="margin-top: 15px;">Avatar Features</div>
+                    <div class="setting-row">
+                        <span class="setting-label">Lip Sync <span class="feature-badge">NEW</span></span>
+                        <input type="checkbox" id="enableLipSync" checked>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-label">Eye Tracking <span class="feature-badge">NEW</span></span>
+                        <input type="checkbox" id="enableEyeTracking" checked>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-label">Facial Expressions <span class="feature-badge">NEW</span></span>
+                        <input type="checkbox" id="enableExpressions" checked>
+                    </div>
                     <div class="setting-row">
                         <span class="setting-label">Auto-Rotate Avatar</span>
                         <input type="checkbox" id="autoRotate">
@@ -340,11 +388,11 @@
                 </div>
 
                 <div class="info-box">
-                    <strong>How to use:</strong><br>
-                    1. Visit <a href="https://readyplayer.me" target="_blank">readyplayer.me</a> to create your avatar<br>
-                    2. Copy the GLB URL (right-click avatar → Copy Link)<br>
-                    3. Paste it above and click "Load Avatar"<br>
-                    4. Click "Start Greeter" to begin greeting people!
+                    <strong>Advanced Features:</strong><br>
+                    • <strong>Lip Sync:</strong> Mouth moves naturally with speech<br>
+                    • <strong>Eye Tracking:</strong> Avatar looks at detected face<br>
+                    • <strong>Facial Expressions:</strong> Smiles when greeting<br>
+                    • <strong>Animations:</strong> Natural idle and greeting movements
                 </div>
             </div>
         </div>
@@ -357,12 +405,21 @@
     <script>
         // Three.js scene setup
         let scene, camera, renderer, avatar, mixer, clock;
-        let idleAction, waveAction, talkAction;
+        let avatarHead, avatarNeck, leftEye, rightEye;
+        let morphTargets = {};
+        let idleAction, currentAnimation = null;
         let isAvatarLoaded = false;
-        let currentAnimation = null;
 
         const avatarCanvas = document.getElementById('avatarCanvas');
         const loadingMessage = document.getElementById('loadingMessage');
+
+        // Audio context for lip sync
+        let audioContext, analyser, dataArray;
+        let isSpeaking = false;
+
+        // Face tracking
+        let detectedFacePosition = { x: 0, y: 0 };
+        let smoothedLookTarget = { x: 0, y: 0 };
 
         // Initialize Three.js scene
         function initScene() {
@@ -376,8 +433,8 @@
                 0.1,
                 1000
             );
-            camera.position.set(0, 1.5, 1.5);
-            camera.lookAt(0, 1.2, 0);
+            camera.position.set(0, 1.6, 1.2);
+            camera.lookAt(0, 1.5, 0);
 
             // Renderer
             renderer = new THREE.WebGLRenderer({
@@ -390,17 +447,21 @@
             renderer.shadowMap.enabled = true;
 
             // Lights
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
             scene.add(ambientLight);
 
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(5, 10, 7.5);
-            directionalLight.castShadow = true;
-            scene.add(directionalLight);
+            const keyLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            keyLight.position.set(5, 10, 7.5);
+            keyLight.castShadow = true;
+            scene.add(keyLight);
 
-            const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
-            fillLight.position.set(-5, 0, -5);
+            const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+            fillLight.position.set(-5, 5, -5);
             scene.add(fillLight);
+
+            const rimLight = new THREE.DirectionalLight(0x6688ff, 0.3);
+            rimLight.position.set(0, 5, -10);
+            scene.add(rimLight);
 
             // Clock for animations
             clock = new THREE.Clock();
@@ -411,8 +472,23 @@
             // Handle window resize
             window.addEventListener('resize', onWindowResize, false);
 
+            // Initialize audio context
+            initAudioContext();
+
             // Start render loop
             animate();
+        }
+
+        // Initialize audio context for lip sync
+        function initAudioContext() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 256;
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+            } catch (e) {
+                console.error('[AUDIO] Web Audio API not supported:', e);
+            }
         }
 
         // Load Ready Player Me avatar
@@ -437,6 +513,40 @@
                     avatar.position.set(0, 0, 0);
                     avatar.scale.set(1, 1, 1);
 
+                    // Find head, neck, and eyes for tracking
+                    avatar.traverse((node) => {
+                        if (node.isBone) {
+                            const nodeName = node.name.toLowerCase();
+                            if (nodeName.includes('head')) {
+                                avatarHead = node;
+                            } else if (nodeName.includes('neck')) {
+                                avatarNeck = node;
+                            }
+                        }
+
+                        // Find morph targets for facial expressions and lip sync
+                        if (node.isMesh && node.morphTargetDictionary) {
+                            const dict = node.morphTargetDictionary;
+
+                            // Store references to morph targets
+                            if (!morphTargets.mesh) {
+                                morphTargets.mesh = node;
+                                morphTargets.influences = node.morphTargetInfluences;
+                                morphTargets.dictionary = dict;
+
+                                console.log('[AVATAR] Available morph targets:', Object.keys(dict));
+                            }
+                        }
+
+                        // Find eyes
+                        if (node.name.toLowerCase().includes('leftEye')) {
+                            leftEye = node;
+                        }
+                        if (node.name.toLowerCase().includes('rightEye')) {
+                            rightEye = node;
+                        }
+                    });
+
                     // Setup animations if available
                     if (gltf.animations && gltf.animations.length > 0) {
                         mixer = new THREE.AnimationMixer(avatar);
@@ -457,6 +567,8 @@
                     loadingMessage.style.display = 'none';
                     isAvatarLoaded = true;
                     console.log('[AVATAR] Loaded successfully');
+                    console.log('[AVATAR] Head bone:', avatarHead ? 'Found' : 'Not found');
+                    console.log('[AVATAR] Morph targets:', morphTargets.dictionary ? Object.keys(morphTargets.dictionary).length : 0);
                 },
                 (progress) => {
                     const percent = (progress.loaded / progress.total * 100).toFixed(0);
@@ -497,6 +609,143 @@
             });
         }
 
+        // Set morph target value by name
+        function setMorphTarget(name, value) {
+            if (!morphTargets.mesh || !morphTargets.dictionary) return;
+
+            const index = morphTargets.dictionary[name];
+            if (index !== undefined) {
+                morphTargets.influences[index] = value;
+            }
+        }
+
+        // Get morph target value by name
+        function getMorphTarget(name) {
+            if (!morphTargets.mesh || !morphTargets.dictionary) return 0;
+
+            const index = morphTargets.dictionary[name];
+            if (index !== undefined) {
+                return morphTargets.influences[index];
+            }
+            return 0;
+        }
+
+        // Animate morph target smoothly
+        function animateMorphTarget(name, targetValue, duration = 300) {
+            const startValue = getMorphTarget(name) || 0;
+            const startTime = Date.now();
+
+            const animate = () => {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = progress < 0.5
+                    ? 2 * progress * progress
+                    : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+                const currentValue = startValue + (targetValue - startValue) * eased;
+                setMorphTarget(name, currentValue);
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                }
+            };
+
+            animate();
+        }
+
+        // Update lip sync based on audio
+        function updateLipSync() {
+            if (!document.getElementById('enableLipSync').checked || !isSpeaking || !analyser) {
+                // Close mouth when not speaking
+                animateMorphTarget('mouthOpen', 0, 100);
+                animateMorphTarget('jawOpen', 0, 100);
+                return;
+            }
+
+            analyser.getByteFrequencyData(dataArray);
+
+            // Calculate average volume
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                sum += dataArray[i];
+            }
+            const average = sum / dataArray.length;
+
+            // Normalize to 0-1 range
+            const normalized = average / 255;
+
+            // Apply to mouth morph targets
+            const mouthOpen = normalized * 0.7;
+            const jawOpen = normalized * 0.5;
+
+            setMorphTarget('mouthOpen', mouthOpen);
+            setMorphTarget('jawOpen', jawOpen);
+
+            // Add some variation for more natural look
+            const variation = Math.sin(Date.now() * 0.01) * 0.1;
+            setMorphTarget('mouthSmile', variation * normalized);
+        }
+
+        // Update eye tracking to look at detected face
+        function updateEyeTracking() {
+            if (!document.getElementById('enableEyeTracking').checked || !avatarHead) return;
+
+            // Smooth the look target
+            const smoothing = 0.1;
+            smoothedLookTarget.x += (detectedFacePosition.x - smoothedLookTarget.x) * smoothing;
+            smoothedLookTarget.y += (detectedFacePosition.y - smoothedLookTarget.y) * smoothing;
+
+            // Rotate head to look at target
+            const maxHeadRotation = 0.3;
+            const targetRotationY = smoothedLookTarget.x * maxHeadRotation;
+            const targetRotationX = -smoothedLookTarget.y * maxHeadRotation * 0.5;
+
+            if (avatarHead) {
+                avatarHead.rotation.y += (targetRotationY - avatarHead.rotation.y) * 0.1;
+                avatarHead.rotation.x += (targetRotationX - avatarHead.rotation.x) * 0.1;
+            }
+
+            if (avatarNeck) {
+                avatarNeck.rotation.y += (targetRotationY * 0.3 - avatarNeck.rotation.y) * 0.1;
+            }
+
+            // Move eyes
+            if (leftEye) {
+                leftEye.rotation.y = smoothedLookTarget.x * 0.5;
+                leftEye.rotation.x = -smoothedLookTarget.y * 0.3;
+            }
+            if (rightEye) {
+                rightEye.rotation.y = smoothedLookTarget.x * 0.5;
+                rightEye.rotation.x = -smoothedLookTarget.y * 0.3;
+            }
+        }
+
+        // Show facial expression
+        function showExpression(expression, intensity = 1.0, duration = 1000) {
+            if (!document.getElementById('enableExpressions').checked) return;
+
+            const expressions = {
+                smile: ['mouthSmile', 'eyeSquintLeft', 'eyeSquintRight'],
+                happy: ['mouthSmile', 'eyesClosed', 'cheekPuff'],
+                surprised: ['mouthOpen', 'eyesWide', 'browInnerUp'],
+                neutral: []
+            };
+
+            const morphs = expressions[expression] || [];
+
+            // Animate expression
+            morphs.forEach(morph => {
+                animateMorphTarget(morph, intensity, duration / 2);
+            });
+
+            // Return to neutral after duration
+            setTimeout(() => {
+                morphs.forEach(morph => {
+                    animateMorphTarget(morph, 0, duration / 2);
+                });
+            }, duration);
+        }
+
         // Animation loop
         function animate() {
             requestAnimationFrame(animate);
@@ -509,9 +758,21 @@
                 mixer.update(delta * speed);
             }
 
+            // Update lip sync
+            updateLipSync();
+
+            // Update eye tracking
+            updateEyeTracking();
+
             // Auto-rotate
-            if (document.getElementById('autoRotate').checked && avatar) {
-                avatar.rotation.y += 0.005;
+            if (document.getElementById('autoRotate').checked && avatar && !isDragging) {
+                avatar.rotation.y += 0.003;
+            }
+
+            // Subtle breathing animation
+            if (avatar) {
+                const breathe = Math.sin(Date.now() * 0.001) * 0.002;
+                avatar.position.y = breathe;
             }
 
             renderer.render(scene, camera);
@@ -524,17 +785,17 @@
             renderer.setSize(avatarCanvas.clientWidth, avatarCanvas.clientHeight);
         }
 
-        // Avatar animations
+        // Avatar greeting animation
         function playGreetingAnimation() {
             if (!avatar) return;
 
-            // Simple head nod animation
+            // Head nod
             const startRotation = avatar.rotation.x;
-            const nodAngle = -0.2;
+            const nodAngle = -0.15;
             let progress = 0;
 
             const nod = setInterval(() => {
-                progress += 0.05;
+                progress += 0.08;
                 if (progress <= 0.5) {
                     avatar.rotation.x = startRotation + (nodAngle * (progress * 2));
                 } else if (progress <= 1) {
@@ -544,24 +805,9 @@
                     clearInterval(nod);
                 }
             }, 30);
-        }
 
-        function playWaveAnimation() {
-            if (!avatar) return;
-
-            // Add a gentle sway
-            const startY = avatar.position.y;
-            let progress = 0;
-
-            const wave = setInterval(() => {
-                progress += 0.05;
-                avatar.position.y = startY + Math.sin(progress * Math.PI * 2) * 0.05;
-
-                if (progress >= 1) {
-                    avatar.position.y = startY;
-                    clearInterval(wave);
-                }
-            }, 30);
+            // Show happy expression
+            showExpression('smile', 0.8, 2000);
         }
 
         // Initialize scene on load
@@ -667,6 +913,14 @@
                         (prev.confidence > current.confidence) ? prev : current
                     );
 
+                    // Update face position for eye tracking
+                    const faceX = (bestFace.x_min + bestFace.x_max) / 2;
+                    const faceY = (bestFace.y_min + bestFace.y_max) / 2;
+
+                    // Normalize to -1 to 1 range
+                    detectedFacePosition.x = (faceX / canvas.width) * 2 - 1;
+                    detectedFacePosition.y = -((faceY / canvas.height) * 2 - 1);
+
                     if (bestFace.userid !== 'unknown') {
                         greetPerson(bestFace.userid, bestFace.confidence);
                     } else {
@@ -677,6 +931,9 @@
 
                     drawBoundingBoxes(result.faces);
                 } else {
+                    // No face detected, reset eye tracking to center
+                    detectedFacePosition = { x: 0, y: 0 };
+
                     if (lastGreetedPerson !== null) {
                         resetGreeting();
                     }
@@ -708,11 +965,10 @@
 
             // Animate avatar
             playGreetingAnimation();
-            setTimeout(() => playWaveAnimation(), 500);
 
-            // Speak greeting
+            // Speak greeting with lip sync
             if (enableVoiceCheckbox.checked) {
-                speak(`Hello ${displayName}, welcome!`);
+                speakWithLipSync(`Hello ${displayName}, welcome!`);
             }
 
             greetingTimeout = setTimeout(() => {
@@ -727,14 +983,62 @@
             statusText.textContent = 'Looking for faces...';
         }
 
-        // Text-to-speech
-        function speak(text) {
+        // Text-to-speech with lip sync
+        function speakWithLipSync(text) {
             synth.cancel();
+
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.rate = 1.0;
             utterance.pitch = 1.1;
             utterance.volume = 1.0;
+
+            // Setup audio analysis for lip sync
+            if (audioContext && analyser) {
+                // Create MediaStreamDestination
+                const destination = audioContext.createMediaStreamDestination();
+
+                // Start speaking flag
+                utterance.onstart = () => {
+                    isSpeaking = true;
+                    console.log('[SPEECH] Started speaking');
+                };
+
+                utterance.onend = () => {
+                    isSpeaking = false;
+                    console.log('[SPEECH] Finished speaking');
+                };
+            }
+
             synth.speak(utterance);
+
+            // Fallback lip sync animation if Web Audio API fails
+            simulateLipSync(text.length * 100);
+        }
+
+        // Simulate lip sync for fallback
+        function simulateLipSync(duration) {
+            const startTime = Date.now();
+
+            const animate = () => {
+                const elapsed = Date.now() - startTime;
+
+                if (elapsed < duration) {
+                    // Simulate mouth movement
+                    const t = (elapsed / 100) % 1;
+                    const mouthValue = Math.abs(Math.sin(t * Math.PI)) * 0.5;
+
+                    setMorphTarget('mouthOpen', mouthValue);
+                    setMorphTarget('jawOpen', mouthValue * 0.7);
+
+                    requestAnimationFrame(animate);
+                } else {
+                    // Close mouth
+                    animateMorphTarget('mouthOpen', 0, 200);
+                    animateMorphTarget('jawOpen', 0, 200);
+                }
+            };
+
+            animate();
         }
 
         // Draw bounding boxes
@@ -812,6 +1116,9 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             statusText.textContent = 'Greeter stopped';
+
+            // Reset face position
+            detectedFacePosition = { x: 0, y: 0 };
         }
 
         // Cleanup
