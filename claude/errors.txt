@@ -1,55 +1,119 @@
+greet:624 [AVATAR] Scanning for bones and morph targets...
+greet:628 [AVATAR] Found bone: Hips
+greet:628 [AVATAR] Found bone: Spine
+greet:628 [AVATAR] Found bone: Spine1
+greet:628 [AVATAR] Found bone: Spine2
+greet:628 [AVATAR] Found bone: Neck
+greet:636 [AVATAR] ✓ Neck bone found: Neck
+greet:628 [AVATAR] Found bone: Head
+greet:633 [AVATAR] ✓ Head bone found: Head
+greet:628 [AVATAR] Found bone: HeadTop_End
+greet:633 [AVATAR] ✓ Head bone found: HeadTop_End
+greet:628 [AVATAR] Found bone: LeftEye
+greet:668 [AVATAR] ✓ Left eye found: LeftEye
+greet:628 [AVATAR] Found bone: RightEye
+greet:672 [AVATAR] ✓ Right eye found: RightEye
+greet:628 [AVATAR] Found bone: LeftShoulder
+greet:628 [AVATAR] Found bone: LeftArm
+greet:628 [AVATAR] Found bone: LeftForeArm
+greet:628 [AVATAR] Found bone: LeftHand
+greet:628 [AVATAR] Found bone: LeftHandThumb1
+greet:628 [AVATAR] Found bone: LeftHandThumb2
+greet:628 [AVATAR] Found bone: LeftHandThumb3
+greet:628 [AVATAR] Found bone: LeftHandThumb4
+greet:628 [AVATAR] Found bone: LeftHandIndex1
+greet:628 [AVATAR] Found bone: LeftHandIndex2
+greet:628 [AVATAR] Found bone: LeftHandIndex3
+greet:628 [AVATAR] Found bone: LeftHandIndex4
+greet:628 [AVATAR] Found bone: LeftHandMiddle1
+greet:628 [AVATAR] Found bone: LeftHandMiddle2
+greet:628 [AVATAR] Found bone: LeftHandMiddle3
+greet:628 [AVATAR] Found bone: LeftHandMiddle4
+greet:628 [AVATAR] Found bone: LeftHandRing1
+greet:628 [AVATAR] Found bone: LeftHandRing2
+greet:628 [AVATAR] Found bone: LeftHandRing3
+greet:628 [AVATAR] Found bone: LeftHandRing4
+greet:628 [AVATAR] Found bone: LeftHandPinky1
+greet:628 [AVATAR] Found bone: LeftHandPinky2
+greet:628 [AVATAR] Found bone: LeftHandPinky3
+greet:628 [AVATAR] Found bone: LeftHandPinky4
+greet:628 [AVATAR] Found bone: RightShoulder
+greet:628 [AVATAR] Found bone: RightArm
+greet:628 [AVATAR] Found bone: RightForeArm
+greet:628 [AVATAR] Found bone: RightHand
+greet:628 [AVATAR] Found bone: RightHandThumb1
+greet:628 [AVATAR] Found bone: RightHandThumb2
+greet:628 [AVATAR] Found bone: RightHandThumb3
+greet:628 [AVATAR] Found bone: RightHandThumb4
+greet:628 [AVATAR] Found bone: RightHandIndex1
+greet:628 [AVATAR] Found bone: RightHandIndex2
+greet:628 [AVATAR] Found bone: RightHandIndex3
+greet:628 [AVATAR] Found bone: RightHandIndex4
+greet:628 [AVATAR] Found bone: RightHandMiddle1
+greet:628 [AVATAR] Found bone: RightHandMiddle2
+greet:628 [AVATAR] Found bone: RightHandMiddle3
+greet:628 [AVATAR] Found bone: RightHandMiddle4
+greet:628 [AVATAR] Found bone: RightHandRing1
+greet:628 [AVATAR] Found bone: RightHandRing2
+greet:628 [AVATAR] Found bone: RightHandRing3
+greet:628 [AVATAR] Found bone: RightHandRing4
+greet:628 [AVATAR] Found bone: RightHandPinky1
+greet:628 [AVATAR] Found bone: RightHandPinky2
+greet:628 [AVATAR] Found bone: RightHandPinky3
+greet:628 [AVATAR] Found bone: RightHandPinky4
+greet:628 [AVATAR] Found bone: LeftUpLeg
+greet:628 [AVATAR] Found bone: LeftLeg
+greet:628 [AVATAR] Found bone: LeftFoot
+greet:628 [AVATAR] Found bone: LeftToeBase
+greet:628 [AVATAR] Found bone: LeftToe_End
+greet:628 [AVATAR] Found bone: RightUpLeg
+greet:628 [AVATAR] Found bone: RightLeg
+greet:628 [AVATAR] Found bone: RightFoot
+greet:628 [AVATAR] Found bone: RightToeBase
+greet:628 [AVATAR] Found bone: RightToe_End
+greet:643 [AVATAR] Found mesh with morph targets: EyeLeft
+greet:644 [AVATAR] Available morph targets: (2) ['mouthOpen', 'mouthSmile']
+greet:643 [AVATAR] Found mesh with morph targets: EyeRight
+greet:644 [AVATAR] Available morph targets: (2) ['mouthOpen', 'mouthSmile']
+greet:643 [AVATAR] Found mesh with morph targets: Wolf3D_Head
+greet:644 [AVATAR] Available morph targets: (2) ['mouthOpen', 'mouthSmile']
+greet:643 [AVATAR] Found mesh with morph targets: Wolf3D_Teeth
+greet:644 [AVATAR] Available morph targets: (2) ['mouthOpen', 'mouthSmile']
+greet:695 [AVATAR] Loaded successfully
+greet:696 [AVATAR] Head bone: Found
+greet:700 [AVATAR] Total meshes with morph targets: 4
+greet:702 [AVATAR] Mesh 0 morph targets: (2) ['mouthOpen', 'mouthSmile']
+greet:702 [AVATAR] Mesh 1 morph targets: (2) ['mouthOpen', 'mouthSmile']
+greet:702 [AVATAR] Mesh 2 morph targets: (2) ['mouthOpen', 'mouthSmile']
+greet:702 [AVATAR] Mesh 3 morph targets: (2) ['mouthOpen', 'mouthSmile']
+greet:943 [Violation] 'requestAnimationFrame' handler took 216ms
+greet:923 [EXPRESSION] Trying to show: smile with morphs: (4) ['mouthSmile', 'mouthSmileLeft', 'mouthSmileRight', 'viseme_aa']
+greet:929 [EXPRESSION] ✓ Applied: mouthSmile
+greet:1224 [TTS] Generating speech with Rhubarb lip sync
+greet:1228  POST https://nrf.ruvolo.loseyourip.com/api/tts 500 (INTERNAL SERVER ERROR)
+speakWithLipSync @ greet:1228
+greetPerson @ greet:1161
+recognizeFaces @ greet:1115
+setInterval
+(anonymous) @ greet:1062
+greet:1236 [TTS] Server error: {error: 'Audio file was not created', success: false}
+speakWithLipSync @ greet:1236
+await in speakWithLipSync
+greetPerson @ greet:1161
+recognizeFaces @ greet:1115
+setInterval
+(anonymous) @ greet:1062
+greet:1195 [QR] Generating QR code for: https://nrf.ruvolo.loseyourip.com/video
+greet:1212 [QR] QR code displayed
 
-  Building wheel for thinc (pyproject.toml) ... done
-  Created wheel for thinc: filename=thinc-8.3.4-cp311-cp311-linux_aarch64.whl size=3794780 sha256=bdb9cbf7e818fe393212c99aee1b8a48a82cc30ac574c9fc308d50c251a585e0
-  Stored in directory: /home/dave/.cache/pip/wheels/5f/9a/cf/bf9251b7f29770ff0601b500ad19730d372d57f2d19b1b563e
-  Building wheel for sudachipy (pyproject.toml) ... error
-  error: subprocess-exited-with-error
 
-  × Building wheel for sudachipy (pyproject.toml) did not run successfully.
-  │ exit code: 1
-  ╰─> [35 lines of output]
-      running bdist_wheel
-      running build
-      running build_py
-      creating build/lib.linux-aarch64-cpython-311/sudachipy
-      copying py_src/sudachipy/__init__.py -> build/lib.linux-aarch64-cpython-311/sudachipy
-      copying py_src/sudachipy/command_line.py -> build/lib.linux-aarch64-cpython-311/sudachipy
-      copying py_src/sudachipy/config.py -> build/lib.linux-aarch64-cpython-311/sudachipy
-      copying py_src/sudachipy/errors.py -> build/lib.linux-aarch64-cpython-311/sudachipy
-      creating build/lib.linux-aarch64-cpython-311/sudachipy/dictionary
-      copying py_src/sudachipy/dictionary/__init__.py -> build/lib.linux-aarch64-cpython-311/sudachipy/dictionary
-      creating build/lib.linux-aarch64-cpython-311/sudachipy/tokenizer
-      copying py_src/sudachipy/tokenizer/__init__.py -> build/lib.linux-aarch64-cpython-311/sudachipy/tokenizer
-      creating build/lib.linux-aarch64-cpython-311/sudachipy/morphemelist
-      copying py_src/sudachipy/morphemelist/__init__.py -> build/lib.linux-aarch64-cpython-311/sudachipy/morphemelist
-      creating build/lib.linux-aarch64-cpython-311/sudachipy/morpheme
-      copying py_src/sudachipy/morpheme/__init__.py -> build/lib.linux-aarch64-cpython-311/sudachipy/morpheme
-      copying py_src/sudachipy/sudachipy.pyi -> build/lib.linux-aarch64-cpython-311/sudachipy
-      creating build/lib.linux-aarch64-cpython-311/sudachipy/resources
-      copying py_src/sudachipy/resources/sudachi.json -> build/lib.linux-aarch64-cpython-311/sudachipy/resources
-      copying py_src/sudachipy/resources/unk.def -> build/lib.linux-aarch64-cpython-311/sudachipy/resources
-      copying py_src/sudachipy/resources/rewrite.def -> build/lib.linux-aarch64-cpython-311/sudachipy/resources
-      copying py_src/sudachipy/resources/char.def -> build/lib.linux-aarch64-cpython-311/sudachipy/resources
-      running build_ext
-      running build_rust
-      error: can't find Rust compiler
 
-      If you are using an outdated pip version, it is possible a prebuilt wheel is available for this package but pip is not able to install from it. Installing from the wheel would avoid the need for a Rust compiler.
 
-      To update pip, run:
 
-          pip install --upgrade pip
 
-      and then retry package installation.
 
-      If you did intend to build this package from source, try installing a Rust compiler from your system package manager and ensure it is on the PATH during installation. Alternatively, rustup (available at https://rustup.rs) is the recommended way to download and update the Rust compiler toolchain.
-      [end of output]
 
-  note: This error originates from a subprocess, and is likely not a problem with pip.
-  ERROR: Failed building wheel for sudachipy
-Successfully built thinc
-Failed to build sudachipy
-error: failed-wheel-build-for-install
+flask error
 
-× Failed to build installable wheels for some pyproject.toml based projects
-╰─> sudachipy
+[TTS] Running Festival TTS with male voice...
+[TTS] ✗ Error: File not found at /home/dave/Facial-Recognition/audio/tts_4515b05c47eb.wav

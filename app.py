@@ -511,48 +511,61 @@ def text_to_speech():
             # Generate audio using Festival text2wave command
             final_audio_filename = audio_filename
 
-            # Festival command for better quality
-            # Using text2wave which outputs WAV files directly
-            festival_cmd = [
-                'text2wave',
-                '-o', audio_path,
-                '-eval', '(voice_cmu_us_rms_cg)'  # Male voice
-            ]
+            # Create a temporary text file for Festival
+            temp_text_file = os.path.join(AUDIO_FOLDER, f"temp_{text_hash}.txt")
+            with open(temp_text_file, 'w', encoding='utf-8') as f:
+                f.write(text)
 
-            print(f"[TTS] Running Festival TTS with male voice...")
+            print(f"[TTS] Running Festival TTS with default voice...")
+            print(f"[TTS] Text: {text}")
+            print(f"[TTS] Output path: {audio_path}")
 
-            # Run Festival with text input
+            # Simple Festival command - let it use default voice
+            # text2wave reads from stdin or file and outputs to -o
             result = subprocess.run(
-                festival_cmd,
-                input=text.encode('utf-8'),
+                ['text2wave', temp_text_file, '-o', audio_path],
                 capture_output=True,
-                timeout=30
+                timeout=30,
+                text=True
             )
 
-            if result.returncode == 0:
-                # Verify file was created
-                if os.path.exists(audio_path):
-                    file_size = os.path.getsize(audio_path)
+            # Clean up temp file
+            try:
+                os.remove(temp_text_file)
+            except:
+                pass
+
+            print(f"[TTS] Festival return code: {result.returncode}")
+            if result.stdout:
+                print(f"[TTS] Festival stdout: {result.stdout}")
+            if result.stderr:
+                print(f"[TTS] Festival stderr: {result.stderr}")
+
+            # Verify file was created
+            if os.path.exists(audio_path):
+                file_size = os.path.getsize(audio_path)
+                if file_size > 0:
                     print(f"[TTS] ✓ Audio file created: {audio_path} ({file_size} bytes)")
                 else:
-                    print(f"[TTS] ✗ Error: File not found at {audio_path}")
+                    print(f"[TTS] ✗ Error: File created but empty (0 bytes)")
+                    os.remove(audio_path)
                     return jsonify({
                         "success": False,
-                        "error": "Audio file was not created"
+                        "error": "Audio file was empty"
                     }), 500
             else:
-                error_msg = result.stderr.decode('utf-8') if result.stderr else "Unknown error"
-                print(f"[TTS] ✗ Festival error: {error_msg}")
+                print(f"[TTS] ✗ Error: File not found at {audio_path}")
+                print(f"[TTS] Festival may not be installed or text2wave not in PATH")
                 return jsonify({
                     "success": False,
-                    "error": f"Festival TTS failed: {error_msg}"
+                    "error": "Audio file was not created. Is Festival installed?"
                 }), 500
 
         except FileNotFoundError:
-            print(f"[TTS] ✗ Festival not installed")
+            print(f"[TTS] ✗ Festival not installed (text2wave command not found)")
             return jsonify({
                 "success": False,
-                "error": "Festival TTS not installed. Run: sudo apt-get install festival festvox-us-slt-hts"
+                "error": "Festival TTS not installed. Run: sudo apt-get install festival"
             }), 500
         except subprocess.TimeoutExpired:
             print(f"[TTS] ✗ Festival timeout")
