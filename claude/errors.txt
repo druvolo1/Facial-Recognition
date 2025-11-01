@@ -1,3 +1,4 @@
-locations:1100 Uncaught TypeError: Cannot read properties of null (reading 'addEventListener')
-    at locations:1100:55
-(anonymous) @ locations:1100
+locations:1117  POST https://nrf.ruvolo.loseyourip.com/api/devices/undefined/approve 404 (Not Found)
+(anonymous) @ locations:1117
+locations:1117  POST https://nrf.ruvolo.loseyourip.com/api/devices/1/approve 404 (Not Found)
+(anonymous) @ locations:1117

@@ -1078,14 +1078,31 @@
 
         // Show approve device modal
         let currentApproveDeviceId = null;
-        async function showApproveDeviceModal(deviceId, regCode) {
+        let currentApproveRegCode = null;
+
+        async function showApproveDeviceModal(deviceId = null, regCode = null) {
             currentApproveDeviceId = deviceId;
-            document.getElementById('approve-device-code').textContent = regCode;
+            currentApproveRegCode = regCode;
 
             // Load locations for dropdown
             const locationSelect = document.getElementById('approve-device-location');
             locationSelect.innerHTML = '<option value="">-- Select a location --</option>' +
                 locations.map(loc => `<option value="${loc.id}">${loc.name}</option>`).join('');
+
+            if (deviceId && regCode) {
+                // Called from pending device list - show code, hide input
+                document.getElementById('approve-device-code').textContent = regCode;
+                document.getElementById('approve-device-code-display').style.display = 'block';
+                document.getElementById('approve-device-code-input-group').style.display = 'none';
+                document.getElementById('approve-device-code-input').required = false;
+            } else {
+                // Called from "Approve New Device" button - show input, hide display
+                document.getElementById('approve-device-code-display').style.display = 'none';
+                document.getElementById('approve-device-code-input-group').style.display = 'block';
+                document.getElementById('approve-device-code-input').required = true;
+                document.getElementById('approve-device-code-input').value = '';
+                document.getElementById('approve-device-code-input').focus();
+            }
 
             document.getElementById('approve-device-modal').classList.add('active');
         }
@@ -1094,6 +1111,7 @@
             document.getElementById('approve-device-modal').classList.remove('active');
             document.getElementById('approve-device-form').reset();
             currentApproveDeviceId = null;
+            currentApproveRegCode = null;
         }
 
         // Handle approve device form - wait for DOM to load
@@ -1114,7 +1132,34 @@
                     }
 
                     try {
-                        const response = await fetch(`/api/devices/${currentApproveDeviceId}/approve`, {
+                        let deviceId = currentApproveDeviceId;
+
+                        // If no device ID, look up by registration code
+                        if (!deviceId) {
+                            const regCodeInput = document.getElementById('approve-device-code-input').value.trim();
+                            if (!regCodeInput || regCodeInput.length !== 6) {
+                                showAlert('Please enter a valid 6-digit registration code', 'error');
+                                return;
+                            }
+
+                            // Fetch pending devices and find the one with matching code
+                            const pendingResponse = await fetch('/api/devices/pending');
+                            if (!pendingResponse.ok) {
+                                throw new Error('Failed to fetch pending devices');
+                            }
+                            const pendingData = await pendingResponse.json();
+                            const matchingDevice = pendingData.devices.find(d => d.registration_code === regCodeInput);
+
+                            if (!matchingDevice) {
+                                showAlert('No device found with that registration code', 'error');
+                                return;
+                            }
+
+                            deviceId = matchingDevice.device_id; // Use UUID, not integer ID
+                        }
+
+                        // Approve the device
+                        const response = await fetch(`/api/devices/${deviceId}/approve`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -1255,7 +1300,7 @@
                             </div>
                         </div>
                         <div class="action-buttons">
-                            <button class="btn btn-primary btn-small" onclick="showApproveDeviceModalForLocation(${device.id}, '${device.registration_code}')">
+                            <button class="btn btn-primary btn-small" onclick="showApproveDeviceModalForLocation('${device.device_id}', '${device.registration_code}')">
                                 Approve
                             </button>
                         </div>
@@ -1314,9 +1359,16 @@
             }
         }
 
-        function showApproveDeviceModalForLocation(deviceId, regCode) {
-            currentApproveDeviceId = deviceId;
+        function showApproveDeviceModalForLocation(deviceUuid, regCode) {
+            // deviceUuid is the device_id (UUID string), not the integer ID
+            currentApproveDeviceId = deviceUuid;
+            currentApproveRegCode = regCode;
+
+            // Show code display, hide input
             document.getElementById('approve-device-code').textContent = regCode;
+            document.getElementById('approve-device-code-display').style.display = 'block';
+            document.getElementById('approve-device-code-input-group').style.display = 'none';
+            document.getElementById('approve-device-code-input').required = false;
 
             // Pre-select the current location
             const locationSelect = document.getElementById('approve-device-location');
@@ -1443,12 +1495,22 @@
                 <button class="close" onclick="closeApproveDeviceModal()">&times;</button>
             </div>
 
-            <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
+            <!-- Registration code input/display -->
+            <div id="approve-device-code-display" style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; display: none;">
                 <p style="margin: 0 0 10px 0; color: #1565c0; font-size: 14px;">Registration Code:</p>
                 <p id="approve-device-code" style="font-size: 36px; font-family: monospace; font-weight: bold; color: #1976d2; margin: 0;"></p>
             </div>
 
             <form id="approve-device-form">
+                <div class="form-group" id="approve-device-code-input-group">
+                    <label for="approve-device-code-input">6-Digit Registration Code *</label>
+                    <input type="text" id="approve-device-code-input" maxlength="6" pattern="\d{6}"
+                           placeholder="Enter 6-digit code" style="font-size: 24px; font-family: monospace; text-align: center; letter-spacing: 5px;">
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        Enter the code displayed on the device screen
+                    </small>
+                </div>
+
                 <div class="form-group">
                     <label for="approve-device-name">Device Name *</label>
                     <input type="text" id="approve-device-name" required placeholder="e.g., Front Desk Kiosk">
