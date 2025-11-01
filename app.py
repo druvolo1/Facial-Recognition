@@ -401,17 +401,29 @@ def text_to_speech():
         # Generate audio using pyttsx3
         print(f"[TTS] Generating audio with pyttsx3...")
         try:
-            # Initialize with specific driver for Windows
-            try:
+            # Initialize with platform-specific driver
+            import platform
+            system = platform.system()
+            print(f"[TTS] Detected platform: {system}")
+
+            if system == 'Windows':
                 engine = pyttsx3.init('sapi5')  # Windows SAPI5
-            except:
+                print(f"[TTS] Using Windows SAPI5 driver")
+            elif system == 'Linux':
+                engine = pyttsx3.init('espeak')  # Linux espeak
+                print(f"[TTS] Using Linux espeak driver")
+            elif system == 'Darwin':
+                engine = pyttsx3.init('nsss')  # macOS
+                print(f"[TTS] Using macOS nsss driver")
+            else:
                 engine = pyttsx3.init()  # Fallback to default
+                print(f"[TTS] Using default driver")
 
             # Set properties for better quality
             voices = engine.getProperty('voices')
             print(f"[TTS] Available voices: {len(voices)}")
 
-            # Try to use a female voice (usually index 1 on Windows)
+            # Try to use a female voice (usually index 1)
             if len(voices) > 1:
                 engine.setProperty('voice', voices[1].id)
                 print(f"[TTS] Using voice: {voices[1].name}")
@@ -427,7 +439,10 @@ def text_to_speech():
             engine.runAndWait()
 
             # Important: Stop the engine to release resources
-            engine.stop()
+            try:
+                engine.stop()
+            except:
+                pass  # Some drivers don't support stop()
 
             print(f"[TTS] ✓ Audio generated: {audio_filename}")
 
@@ -437,7 +452,7 @@ def text_to_speech():
             traceback.print_exc()
             return jsonify({
                 "success": False,
-                "error": f"Failed to generate audio: {str(e)}"
+                "error": f"Failed to generate audio: {str(e)}. On Linux, install espeak: sudo apt-get install espeak espeak-ng"
             }), 500
 
         # Run rhubarb-lip-sync on the audio file
