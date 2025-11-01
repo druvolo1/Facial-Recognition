@@ -346,6 +346,12 @@ def greet_page():
     return render_template('greet.html')
 
 
+@app.route('/video')
+def video_page():
+    """Video presentation page"""
+    return render_template('video.html')
+
+
 @app.route('/monitor')
 def monitor_page():
     """Display monitoring page"""
@@ -362,6 +368,12 @@ def serve_upload(filename):
 def serve_audio(filename):
     """Serve generated audio files"""
     return send_from_directory(AUDIO_FOLDER, filename)
+
+
+@app.route('/media/<filename>')
+def serve_media(filename):
+    """Serve media files (videos, etc.)"""
+    return send_from_directory(APP_DIR, filename)
 
 
 def text_to_simple_visemes(text, audio_duration):

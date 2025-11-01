@@ -304,6 +304,89 @@
             font-weight: 600;
             margin-left: 8px;
         }
+
+        /* QR Code Overlay */
+        #qrOverlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s;
+        }
+
+        #qrOverlay.show {
+            display: flex;
+        }
+
+        .qr-modal {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.4s;
+            max-width: 500px;
+        }
+
+        .qr-modal h2 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .qr-modal p {
+            color: #666;
+            margin-bottom: 25px;
+            font-size: 16px;
+        }
+
+        #qrcode {
+            display: inline-block;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            border: 3px solid #667eea;
+        }
+
+        .qr-close-btn {
+            margin-top: 25px;
+            padding: 12px 40px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .qr-close-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
     </style>
 </head>
 <body>
@@ -412,6 +495,19 @@
             </div>
         </div>
     </div>
+
+    <!-- QR Code Overlay -->
+    <div id="qrOverlay">
+        <div class="qr-modal">
+            <h2>Watch Our Video!</h2>
+            <p>Scan this QR code with your phone to watch our exclusive content</p>
+            <div id="qrcode"></div>
+            <button class="qr-close-btn" onclick="closeQRCode()">Close</button>
+        </div>
+    </div>
+
+    <!-- QR Code Library -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
     <!-- Three.js ES Module -->
     <script type="importmap">
@@ -1065,9 +1161,14 @@
                 speakWithLipSync(`Hello ${displayName}, welcome!`);
             }
 
+            // Show QR code after 2 seconds
+            setTimeout(() => {
+                showQRCode();
+            }, 2000);
+
             greetingTimeout = setTimeout(() => {
                 resetGreeting();
-            }, 5000);
+            }, 15000); // Extended to 15 seconds to give time for QR code
         }
 
         // Reset greeting
@@ -1075,6 +1176,47 @@
             lastGreetedPerson = null;
             greetingText.textContent = 'Welcome!';
             statusText.textContent = 'Looking for faces...';
+        }
+
+        // Show QR Code overlay
+        let qrCodeGenerated = false;
+        function showQRCode() {
+            const overlay = document.getElementById('qrOverlay');
+            const qrcodeDiv = document.getElementById('qrcode');
+
+            // Generate QR code only once
+            if (!qrCodeGenerated) {
+                qrcodeDiv.innerHTML = ''; // Clear any existing QR code
+
+                // Get the current URL and construct video page URL
+                const currentUrl = window.location.origin;
+                const videoUrl = `${currentUrl}/video`;
+
+                console.log('[QR] Generating QR code for:', videoUrl);
+
+                // Generate QR code
+                new QRCode(qrcodeDiv, {
+                    text: videoUrl,
+                    width: 256,
+                    height: 256,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+
+                qrCodeGenerated = true;
+            }
+
+            // Show overlay
+            overlay.classList.add('show');
+            console.log('[QR] QR code displayed');
+        }
+
+        // Close QR Code overlay
+        function closeQRCode() {
+            const overlay = document.getElementById('qrOverlay');
+            overlay.classList.remove('show');
+            console.log('[QR] QR code hidden');
         }
 
         // Text-to-speech with Rhubarb lip sync
