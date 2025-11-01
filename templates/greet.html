@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Greeter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 1400px;
+            height: calc(100vh - 40px);
+            margin: 0 auto;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .back-link {
+            display: inline-block;
+            color: #667eea;
+            text-decoration: none;
+            margin-bottom: 20px;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .main-content {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .avatar-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            padding: 40px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .avatar-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            margin-bottom: 30px;
+        }
+
+        .avatar {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .avatar.speaking {
+            animation: speaking 0.5s ease-in-out infinite;
+        }
+
+        @keyframes speaking {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .avatar-face {
+            width: 200px;
+            height: 200px;
+            position: relative;
+        }
+
+        .avatar-eyes {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 40px;
+        }
+
+        .eye {
+            width: 40px;
+            height: 40px;
+            background: #667eea;
+            border-radius: 50%;
+            position: relative;
+        }
+
+        .eye::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            top: 5px;
+            left: 5px;
+        }
+
+        .eye.blinking::after {
+            animation: blink 3s infinite;
+        }
+
+        @keyframes blink {
+            0%, 96%, 100% { opacity: 1; }
+            98% { opacity: 0; }
+        }
+
+        .avatar-mouth {
+            width: 80px;
+            height: 40px;
+            border: 5px solid #667eea;
+            border-top: none;
+            border-radius: 0 0 80px 80px;
+            margin: 0 auto;
+            transition: all 0.3s ease;
+        }
+
+        .avatar.speaking .avatar-mouth {
+            animation: mouth-move 0.3s ease-in-out infinite;
+        }
+
+        @keyframes mouth-move {
+            0%, 100% { height: 40px; }
+            50% { height: 30px; }
+        }
+
+        .greeting-text {
+            font-size: 48px;
+            font-weight: bold;
+            color: white;
+            text-align: center;
+            margin-bottom: 20px;
+            min-height: 60px;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .status-text {
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.9);
+            text-align: center;
+        }
+
+        .camera-section {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .video-container {
+            position: relative;
+            flex: 1;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #videoElement {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        button {
+            padding: 12px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #e53e3e;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .settings-panel {
+            background: #f7fafc;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+        }
+
+        .setting-label {
+            font-size: 14px;
+            color: #4a5568;
+        }
+
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .wave {
+            position: absolute;
+            bottom: -50%;
+            left: 50%;
+            width: 500px;
+            height: 500px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 45%;
+            transform: translateX(-50%) rotate(0);
+            animation: wave 10s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes wave {
+            from { transform: translateX(-50%) rotate(0deg); }
+            to { transform: translateX(-50%) rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">← Back to Home</a>
+
+        <div class="main-content">
+            <div class="avatar-section">
+                <div class="wave"></div>
+                <div class="avatar-container">
+                    <div class="avatar" id="avatar">
+                        <div class="avatar-face">
+                            <div class="avatar-eyes">
+                                <div class="eye blinking"></div>
+                                <div class="eye blinking"></div>
+                            </div>
+                            <div class="avatar-mouth"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="greeting-text" id="greetingText">
+                    Welcome!
+                </div>
+
+                <div class="status-text" id="statusText">
+                    Waiting to recognize someone...
+                </div>
+            </div>
+
+            <div class="camera-section">
+                <div class="video-container">
+                    <video id="videoElement" autoplay playsinline muted></video>
+                    <canvas id="canvas"></canvas>
+                </div>
+
+                <div class="controls">
+                    <button id="startBtn" class="btn-primary">Start Greeter</button>
+                    <button id="stopBtn" class="btn-danger" disabled>Stop Greeter</button>
+                </div>
+
+                <div class="settings-panel">
+                    <div class="setting-row">
+                        <span class="setting-label">Enable Voice Greeting</span>
+                        <input type="checkbox" id="enableVoice" checked>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-label">Show Camera View</span>
+                        <input type="checkbox" id="showCamera" checked>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('videoElement');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const avatar = document.getElementById('avatar');
+        const greetingText = document.getElementById('greetingText');
+        const statusText = document.getElementById('statusText');
+
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const enableVoiceCheckbox = document.getElementById('enableVoice');
+        const showCameraCheckbox = document.getElementById('showCamera');
+
+        let stream = null;
+        let recognitionInterval = null;
+        let isRecognizing = false;
+        let lastGreetedPerson = null;
+        let greetingTimeout = null;
+
+        // Speech synthesis
+        const synth = window.speechSynthesis;
+
+        // Start greeter
+        startBtn.addEventListener('click', async () => {
+            try {
+                // Start camera
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'user'
+                    }
+                });
+                video.srcObject = stream;
+
+                video.onloadedmetadata = () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                };
+
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                isRecognizing = true;
+
+                // Start recognition loop
+                recognitionInterval = setInterval(recognizeFaces, 2000);
+                recognizeFaces(); // Run immediately
+
+                statusText.textContent = 'Looking for faces...';
+
+            } catch (error) {
+                console.error('Camera error:', error);
+                statusText.textContent = 'Camera access denied';
+            }
+        });
+
+        // Stop greeter
+        stopBtn.addEventListener('click', () => {
+            stopGreeter();
+        });
+
+        // Toggle camera view
+        showCameraCheckbox.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                video.style.display = 'block';
+            } else {
+                video.style.display = 'none';
+            }
+        });
+
+        // Recognize faces
+        async function recognizeFaces() {
+            if (!isRecognizing || !video.videoWidth) return;
+
+            try {
+                // Capture frame
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                const imageData = canvas.toDataURL('image/jpeg', 0.8);
+
+                // Send to backend
+                const response = await fetch('/api/recognize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: imageData })
+                });
+
+                const result = await response.json();
+
+                if (result.success && result.faces && result.faces.length > 0) {
+                    // Get the face with highest confidence
+                    const bestFace = result.faces.reduce((prev, current) =>
+                        (prev.confidence > current.confidence) ? prev : current
+                    );
+
+                    // Only greet if it's a known person
+                    if (bestFace.userid !== 'unknown') {
+                        greetPerson(bestFace.userid, bestFace.confidence);
+                    } else {
+                        if (lastGreetedPerson !== null) {
+                            resetGreeting();
+                        }
+                    }
+
+                    // Draw bounding boxes
+                    drawBoundingBoxes(result.faces);
+                } else {
+                    if (lastGreetedPerson !== null) {
+                        resetGreeting();
+                    }
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+
+            } catch (error) {
+                console.error('Recognition error:', error);
+            }
+        }
+
+        // Greet person
+        function greetPerson(name, confidence) {
+            // Don't greet the same person repeatedly
+            if (lastGreetedPerson === name) {
+                return;
+            }
+
+            lastGreetedPerson = name;
+
+            // Clear any existing timeout
+            if (greetingTimeout) {
+                clearTimeout(greetingTimeout);
+            }
+
+            // Update greeting text
+            const firstName = name.split('_')[0];
+            const displayName = firstName.charAt(0).toUpperCase() + firstName.slice(1);
+
+            greetingText.textContent = `Hello, ${displayName}!`;
+            statusText.textContent = `Confidence: ${(confidence * 100).toFixed(1)}%`;
+
+            // Animate avatar
+            avatar.classList.add('speaking');
+
+            // Speak greeting if enabled
+            if (enableVoiceCheckbox.checked) {
+                speak(`Hello ${displayName}, welcome!`);
+            }
+
+            // Stop speaking animation after 2 seconds
+            setTimeout(() => {
+                avatar.classList.remove('speaking');
+            }, 2000);
+
+            // Reset greeting after 5 seconds of not seeing the person
+            greetingTimeout = setTimeout(() => {
+                resetGreeting();
+            }, 5000);
+        }
+
+        // Reset greeting
+        function resetGreeting() {
+            lastGreetedPerson = null;
+            greetingText.textContent = 'Welcome!';
+            statusText.textContent = 'Looking for faces...';
+            avatar.classList.remove('speaking');
+        }
+
+        // Text-to-speech
+        function speak(text) {
+            // Cancel any ongoing speech
+            synth.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 1.0;
+            utterance.pitch = 1.1;
+            utterance.volume = 1.0;
+
+            synth.speak(utterance);
+        }
+
+        // Draw bounding boxes
+        function drawBoundingBoxes(faces) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            faces.forEach((face) => {
+                const actualWidth = canvas.width;
+                const actualHeight = canvas.height;
+                const maxWidth = 640;
+                const maxHeight = 480;
+
+                let sentWidth, sentHeight;
+                const aspectRatio = actualWidth / actualHeight;
+
+                if (actualWidth > maxWidth || actualHeight > maxHeight) {
+                    if (aspectRatio > maxWidth / maxHeight) {
+                        sentWidth = maxWidth;
+                        sentHeight = maxWidth / aspectRatio;
+                    } else {
+                        sentHeight = maxHeight;
+                        sentWidth = maxHeight * aspectRatio;
+                    }
+                } else {
+                    sentWidth = actualWidth;
+                    sentHeight = actualHeight;
+                }
+
+                const scaleX = actualWidth / sentWidth;
+                const scaleY = actualHeight / sentHeight;
+
+                const x = face.x_min * scaleX;
+                const y = face.y_min * scaleY;
+                const width = (face.x_max - face.x_min) * scaleX;
+                const height = (face.y_max - face.y_min) * scaleY;
+
+                ctx.strokeStyle = face.userid === 'unknown' ? '#ff4444' : '#48bb78';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(x, y, width, height);
+
+                const label = face.userid === 'unknown' ? 'Unknown' : face.userid;
+                const confidence = (face.confidence * 100).toFixed(0) + '%';
+                const labelText = `${label} (${confidence})`;
+
+                ctx.font = 'bold 16px "Segoe UI"';
+                const textWidth = ctx.measureText(labelText).width;
+
+                ctx.fillStyle = face.userid === 'unknown' ? '#ff4444' : '#48bb78';
+                ctx.fillRect(x, y - 30, textWidth + 20, 30);
+
+                ctx.fillStyle = 'white';
+                ctx.fillText(labelText, x + 10, y - 10);
+            });
+        }
+
+        // Stop greeter
+        function stopGreeter() {
+            isRecognizing = false;
+
+            if (recognitionInterval) {
+                clearInterval(recognitionInterval);
+                recognitionInterval = null;
+            }
+
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                stream = null;
+            }
+
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+
+            resetGreeting();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            statusText.textContent = 'Greeter stopped';
+        }
+
+        // Cleanup
+        window.addEventListener('beforeunload', () => {
+            stopGreeter();
+        });
+    </script>
+</body>
+</html>

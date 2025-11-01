@@ -322,6 +322,12 @@ def manage_page():
     return render_template('manage.html')
 
 
+@app.route('/greet')
+def greet_page():
+    """AI Greeter page"""
+    return render_template('greet.html')
+
+
 @app.route('/monitor')
 def monitor_page():
     """Display monitoring page"""
