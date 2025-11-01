@@ -11,7 +11,7 @@ import re
 from urllib.parse import urlparse
 import subprocess
 import hashlib
-import pyttsx3
+from gtts import gTTS
 import wave
 
 app = Flask(__name__)
@@ -489,86 +489,45 @@ def text_to_speech():
                 "cached": True
             })
 
-        # Generate audio using pyttsx3
-        print(f"[TTS] Generating audio with pyttsx3...")
+        # Generate audio using Google TTS
+        print(f"[TTS] Generating audio with Google TTS...")
         try:
-            # Initialize with platform-specific driver
-            import platform
-            system = platform.system()
-            print(f"[TTS] Detected platform: {system}")
+            # Create gTTS object with English language
+            # Options: 'en' (US), 'en-uk' (British), 'en-au' (Australian), 'en-ca' (Canadian)
+            tts = gTTS(text=text, lang='en', slow=False)
 
-            if system == 'Windows':
-                engine = pyttsx3.init('sapi5')  # Windows SAPI5
-                print(f"[TTS] Using Windows SAPI5 driver")
-            elif system == 'Linux':
-                engine = pyttsx3.init('espeak')  # Linux espeak
-                print(f"[TTS] Using Linux espeak driver")
-            elif system == 'Darwin':
-                engine = pyttsx3.init('nsss')  # macOS
-                print(f"[TTS] Using macOS nsss driver")
-            else:
-                engine = pyttsx3.init()  # Fallback to default
-                print(f"[TTS] Using default driver")
+            # Save to MP3 file first (gTTS outputs MP3)
+            mp3_path = audio_path.replace('.wav', '.mp3')
+            tts.save(mp3_path)
+            print(f"[TTS] ✓ Google TTS audio generated (MP3)")
 
-            # Set properties for better quality
-            voices = engine.getProperty('voices')
-            print(f"[TTS] Available voices: {len(voices)}")
-
-            # For espeak on Linux, explicitly set English language
-            if system == 'Linux':
-                # Set espeak to use English (US or UK)
-                try:
-                    # List all voices to find English ones
-                    for idx, voice in enumerate(voices):
-                        print(f"[TTS] Voice {idx}: {voice.id} - {voice.name}")
-
-                    # Try to find English female voice
-                    english_voice = None
-                    for voice in voices:
-                        voice_id = voice.id.lower()
-                        # Look for English voices (en, en-us, en-gb, english)
-                        if 'en' in voice_id or 'english' in voice_id:
-                            # Prefer female voices
-                            if 'female' in voice_id or 'f' in voice_id:
-                                english_voice = voice.id
-                                print(f"[TTS] Found English female voice: {voice.id}")
-                                break
-                            elif english_voice is None:
-                                english_voice = voice.id
-
-                    if english_voice:
-                        engine.setProperty('voice', english_voice)
-                        print(f"[TTS] Using English voice: {english_voice}")
-                    else:
-                        # Fallback: just use first voice
-                        if len(voices) > 0:
-                            engine.setProperty('voice', voices[0].id)
-                            print(f"[TTS] Using default voice: {voices[0].id}")
-                except Exception as e:
-                    print(f"[TTS] Warning: Could not set voice: {e}")
-            else:
-                # Windows/Mac - try to use a female voice (usually index 1)
-                if len(voices) > 1:
-                    engine.setProperty('voice', voices[1].id)
-                    print(f"[TTS] Using voice: {voices[1].name}")
-                elif len(voices) > 0:
-                    engine.setProperty('voice', voices[0].id)
-                    print(f"[TTS] Using voice: {voices[0].name}")
-
-            engine.setProperty('rate', 150)  # Speed (words per minute)
-            engine.setProperty('volume', 1.0)
-
-            # Save to file
-            engine.save_to_file(text, audio_path)
-            engine.runAndWait()
-
-            # Important: Stop the engine to release resources
+            # Convert MP3 to WAV using ffmpeg (if available) or just use MP3
             try:
-                engine.stop()
-            except:
-                pass  # Some drivers don't support stop()
+                # Try to convert to WAV for better compatibility
+                import subprocess
+                result = subprocess.run(
+                    ['ffmpeg', '-i', mp3_path, '-acodec', 'pcm_s16le', '-ar', '22050', audio_path, '-y'],
+                    capture_output=True,
+                    timeout=10
+                )
+                if result.returncode == 0:
+                    print(f"[TTS] ✓ Converted to WAV format")
+                    # Remove MP3 file
+                    os.remove(mp3_path)
+                    # Update filename to use WAV
+                    final_audio_filename = audio_filename
+                else:
+                    print(f"[TTS] ⚠ FFmpeg conversion failed, using MP3")
+                    # Use MP3 instead
+                    audio_path = mp3_path
+                    final_audio_filename = audio_filename.replace('.wav', '.mp3')
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                print(f"[TTS] ⚠ FFmpeg not available, using MP3 format")
+                # Use MP3 instead
+                audio_path = mp3_path
+                final_audio_filename = audio_filename.replace('.wav', '.mp3')
 
-            print(f"[TTS] ✓ Audio generated: {audio_filename}")
+            print(f"[TTS] ✓ Audio file ready: {final_audio_filename}")
 
         except Exception as e:
             print(f"[TTS] ✗ Error generating audio: {e}")
@@ -576,18 +535,31 @@ def text_to_speech():
             traceback.print_exc()
             return jsonify({
                 "success": False,
-                "error": f"Failed to generate audio: {str(e)}. On Linux, install espeak: sudo apt-get install espeak espeak-ng"
+                "error": f"Failed to generate audio: {str(e)}. Check internet connection."
             }), 500
 
         # Generate simple viseme data from text (no rhubarb needed)
         print(f"[TTS] Generating simple lip sync data...")
         try:
-            # Get audio duration from WAV file
-            with wave.open(audio_path, 'r') as wav_file:
-                frames = wav_file.getnframes()
-                rate = wav_file.getframerate()
-                audio_duration = frames / float(rate)
-                print(f"[TTS] Audio duration: {audio_duration:.2f}s")
+            # Get audio duration
+            audio_duration = 0
+            try:
+                # Try to get duration from WAV file if available
+                if audio_path.endswith('.wav') and os.path.exists(audio_path):
+                    with wave.open(audio_path, 'r') as wav_file:
+                        frames = wav_file.getnframes()
+                        rate = wav_file.getframerate()
+                        audio_duration = frames / float(rate)
+                        print(f"[TTS] Audio duration from WAV: {audio_duration:.2f}s")
+            except:
+                pass
+
+            # If duration not available, estimate from text
+            # Average speaking rate: ~150 words per minute
+            if audio_duration == 0:
+                word_count = len(text.split())
+                audio_duration = (word_count / 150.0) * 60.0 + 0.5  # Add 0.5s buffer
+                print(f"[TTS] Estimated audio duration: {audio_duration:.2f}s (from {word_count} words)")
 
             # Generate viseme timeline
             mouth_cues = text_to_simple_visemes(text, audio_duration)
@@ -595,14 +567,16 @@ def text_to_speech():
             # Format in Rhubarb-compatible JSON structure
             viseme_data = {
                 "metadata": {
-                    "soundFile": audio_filename,
+                    "soundFile": final_audio_filename,
                     "duration": audio_duration
                 },
                 "mouthCues": mouth_cues
             }
 
             # Save viseme data for caching
-            with open(json_path, 'w') as f:
+            json_filename_actual = json_filename.replace('.json', f'_{final_audio_filename.split(".")[-1]}.json')
+            json_path_actual = os.path.join(AUDIO_FOLDER, json_filename_actual)
+            with open(json_path_actual, 'w') as f:
                 json.dump(viseme_data, f)
 
             print(f"[TTS] ✓ Lip sync data generated")
@@ -621,7 +595,7 @@ def text_to_speech():
 
         return jsonify({
             "success": True,
-            "audio_url": f"/audio/{audio_filename}",
+            "audio_url": f"/audio/{final_audio_filename}",
             "visemes": viseme_data,
             "cached": False
         })

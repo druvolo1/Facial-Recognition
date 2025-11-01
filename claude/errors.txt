@@ -1,69 +1,114 @@
-
-^C(venv) dave@Garden1:~/Facial-Recognition $ sudo apt-get install espeak espeakg
-Reading package lists... Done
-Building dependency tree... Done
-Reading state information... Done
-The following packages were automatically installed and are no longer required:
-  liblzo2-2 libvncclient1 vlc-l10n vlc-plugin-access-extra vlc-plugin-notify
-  vlc-plugin-samba vlc-plugin-video-splitter vlc-plugin-visualization
-Use 'sudo apt autoremove' to remove them.
-The following additional packages will be installed:
-  espeak-data espeak-ng-data libespeak-ng1 libespeak1 libpcaudio0
-  libportaudio2 libsonic0
-The following NEW packages will be installed:
-  espeak espeak-data espeak-ng espeak-ng-data libespeak-ng1 libespeak1
-  libpcaudio0 libportaudio2 libsonic0
-0 upgraded, 9 newly installed, 0 to remove and 51 not upgraded.
-Need to get 6,092 kB of archives.
-After this operation, 17.1 MB of additional disk space will be used.
-Do you want to continue? [Y/n] y
-Get:1 http://deb.debian.org/debian bookworm/main arm64 libportaudio2 arm64 19.6.0-1.2 [61.2 kB]
-Get:2 http://deb.debian.org/debian bookworm/main arm64 libsonic0 arm64 0.2.0-12 [10.4 kB]
-Get:3 http://deb.debian.org/debian bookworm/main arm64 espeak-data arm64 1.48.15+dfsg-3 [1,011 kB]
-Get:4 http://deb.debian.org/debian bookworm/main arm64 libespeak1 arm64 1.48.15+dfsg-3 [147 kB]
-Get:5 http://deb.debian.org/debian bookworm/main arm64 espeak arm64 1.48.15+dfsg-3 [72.0 kB]
-Get:6 http://deb.debian.org/debian bookworm/main arm64 libpcaudio0 arm64 1.2-2 [8,584 B]
-Get:7 http://deb.debian.org/debian bookworm/main arm64 espeak-ng-data arm64 1.51+dfsg-10+deb12u2 [4,256 kB]
-Get:8 http://deb.debian.org/debian bookworm/main arm64 libespeak-ng1 arm64 1.51+dfsg-10+deb12u2 [186 kB]
-Get:9 http://deb.debian.org/debian bookworm/main arm64 espeak-ng arm64 1.51+dfsg-10+deb12u2 [340 kB]
-Fetched 6,092 kB in 0s (18.9 MB/s)
-Selecting previously unselected package libportaudio2:arm64.
-(Reading database ... 129911 files and directories currently installed.)
-Preparing to unpack .../0-libportaudio2_19.6.0-1.2_arm64.deb ...
-Unpacking libportaudio2:arm64 (19.6.0-1.2) ...
-Selecting previously unselected package libsonic0:arm64.
-Preparing to unpack .../1-libsonic0_0.2.0-12_arm64.deb ...
-Unpacking libsonic0:arm64 (0.2.0-12) ...
-Selecting previously unselected package espeak-data:arm64.
-Preparing to unpack .../2-espeak-data_1.48.15+dfsg-3_arm64.deb ...
-Unpacking espeak-data:arm64 (1.48.15+dfsg-3) ...
-Selecting previously unselected package libespeak1:arm64.
-Preparing to unpack .../3-libespeak1_1.48.15+dfsg-3_arm64.deb ...
-Unpacking libespeak1:arm64 (1.48.15+dfsg-3) ...
-Selecting previously unselected package espeak.
-Preparing to unpack .../4-espeak_1.48.15+dfsg-3_arm64.deb ...
-Unpacking espeak (1.48.15+dfsg-3) ...
-Selecting previously unselected package libpcaudio0:arm64.
-Preparing to unpack .../5-libpcaudio0_1.2-2_arm64.deb ...
-Unpacking libpcaudio0:arm64 (1.2-2) ...
-Selecting previously unselected package espeak-ng-data:arm64.
-Preparing to unpack .../6-espeak-ng-data_1.51+dfsg-10+deb12u2_arm64.deb ...
-Unpacking espeak-ng-data:arm64 (1.51+dfsg-10+deb12u2) ...
-Selecting previously unselected package libespeak-ng1:arm64.
-Preparing to unpack .../7-libespeak-ng1_1.51+dfsg-10+deb12u2_arm64.deb ...
-Unpacking libespeak-ng1:arm64 (1.51+dfsg-10+deb12u2) ...
-Selecting previously unselected package espeak-ng.
-Preparing to unpack .../8-espeak-ng_1.51+dfsg-10+deb12u2_arm64.deb ...
-Unpacking espeak-ng (1.51+dfsg-10+deb12u2) ...
-Setting up libportaudio2:arm64 (19.6.0-1.2) ...
-Setting up libpcaudio0:arm64 (1.2-2) ...
-Setting up libsonic0:arm64 (0.2.0-12) ...
-Setting up espeak-data:arm64 (1.48.15+dfsg-3) ...
-Setting up espeak-ng-data:arm64 (1.51+dfsg-10+deb12u2) ...
-Setting up libespeak1:arm64 (1.48.15+dfsg-3) ...
-Setting up espeak (1.48.15+dfsg-3) ...
-Setting up libespeak-ng1:arm64 (1.51+dfsg-10+deb12u2) ...
-Setting up espeak-ng (1.51+dfsg-10+deb12u2) ...
-Processing triggers for man-db (2.11.2-2) ...
-Processing triggers for libc-bin (2.36-9+rpt2+deb12u12) ...
-(venv) dave@Garden1:~/Facial-Recognition $ python app.py   
+greet:524 [AVATAR] Scanning for bones and morph targets...
+greet:528 [AVATAR] Found bone: Hips
+greet:528 [AVATAR] Found bone: Spine
+greet:528 [AVATAR] Found bone: Spine1
+greet:528 [AVATAR] Found bone: Spine2
+greet:528 [AVATAR] Found bone: Neck
+greet:536 [AVATAR] ✓ Neck bone found: Neck
+greet:528 [AVATAR] Found bone: Head
+greet:533 [AVATAR] ✓ Head bone found: Head
+greet:528 [AVATAR] Found bone: HeadTop_End
+greet:533 [AVATAR] ✓ Head bone found: HeadTop_End
+greet:528 [AVATAR] Found bone: LeftEye
+greet:568 [AVATAR] ✓ Left eye found: LeftEye
+greet:528 [AVATAR] Found bone: RightEye
+greet:572 [AVATAR] ✓ Right eye found: RightEye
+greet:528 [AVATAR] Found bone: LeftShoulder
+greet:528 [AVATAR] Found bone: LeftArm
+greet:528 [AVATAR] Found bone: LeftForeArm
+greet:528 [AVATAR] Found bone: LeftHand
+greet:528 [AVATAR] Found bone: LeftHandThumb1
+greet:528 [AVATAR] Found bone: LeftHandThumb2
+greet:528 [AVATAR] Found bone: LeftHandThumb3
+greet:528 [AVATAR] Found bone: LeftHandThumb4
+greet:528 [AVATAR] Found bone: LeftHandIndex1
+greet:528 [AVATAR] Found bone: LeftHandIndex2
+greet:528 [AVATAR] Found bone: LeftHandIndex3
+greet:528 [AVATAR] Found bone: LeftHandIndex4
+greet:528 [AVATAR] Found bone: LeftHandMiddle1
+greet:528 [AVATAR] Found bone: LeftHandMiddle2
+greet:528 [AVATAR] Found bone: LeftHandMiddle3
+greet:528 [AVATAR] Found bone: LeftHandMiddle4
+greet:528 [AVATAR] Found bone: LeftHandRing1
+greet:528 [AVATAR] Found bone: LeftHandRing2
+greet:528 [AVATAR] Found bone: LeftHandRing3
+greet:528 [AVATAR] Found bone: LeftHandRing4
+greet:528 [AVATAR] Found bone: LeftHandPinky1
+greet:528 [AVATAR] Found bone: LeftHandPinky2
+greet:528 [AVATAR] Found bone: LeftHandPinky3
+greet:528 [AVATAR] Found bone: LeftHandPinky4
+greet:528 [AVATAR] Found bone: RightShoulder
+greet:528 [AVATAR] Found bone: RightArm
+greet:528 [AVATAR] Found bone: RightForeArm
+greet:528 [AVATAR] Found bone: RightHand
+greet:528 [AVATAR] Found bone: RightHandThumb1
+greet:528 [AVATAR] Found bone: RightHandThumb2
+greet:528 [AVATAR] Found bone: RightHandThumb3
+greet:528 [AVATAR] Found bone: RightHandThumb4
+greet:528 [AVATAR] Found bone: RightHandIndex1
+greet:528 [AVATAR] Found bone: RightHandIndex2
+greet:528 [AVATAR] Found bone: RightHandIndex3
+greet:528 [AVATAR] Found bone: RightHandIndex4
+greet:528 [AVATAR] Found bone: RightHandMiddle1
+greet:528 [AVATAR] Found bone: RightHandMiddle2
+greet:528 [AVATAR] Found bone: RightHandMiddle3
+greet:528 [AVATAR] Found bone: RightHandMiddle4
+greet:528 [AVATAR] Found bone: RightHandRing1
+greet:528 [AVATAR] Found bone: RightHandRing2
+greet:528 [AVATAR] Found bone: RightHandRing3
+greet:528 [AVATAR] Found bone: RightHandRing4
+greet:528 [AVATAR] Found bone: RightHandPinky1
+greet:528 [AVATAR] Found bone: RightHandPinky2
+greet:528 [AVATAR] Found bone: RightHandPinky3
+greet:528 [AVATAR] Found bone: RightHandPinky4
+greet:528 [AVATAR] Found bone: LeftUpLeg
+greet:528 [AVATAR] Found bone: LeftLeg
+greet:528 [AVATAR] Found bone: LeftFoot
+greet:528 [AVATAR] Found bone: LeftToeBase
+greet:528 [AVATAR] Found bone: LeftToe_End
+greet:528 [AVATAR] Found bone: RightUpLeg
+greet:528 [AVATAR] Found bone: RightLeg
+greet:528 [AVATAR] Found bone: RightFoot
+greet:528 [AVATAR] Found bone: RightToeBase
+greet:528 [AVATAR] Found bone: RightToe_End
+greet:543 [AVATAR] Found mesh with morph targets: EyeLeft
+greet:544 [AVATAR] Available morph targets: (2) ['mouthOpen', 'mouthSmile']
+greet:543 [AVATAR] Found mesh with morph targets: EyeRight
+greet:544 [AVATAR] Available morph targets: (2) ['mouthOpen', 'mouthSmile']
+greet:543 [AVATAR] Found mesh with morph targets: Wolf3D_Head
+greet:544 [AVATAR] Available morph targets: (2) ['mouthOpen', 'mouthSmile']
+greet:543 [AVATAR] Found mesh with morph targets: Wolf3D_Teeth
+greet:544 [AVATAR] Available morph targets: (2) ['mouthOpen', 'mouthSmile']
+greet:595 [AVATAR] Loaded successfully
+greet:596 [AVATAR] Head bone: Found
+greet:600 [AVATAR] Total meshes with morph targets: 4
+greet:602 [AVATAR] Mesh 0 morph targets: (2) ['mouthOpen', 'mouthSmile']
+greet:602 [AVATAR] Mesh 1 morph targets: (2) ['mouthOpen', 'mouthSmile']
+greet:602 [AVATAR] Mesh 2 morph targets: (2) ['mouthOpen', 'mouthSmile']
+greet:602 [AVATAR] Mesh 3 morph targets: (2) ['mouthOpen', 'mouthSmile']
+greet:843 [Violation] 'requestAnimationFrame' handler took 211ms
+greet:823 [EXPRESSION] Trying to show: smile with morphs: (4) ['mouthSmile', 'mouthSmileLeft', 'mouthSmileRight', 'viseme_aa']
+greet:829 [EXPRESSION] ✓ Applied: mouthSmile
+greet:1078 [TTS] Generating speech with Rhubarb lip sync
+greet:1082  POST https://nrf.ruvolo.loseyourip.com/api/tts 500 (INTERNAL SERVER ERROR)
+speakWithLipSync @ greet:1082
+greetPerson @ greet:1061
+recognizeFaces @ greet:1015
+setInterval
+(anonymous) @ greet:962
+greet:1090 [TTS] Server error: {error: "Failed to generate lip sync: [Errno 2] No such file or directory: 'audio/tts_4515b05c47eb.wav'", success: false}
+speakWithLipSync @ greet:1090
+await in speakWithLipSync
+greetPerson @ greet:1061
+recognizeFaces @ greet:1015
+setInterval
+(anonymous) @ greet:962
+greet:823 [EXPRESSION] Trying to show: smile with morphs: (4) ['mouthSmile', 'mouthSmileLeft', 'mouthSmileRight', 'viseme_aa']
+greet:829 [EXPRESSION] ✓ Applied: mouthSmile
+greet:1078 [TTS] Generating speech with Rhubarb lip sync
+greet:1103 [TTS] Received audio and viseme data
+greet:1104 [TTS] Audio URL: /audio/tts_4515b05c47eb.wav
+greet:1105 [TTS] Viseme cues: 17
+greet:1106 [TTS] Cached: false
+greet:1121 [TTS] Audio playing
+favicon.ico:1  GET https://nrf.ruvolo.loseyourip.com/favicon.ico 404 (NOT FOUND)
