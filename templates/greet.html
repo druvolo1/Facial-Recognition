@@ -388,17 +388,22 @@
                 </div>
 
                 <div class="info-box">
-                    <strong>How to get your avatar URL:</strong><br>
-                    1. Go to <a href="https://readyplayer.me" target="_blank">readyplayer.me</a><br>
-                    2. Create your custom avatar<br>
-                    3. Click "Download" → choose "GLB" format<br>
-                    4. Right-click the download link → "Copy Link Address"<br>
-                    5. Paste the URL above and click "Load Avatar"<br><br>
-                    <strong>Advanced Features:</strong><br>
-                    • <strong>Lip Sync:</strong> Mouth moves naturally with speech<br>
-                    • <strong>Eye Tracking:</strong> Avatar looks at detected face<br>
+                    <strong>Rhubarb Lip-Sync Setup:</strong><br>
+                    This system uses <strong>rhubarb-lip-sync</strong> - a free, open-source lip sync tool.<br><br>
+
+                    <strong>Setup Instructions:</strong><br>
+                    1. Download from <a href="https://github.com/DanielSWolf/rhubarb-lip-sync/releases" target="_blank">GitHub</a><br>
+                    2. Extract to <code>C:\Program Files\rhubarb-lip-sync\</code><br>
+                    3. Add to Windows PATH<br>
+                    4. Run: <code>pip install pyttsx3</code><br>
+                    5. See <strong>RHUBARB_SETUP.md</strong> for detailed instructions<br><br>
+
+                    <strong>Features:</strong><br>
+                    • <strong>Lip Sync:</strong> High-quality viseme-based animation<br>
+                    • <strong>Eye Tracking:</strong> Avatar looks at detected faces<br>
                     • <strong>Facial Expressions:</strong> Smiles when greeting<br>
-                    • <strong>Animations:</strong> Natural idle and greeting movements
+                    • <strong>Animations:</strong> Natural idle and greeting movements<br>
+                    • <strong>100% Free:</strong> No API keys or subscriptions needed!
                 </div>
             </div>
         </div>
@@ -430,7 +435,7 @@
 
         // Lip sync state
         let isSpeaking = false;
-        let currentViseme = null;
+        let currentAudio = null;
         let visemeTimeline = [];
         let speechStartTime = 0;
 
@@ -709,165 +714,74 @@
             animate();
         }
 
-        // Phoneme to viseme mapping for Ready Player Me (Apple ARKit blendshapes)
-        const phonemeToViseme = {
-            // Vowels - using actual Ready Player Me morph target names
-            'a': { targets: [{ name: 'mouthOpen', value: 1.0 }, { name: 'jawOpen', value: 0.7 }] },
-            'e': { targets: [{ name: 'mouthSmileLeft', value: 0.6 }, { name: 'mouthSmileRight', value: 0.6 }, { name: 'jawOpen', value: 0.3 }] },
-            'i': { targets: [{ name: 'mouthSmileLeft', value: 0.8 }, { name: 'mouthSmileRight', value: 0.8 }, { name: 'jawOpen', value: 0.2 }] },
-            'o': { targets: [{ name: 'mouthFunnel', value: 0.8 }, { name: 'jawOpen', value: 0.5 }] },
-            'u': { targets: [{ name: 'mouthPucker', value: 0.8 }, { name: 'mouthFunnel', value: 0.4 }] },
-            // Consonants
-            'p': { targets: [{ name: 'mouthPressLeft', value: 0.9 }, { name: 'mouthPressRight', value: 0.9 }] },
-            'b': { targets: [{ name: 'mouthPressLeft', value: 0.9 }, { name: 'mouthPressRight', value: 0.9 }] },
-            'm': { targets: [{ name: 'mouthPressLeft', value: 0.9 }, { name: 'mouthPressRight', value: 0.9 }] },
-            'f': { targets: [{ name: 'mouthLowerDownLeft', value: 0.6 }, { name: 'mouthLowerDownRight', value: 0.6 }] },
-            'v': { targets: [{ name: 'mouthLowerDownLeft', value: 0.6 }, { name: 'mouthLowerDownRight', value: 0.6 }] },
-            'th': { targets: [{ name: 'jawOpen', value: 0.3 }, { name: 'mouthRollLower', value: 0.4 }] },
-            's': { targets: [{ name: 'mouthSmileLeft', value: 0.5 }, { name: 'mouthSmileRight', value: 0.5 }, { name: 'jawOpen', value: 0.15 }] },
-            'z': { targets: [{ name: 'mouthSmileLeft', value: 0.5 }, { name: 'mouthSmileRight', value: 0.5 }, { name: 'jawOpen', value: 0.15 }] },
-            'sh': { targets: [{ name: 'mouthFunnel', value: 0.6 }, { name: 'jawOpen', value: 0.2 }] },
-            'ch': { targets: [{ name: 'mouthFunnel', value: 0.6 }, { name: 'jawOpen', value: 0.2 }] },
-            't': { targets: [{ name: 'jawOpen', value: 0.4 }, { name: 'mouthUpperUpLeft', value: 0.3 }, { name: 'mouthUpperUpRight', value: 0.3 }] },
-            'd': { targets: [{ name: 'jawOpen', value: 0.4 }, { name: 'mouthUpperUpLeft', value: 0.3 }, { name: 'mouthUpperUpRight', value: 0.3 }] },
-            'k': { targets: [{ name: 'jawOpen', value: 0.5 }] },
-            'g': { targets: [{ name: 'jawOpen', value: 0.5 }] },
-            'n': { targets: [{ name: 'noseSneerLeft', value: 0.3 }, { name: 'noseSneerRight', value: 0.3 }, { name: 'jawOpen', value: 0.25 }] },
-            'l': { targets: [{ name: 'jawOpen', value: 0.3 }, { name: 'mouthRollUpper', value: 0.2 }] },
-            'r': { targets: [{ name: 'mouthShrugUpper', value: 0.3 }, { name: 'jawOpen', value: 0.3 }] },
-            'w': { targets: [{ name: 'mouthPucker', value: 0.7 }, { name: 'mouthFunnel', value: 0.3 }] },
+        // Rhubarb viseme to Ready Player Me morph target mapping
+        // Rhubarb uses letters A-H and X for visemes
+        const rhubarbVisemeToMorph = {
+            'X': [], // Rest/silence - mouth closed
+            'A': [{ name: 'mouthOpen', value: 0.8 }, { name: 'jawOpen', value: 0.6 }], // Wide open (ah, aa)
+            'B': [{ name: 'mouthPressLeft', value: 0.9 }, { name: 'mouthPressRight', value: 0.9 }], // Lips together (m, b, p)
+            'C': [{ name: 'mouthFunnel', value: 0.7 }, { name: 'mouthPucker', value: 0.5 }], // Rounded (oh, oo)
+            'D': [{ name: 'mouthSmileLeft', value: 0.8 }, { name: 'mouthSmileRight', value: 0.8 }], // Spread lips (ee, ay)
+            'E': [{ name: 'mouthOpen', value: 0.4 }, { name: 'jawOpen', value: 0.3 }], // Neutral/slight open (eh)
+            'F': [{ name: 'mouthLowerDownLeft', value: 0.7 }, { name: 'mouthLowerDownRight', value: 0.7 }], // Lower lip/upper teeth (f, v)
+            'G': [{ name: 'jawOpen', value: 0.5 }], // Tongue up (k, g, ng)
+            'H': [{ name: 'jawOpen', value: 0.25 }, { name: 'mouthRollLower', value: 0.3 }], // Tongue/teeth (th, l, r)
         };
 
-        // Text to phoneme approximation
-        function textToPhonemes(text) {
-            const words = text.toLowerCase().split(/\s+/);
-            const phonemes = [];
-            const avgDuration = 80; // ms per phoneme
 
-            words.forEach((word, wordIndex) => {
-                // Simple vowel/consonant detection
-                for (let i = 0; i < word.length; i++) {
-                    const char = word[i];
-                    let phoneme = null;
-                    let duration = avgDuration;
-
-                    // Check for digraphs
-                    if (i < word.length - 1) {
-                        const digraph = char + word[i + 1];
-                        if (phonemeToViseme[digraph]) {
-                            phoneme = digraph;
-                            i++; // Skip next character
-                            duration = avgDuration * 1.5;
-                        }
-                    }
-
-                    // Single character
-                    if (!phoneme) {
-                        if ('aeiou'.includes(char)) {
-                            phoneme = char;
-                            duration = avgDuration * 1.5; // Vowels longer
-                        } else if (phonemeToViseme[char]) {
-                            phoneme = char;
-                        }
-                    }
-
-                    if (phoneme) {
-                        phonemes.push({ phoneme, duration });
-                    }
-                }
-
-                // Add pause between words
-                if (wordIndex < words.length - 1) {
-                    phonemes.push({ phoneme: 'rest', duration: avgDuration * 0.5 });
-                }
-            });
-
-            return phonemes;
-        }
-
-        // Create viseme timeline from text
-        function createVisemeTimeline(text) {
-            const phonemes = textToPhonemes(text);
-            const timeline = [];
-            let currentTime = 0;
-
-            phonemes.forEach(({ phoneme, duration }) => {
-                timeline.push({
-                    time: currentTime,
-                    phoneme: phoneme,
-                    duration: duration
-                });
-                currentTime += duration;
-            });
-
-            return timeline;
-        }
-
-        // Update lip sync based on timeline
+        // Update lip sync based on Rhubarb viseme timeline
         function updateLipSync() {
             if (!document.getElementById('enableLipSync').checked) {
                 // Reset all morph targets
                 setMorphTarget('jawOpen', 0);
-                setMorphTarget('mouthSmile', 0);
+                setMorphTarget('mouthSmileLeft', 0);
+                setMorphTarget('mouthSmileRight', 0);
                 setMorphTarget('mouthPucker', 0);
-                Object.keys(phonemeToViseme).forEach(phoneme => {
-                    phonemeToViseme[phoneme].targets.forEach(target => {
-                        setMorphTarget(target.name, 0);
-                    });
-                });
+                setMorphTarget('mouthFunnel', 0);
+                setMorphTarget('mouthPressLeft', 0);
+                setMorphTarget('mouthPressRight', 0);
                 return;
             }
 
-            if (!isSpeaking || visemeTimeline.length === 0) {
+            if (!isSpeaking || !currentAudio || visemeTimeline.length === 0) {
                 // Close mouth when not speaking
                 setMorphTarget('jawOpen', 0);
-                setMorphTarget('mouthSmile', 0);
+                setMorphTarget('mouthSmileLeft', 0);
+                setMorphTarget('mouthSmileRight', 0);
                 return;
             }
 
-            // Calculate current time in speech
-            const elapsed = Date.now() - speechStartTime;
+            // Get current time from audio element
+            const currentTime = currentAudio.currentTime;
 
-            // Find current viseme
-            let currentVisemeData = null;
+            // Find current viseme cue
+            let currentViseme = 'X'; // Default to rest
             for (let i = 0; i < visemeTimeline.length; i++) {
-                const viseme = visemeTimeline[i];
-                if (elapsed >= viseme.time && elapsed < viseme.time + viseme.duration) {
-                    currentVisemeData = viseme;
+                const cue = visemeTimeline[i];
+                if (currentTime >= cue.start && currentTime < cue.end) {
+                    currentViseme = cue.value;
                     break;
                 }
             }
 
-            if (!currentVisemeData) {
-                // Speech ended
-                isSpeaking = false;
-                setMorphTarget('jawOpen', 0);
-                return;
-            }
-
-            // Reset all morph targets
+            // Reset all morph targets first
             setMorphTarget('jawOpen', 0);
-            setMorphTarget('mouthSmile', 0);
+            setMorphTarget('mouthSmileLeft', 0);
+            setMorphTarget('mouthSmileRight', 0);
             setMorphTarget('mouthPucker', 0);
-            setMorphTarget('mouthClose', 0);
+            setMorphTarget('mouthFunnel', 0);
+            setMorphTarget('mouthPressLeft', 0);
+            setMorphTarget('mouthPressRight', 0);
+            setMorphTarget('mouthLowerDownLeft', 0);
+            setMorphTarget('mouthLowerDownRight', 0);
+            setMorphTarget('mouthOpen', 0);
 
-            // Apply current viseme
-            if (currentVisemeData.phoneme !== 'rest') {
-                const visemeData = phonemeToViseme[currentVisemeData.phoneme];
-                if (visemeData) {
-                    // Calculate blend factor for smooth transitions
-                    const progress = (elapsed - currentVisemeData.time) / currentVisemeData.duration;
-                    const blend = Math.sin(progress * Math.PI); // Smooth in/out
-
-                    visemeData.targets.forEach(target => {
-                        const applied = setMorphTarget(target.name, target.value * blend);
-                        if (applied) {
-                            console.log('[LIP SYNC] Applied', target.name, '=', (target.value * blend).toFixed(2));
-                        } else {
-                            console.warn('[LIP SYNC] Morph target not found:', target.name);
-                        }
-                    });
-                }
+            // Apply current viseme morphs
+            const morphs = rhubarbVisemeToMorph[currentViseme];
+            if (morphs && morphs.length > 0) {
+                morphs.forEach(target => {
+                    setMorphTarget(target.name, target.value);
+                });
             }
         }
 
@@ -1037,9 +951,6 @@
         let lastGreetedPerson = null;
         let greetingTimeout = null;
 
-        // Speech synthesis
-        const synth = window.speechSynthesis;
-
         // Start greeter
         startBtn.addEventListener('click', async () => {
             try {
@@ -1175,39 +1086,81 @@
             statusText.textContent = 'Looking for faces...';
         }
 
-        // Text-to-speech with lip sync
-        function speakWithLipSync(text) {
-            synth.cancel();
+        // Text-to-speech with Rhubarb lip sync
+        async function speakWithLipSync(text) {
+            console.log('[TTS] Generating speech with Rhubarb lip sync');
 
-            // Create viseme timeline from text
-            visemeTimeline = createVisemeTimeline(text);
-            console.log('[LIP SYNC] Created timeline with', visemeTimeline.length, 'visemes');
+            try {
+                // Call server to generate audio and viseme data
+                const response = await fetch('/api/tts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text })
+                });
 
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 1.0;
-            utterance.pitch = 1.1;
-            utterance.volume = 1.0;
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error('[TTS] Server error:', errorData);
+                    alert(`TTS Error: ${errorData.error}\n${errorData.suggestion || ''}`);
+                    return;
+                }
 
-            // Start speaking
-            utterance.onstart = () => {
-                isSpeaking = true;
-                speechStartTime = Date.now();
-                console.log('[SPEECH] Started speaking');
-            };
+                const data = await response.json();
 
-            utterance.onend = () => {
-                isSpeaking = false;
-                visemeTimeline = [];
-                console.log('[SPEECH] Finished speaking');
+                if (!data.success) {
+                    console.error('[TTS] Failed:', data.error);
+                    alert(`TTS Error: ${data.error}`);
+                    return;
+                }
 
-                // Close mouth smoothly
-                setTimeout(() => {
-                    setMorphTarget('jawOpen', 0);
-                    setMorphTarget('mouthSmile', 0);
-                }, 100);
-            };
+                console.log('[TTS] Received audio and viseme data');
+                console.log('[TTS] Audio URL:', data.audio_url);
+                console.log('[TTS] Viseme cues:', data.visemes.mouthCues?.length);
+                console.log('[TTS] Cached:', data.cached);
 
-            synth.speak(utterance);
+                // Extract viseme timeline
+                visemeTimeline = data.visemes.mouthCues || [];
+
+                // Create audio element and play
+                if (currentAudio) {
+                    currentAudio.pause();
+                    currentAudio = null;
+                }
+
+                currentAudio = new Audio(data.audio_url);
+
+                currentAudio.onplay = () => {
+                    isSpeaking = true;
+                    console.log('[TTS] Audio playing');
+                };
+
+                currentAudio.onended = () => {
+                    isSpeaking = false;
+                    currentAudio = null;
+                    console.log('[TTS] Audio finished');
+
+                    // Close mouth
+                    setTimeout(() => {
+                        setMorphTarget('jawOpen', 0);
+                        setMorphTarget('mouthSmileLeft', 0);
+                        setMorphTarget('mouthSmileRight', 0);
+                        setMorphTarget('mouthPucker', 0);
+                    }, 100);
+                };
+
+                currentAudio.onerror = (e) => {
+                    console.error('[TTS] Audio playback error:', e);
+                    isSpeaking = false;
+                    currentAudio = null;
+                };
+
+                // Play audio
+                await currentAudio.play();
+
+            } catch (error) {
+                console.error('[TTS] Exception:', error);
+                alert(`TTS Error: ${error.message}`);
+            }
         }
 
         // Draw bounding boxes

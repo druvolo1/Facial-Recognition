@@ -9,6 +9,9 @@ from io import BytesIO
 from PIL import Image
 import re
 from urllib.parse import urlparse
+import subprocess
+import hashlib
+import pyttsx3
 
 app = Flask(__name__)
 
@@ -30,6 +33,10 @@ CODEPROJECT_BASE_URL = f"http://{CODEPROJECT_HOST}:{CODEPROJECT_PORT}/v1"
 # Create uploads directory if it doesn't exist
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Create audio directory for TTS files
+AUDIO_FOLDER = "audio"
+os.makedirs(AUDIO_FOLDER, exist_ok=True)
 
 # User database file
 USER_DB_FILE = "users.json"
@@ -338,6 +345,143 @@ def monitor_page():
 def serve_upload(filename):
     """Serve uploaded files"""
     return send_from_directory(UPLOAD_FOLDER, filename)
+
+
+@app.route('/audio/<filename>')
+def serve_audio(filename):
+    """Serve generated audio files"""
+    return send_from_directory(AUDIO_FOLDER, filename)
+
+
+@app.route('/api/tts', methods=['POST'])
+def text_to_speech():
+    """
+    Generate speech audio and lip sync data using pyttsx3 + rhubarb-lip-sync
+    Expects JSON: {
+        "text": "Hello, welcome!"
+    }
+    Returns: {
+        "success": true,
+        "audio_url": "/audio/filename.wav",
+        "visemes": [...rhubarb viseme data...]
+    }
+    """
+    try:
+        print(f"\n{'='*60}")
+        print(f"[TTS] Text-to-speech request at {datetime.now().strftime('%H:%M:%S')}")
+
+        data = request.get_json()
+        text = data.get('text', '')
+
+        if not text:
+            return jsonify({"success": False, "error": "Text is required"}), 400
+
+        print(f"[TTS] Text: {text}")
+
+        # Create a hash of the text for caching
+        text_hash = hashlib.md5(text.encode()).hexdigest()[:12]
+        audio_filename = f"tts_{text_hash}.wav"
+        audio_path = os.path.join(AUDIO_FOLDER, audio_filename)
+        json_filename = f"tts_{text_hash}.json"
+        json_path = os.path.join(AUDIO_FOLDER, json_filename)
+
+        # Check if already generated (cache)
+        if os.path.exists(audio_path) and os.path.exists(json_path):
+            print(f"[TTS] Using cached audio and visemes")
+            with open(json_path, 'r') as f:
+                viseme_data = json.load(f)
+
+            return jsonify({
+                "success": True,
+                "audio_url": f"/audio/{audio_filename}",
+                "visemes": viseme_data,
+                "cached": True
+            })
+
+        # Generate audio using pyttsx3
+        print(f"[TTS] Generating audio with pyttsx3...")
+        try:
+            engine = pyttsx3.init()
+
+            # Set properties for better quality
+            voices = engine.getProperty('voices')
+            # Try to use a female voice (usually index 1 on Windows)
+            if len(voices) > 1:
+                engine.setProperty('voice', voices[1].id)
+            engine.setProperty('rate', 150)  # Speed
+            engine.setProperty('volume', 1.0)
+
+            # Save to file
+            engine.save_to_file(text, audio_path)
+            engine.runAndWait()
+
+            print(f"[TTS] ✓ Audio generated: {audio_filename}")
+
+        except Exception as e:
+            print(f"[TTS] ✗ Error generating audio: {e}")
+            return jsonify({
+                "success": False,
+                "error": f"Failed to generate audio: {str(e)}"
+            }), 500
+
+        # Run rhubarb-lip-sync on the audio file
+        print(f"[TTS] Running rhubarb-lip-sync...")
+        try:
+            # Run rhubarb with JSON output
+            result = subprocess.run(
+                ['rhubarb', '-f', 'json', audio_path],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=True
+            )
+
+            # Parse JSON output
+            viseme_data = json.loads(result.stdout)
+
+            # Save viseme data for caching
+            with open(json_path, 'w') as f:
+                json.dump(viseme_data, f)
+
+            print(f"[TTS] ✓ Lip sync data generated")
+            print(f"[TTS] ✓ Viseme cues: {len(viseme_data.get('mouthCues', []))}")
+
+        except subprocess.TimeoutExpired:
+            print(f"[TTS] ✗ Rhubarb timed out")
+            return jsonify({
+                "success": False,
+                "error": "Lip sync generation timed out"
+            }), 500
+        except subprocess.CalledProcessError as e:
+            print(f"[TTS] ✗ Rhubarb error: {e.stderr}")
+            return jsonify({
+                "success": False,
+                "error": f"Rhubarb error: {e.stderr}",
+                "suggestion": "Make sure rhubarb-lip-sync is installed and in PATH"
+            }), 500
+        except FileNotFoundError:
+            print(f"[TTS] ✗ Rhubarb not found in PATH")
+            return jsonify({
+                "success": False,
+                "error": "rhubarb-lip-sync not found",
+                "suggestion": "Install rhubarb-lip-sync and add to PATH. See RHUBARB_SETUP.md"
+            }), 500
+
+        print(f"{'='*60}\n")
+
+        return jsonify({
+            "success": True,
+            "audio_url": f"/audio/{audio_filename}",
+            "visemes": viseme_data,
+            "cached": False
+        })
+
+    except Exception as e:
+        print(f"[TTS] ✗ Exception: {e}")
+        import traceback
+        traceback.print_exc()
+        print(f"{'='*60}\n")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route('/api/register', methods=['POST'])
