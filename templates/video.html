@@ -186,13 +186,28 @@
 
         // Auto-play when page loads
         window.addEventListener('load', () => {
+            // Try to autoplay with sound
             video.play().catch(err => {
-                console.log('[VIDEO] Autoplay prevented:', err);
-                loading.textContent = 'Click to play video';
-                video.addEventListener('click', () => {
-                    video.play();
-                    loading.style.display = 'none';
-                }, { once: true });
+                console.log('[VIDEO] Autoplay with sound prevented:', err);
+                // Try muted autoplay
+                video.muted = true;
+                video.play().catch(err2 => {
+                    console.log('[VIDEO] Muted autoplay also prevented:', err2);
+                    loading.textContent = 'Click to play video';
+                    video.addEventListener('click', () => {
+                        video.muted = false;
+                        video.play();
+                        loading.style.display = 'none';
+                    }, { once: true });
+                }).then(() => {
+                    // Muted autoplay worked, unmute after user interaction
+                    console.log('[VIDEO] Playing muted, waiting for user interaction to unmute');
+                    loading.textContent = 'Click to enable sound';
+                    video.addEventListener('click', () => {
+                        video.muted = false;
+                        loading.style.display = 'none';
+                    }, { once: true });
+                });
             });
         });
 

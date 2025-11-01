@@ -57,13 +57,13 @@
 
         .main-content {
             flex: 1;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
+            display: flex;
+            position: relative;
             min-height: 0;
         }
 
         .avatar-section {
+            flex: 1;
             display: flex;
             flex-direction: column;
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
@@ -117,22 +117,28 @@
 
 
         .camera-section {
+            position: absolute;
+            top: 30px;
+            right: 30px;
             display: flex;
             flex-direction: column;
+            gap: 15px;
+            z-index: 100;
         }
 
         .video-container {
             position: relative;
-            flex: 1;
             background: #000;
             border-radius: 10px;
             overflow: hidden;
-            min-height: 0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            border: 3px solid rgba(255, 255, 255, 0.2);
         }
 
         #videoElement {
-            width: 100%;
-            height: 100%;
+            display: block;
+            width: 320px;
+            height: 240px;
             object-fit: cover;
         }
 
@@ -146,10 +152,14 @@
         }
 
         .controls {
-            margin-top: 20px;
             display: flex;
-            gap: 15px;
+            gap: 10px;
             justify-content: center;
+        }
+
+        .controls button {
+            padding: 8px 20px;
+            font-size: 14px;
         }
 
         button {
@@ -213,23 +223,25 @@
         .qr-panel {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border-radius: 15px;
-            padding: 30px;
-            margin-top: 20px;
+            padding: 25px;
             text-align: center;
             animation: slideIn 0.5s ease-out;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            min-width: 320px;
         }
 
         .qr-panel-content h2 {
             color: white;
-            margin-bottom: 10px;
-            font-size: 24px;
+            margin-bottom: 8px;
+            font-size: 20px;
             font-weight: 600;
         }
 
         .qr-panel-content p {
             color: rgba(255, 255, 255, 0.9);
-            margin-bottom: 20px;
-            font-size: 16px;
+            margin-bottom: 15px;
+            font-size: 14px;
         }
 
         #qrcodeInline {
@@ -238,6 +250,20 @@
             background: white;
             border-radius: 10px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            margin-bottom: 10px;
+        }
+
+        .qr-link {
+            color: white;
+            font-size: 14px;
+            text-decoration: underline;
+            cursor: pointer;
+            display: inline-block;
+            margin-top: 5px;
+        }
+
+        .qr-link:hover {
+            color: rgba(255, 255, 255, 0.8);
         }
 
         @keyframes slideIn {
@@ -297,6 +323,9 @@
                         <h2>Watch Our Video!</h2>
                         <p>Scan this QR code with your phone</p>
                         <div id="qrcodeInline"></div>
+                        <div>
+                            <a href="/video" class="qr-link" id="qrLink">Or click here</a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -826,8 +855,9 @@
                 video.srcObject = stream;
 
                 video.onloadedmetadata = () => {
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
+                    // Set canvas to match the displayed video size
+                    canvas.width = 320;
+                    canvas.height = 240;
                 };
 
                 startBtn.disabled = true;
@@ -874,12 +904,33 @@
                     );
 
                     // Update face position for eye tracking
+                    // Need to use the actual sent image dimensions, not canvas size
+                    const maxWidth = 640;
+                    const maxHeight = 480;
+                    const actualVideoWidth = video.videoWidth;
+                    const actualVideoHeight = video.videoHeight;
+                    const aspectRatio = actualVideoWidth / actualVideoHeight;
+
+                    let sentWidth, sentHeight;
+                    if (actualVideoWidth > maxWidth || actualVideoHeight > maxHeight) {
+                        if (aspectRatio > maxWidth / maxHeight) {
+                            sentWidth = maxWidth;
+                            sentHeight = maxWidth / aspectRatio;
+                        } else {
+                            sentHeight = maxHeight;
+                            sentWidth = maxHeight * aspectRatio;
+                        }
+                    } else {
+                        sentWidth = actualVideoWidth;
+                        sentHeight = actualVideoHeight;
+                    }
+
                     const faceX = (bestFace.x_min + bestFace.x_max) / 2;
                     const faceY = (bestFace.y_min + bestFace.y_max) / 2;
 
-                    // Normalize to -1 to 1 range
-                    detectedFacePosition.x = (faceX / canvas.width) * 2 - 1;
-                    detectedFacePosition.y = -((faceY / canvas.height) * 2 - 1);
+                    // Normalize to -1 to 1 range using sent dimensions
+                    detectedFacePosition.x = (faceX / sentWidth) * 2 - 1;
+                    detectedFacePosition.y = -((faceY / sentHeight) * 2 - 1);
 
                     if (bestFace.userid !== 'unknown') {
                         greetPerson(bestFace.userid, bestFace.confidence);
@@ -1081,15 +1132,19 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             faces.forEach((face) => {
-                const actualWidth = canvas.width;
-                const actualHeight = canvas.height;
+                // Canvas is fixed at 320x240, but we need to account for actual video dimensions
+                const displayWidth = 320;
+                const displayHeight = 240;
+                const actualVideoWidth = video.videoWidth;
+                const actualVideoHeight = video.videoHeight;
+
+                // Calculate what size was sent to the server (max 640x480)
                 const maxWidth = 640;
                 const maxHeight = 480;
-
                 let sentWidth, sentHeight;
-                const aspectRatio = actualWidth / actualHeight;
+                const aspectRatio = actualVideoWidth / actualVideoHeight;
 
-                if (actualWidth > maxWidth || actualHeight > maxHeight) {
+                if (actualVideoWidth > maxWidth || actualVideoHeight > maxHeight) {
                     if (aspectRatio > maxWidth / maxHeight) {
                         sentWidth = maxWidth;
                         sentHeight = maxWidth / aspectRatio;
@@ -1098,12 +1153,13 @@
                         sentWidth = maxHeight * aspectRatio;
                     }
                 } else {
-                    sentWidth = actualWidth;
-                    sentHeight = actualHeight;
+                    sentWidth = actualVideoWidth;
+                    sentHeight = actualVideoHeight;
                 }
 
-                const scaleX = actualWidth / sentWidth;
-                const scaleY = actualHeight / sentHeight;
+                // Scale from server coordinates to display size
+                const scaleX = displayWidth / sentWidth;
+                const scaleY = displayHeight / sentHeight;
 
                 const x = face.x_min * scaleX;
                 const y = face.y_min * scaleY;
