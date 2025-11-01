@@ -325,12 +325,8 @@
                 <!-- QR Code Panel (shows after greeting) -->
                 <div class="qr-panel" id="qrPanel" style="display: none;">
                     <div class="qr-panel-content">
-                        <h2>Watch Our Video!</h2>
-                        <p>Scan this QR code with your phone</p>
+                        <h2>Scan for Product Specs</h2>
                         <div id="qrcodeInline"></div>
-                        <div>
-                            <a href="/video" class="qr-link" id="qrLink">Or click here</a>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -844,8 +840,11 @@
         let recognitionInterval = null;
         let isRecognizing = false;
         let lastGreetedPerson = null;
+        let currentlyDetectedPerson = null;
+        let hasGreetedCurrentPerson = false;
         let greetingTimeout = null;
         let qrTimeout = null;
+        let noDetectionCount = 0;
 
         // Update canvas size to match video display size
         function updateCanvasSize() {
@@ -1029,10 +1028,28 @@
                     detectedFacePosition.y = -((displayFaceY / scaling.displayHeight) * 2 - 1);
 
                     if (bestFace.userid !== 'unknown') {
-                        greetPerson(bestFace.userid, bestFace.confidence);
+                        // Check if this is a new person or returning person
+                        if (currentlyDetectedPerson !== bestFace.userid) {
+                            // New person detected or person changed
+                            currentlyDetectedPerson = bestFace.userid;
+                            hasGreetedCurrentPerson = false;
+                            noDetectionCount = 0;
+                        }
+
+                        // Only greet if we haven't greeted this person yet
+                        if (!hasGreetedCurrentPerson) {
+                            greetPerson(bestFace.userid, bestFace.confidence);
+                            hasGreetedCurrentPerson = true;
+                        }
+
+                        noDetectionCount = 0; // Reset no detection counter
                     } else {
-                        if (lastGreetedPerson !== null) {
-                            resetGreeting();
+                        // Unknown person detected
+                        if (currentlyDetectedPerson !== null) {
+                            noDetectionCount++;
+                            if (noDetectionCount > 2) { // After 3 cycles of no detection (6 seconds)
+                                resetGreeting();
+                            }
                         }
                     }
 
@@ -1041,8 +1058,11 @@
                     // No face detected, reset eye tracking to center
                     detectedFacePosition = { x: 0, y: 0 };
 
-                    if (lastGreetedPerson !== null) {
-                        resetGreeting();
+                    if (currentlyDetectedPerson !== null) {
+                        noDetectionCount++;
+                        if (noDetectionCount > 2) { // After 3 cycles of no detection (6 seconds)
+                            resetGreeting();
+                        }
                     }
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                 }
@@ -1054,15 +1074,9 @@
 
         // Greet person
         function greetPerson(name, confidence) {
-            if (lastGreetedPerson === name) {
-                return;
-            }
+            console.log('[GREETING] Greeting person:', name);
 
             lastGreetedPerson = name;
-
-            if (greetingTimeout) {
-                clearTimeout(greetingTimeout);
-            }
 
             const firstName = name.split('_')[0];
             const displayName = firstName.charAt(0).toUpperCase() + firstName.slice(1);
@@ -1074,21 +1088,21 @@
             playGreetingAnimation();
 
             // Speak greeting with lip sync (always enabled)
-            speakWithLipSync(`Hello ${displayName}, welcome!`);
+            speakWithLipSync(`Hello ${displayName}. If you would like to see product specs, scan the QR code below.`);
 
             // Show QR code after 2 seconds
             setTimeout(() => {
                 showQRCode();
             }, 2000);
-
-            greetingTimeout = setTimeout(() => {
-                resetGreeting();
-            }, 15000);
         }
 
         // Reset greeting
         function resetGreeting() {
+            console.log('[GREETING] Resetting - person has left');
             lastGreetedPerson = null;
+            currentlyDetectedPerson = null;
+            hasGreetedCurrentPerson = false;
+            noDetectionCount = 0;
             greetingText.textContent = 'Welcome!';
             statusText.textContent = 'Looking for faces...';
 
@@ -1287,10 +1301,23 @@
             startBtn.disabled = false;
             stopBtn.disabled = true;
 
-            resetGreeting();
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Reset all greeting state
+            lastGreetedPerson = null;
+            currentlyDetectedPerson = null;
+            hasGreetedCurrentPerson = false;
+            noDetectionCount = 0;
 
+            greetingText.textContent = 'Welcome!';
             statusText.textContent = 'Greeter stopped';
+
+            // Hide QR code immediately
+            hideQRCode();
+            if (qrTimeout) {
+                clearTimeout(qrTimeout);
+                qrTimeout = null;
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             // Reset face position
             detectedFacePosition = { x: 0, y: 0 };
