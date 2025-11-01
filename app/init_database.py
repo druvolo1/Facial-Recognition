@@ -14,11 +14,18 @@ BASE_DIR = os.path.dirname(CURRENT_DIR)
 
 # Load environment variables from the parent directory
 env_path = os.path.join(BASE_DIR, '.env')
+print(f"[DB-INIT] Looking for .env file at: {env_path}")
+print(f"[DB-INIT] .env file exists: {os.path.exists(env_path)}")
 load_dotenv(env_path)
 
 # Parse database URL
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
+    print(f"[DB-INIT] ERROR: DATABASE_URL not found in environment")
+    print(f"[DB-INIT] Current directory: {CURRENT_DIR}")
+    print(f"[DB-INIT] Base directory: {BASE_DIR}")
+    print(f"[DB-INIT] Tried to load .env from: {env_path}")
+    print(f"[DB-INIT] Please ensure .env file exists at: {env_path}")
     raise ValueError("DATABASE_URL not set in .env file")
 
 # Extract connection details from DATABASE_URL
