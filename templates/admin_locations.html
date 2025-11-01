@@ -360,6 +360,19 @@
                 </div>
             </div>
 
+            <!-- Pending Devices Section -->
+            <div id="pending-devices-section" style="margin-bottom: 30px; display: none;">
+                <h3 style="color: #333; margin-bottom: 15px;">Pending Device Approvals</h3>
+                <div style="background: #e3f2fd; border-left: 4px solid #1976d2; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <p style="margin: 0; color: #1565c0; font-size: 14px;">
+                        <strong>Info:</strong> Approve devices by entering their 6-digit registration code, then assign them to your location.
+                    </p>
+                </div>
+                <div id="pending-devices-list" style="background: white; border-radius: 10px; padding: 15px;">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+
             <table id="locations-table">
                 <thead>
                     <tr>
@@ -515,6 +528,7 @@
             loadLocations();
             loadAllUsers();
             loadPendingUsers();
+            loadPendingDevices();
         });
 
         // Show/hide modals
@@ -941,6 +955,155 @@
             div.textContent = text;
             return div.innerHTML;
         }
+
+        // Load pending devices
+        async function loadPendingDevices() {
+            try {
+                const response = await fetch('/api/devices/pending');
+                if (!response.ok) {
+                    if (response.status === 403) {
+                        return; // Hide section silently
+                    }
+                    throw new Error('Failed to load pending devices');
+                }
+
+                const data = await response.json();
+                const devices = data.devices || [];
+
+                if (devices.length === 0) {
+                    return; // No pending devices, keep section hidden
+                }
+
+                // Show the section
+                document.getElementById('pending-devices-section').style.display = 'block';
+
+                // Render pending devices
+                const container = document.getElementById('pending-devices-list');
+                container.innerHTML = devices.map(device => `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f9f9f9; border-radius: 6px; margin-bottom: 8px;">
+                        <div>
+                            <strong style="font-size: 24px; font-family: monospace; color: #1976d2;">${device.registration_code}</strong>
+                            <br><small style="color: #666;">Registered: ${new Date(device.registered_at).toLocaleString()}</small>
+                            ${device.last_seen ? `<br><small style="color: #666;">Last seen: ${new Date(device.last_seen).toLocaleString()}</small>` : ''}
+                        </div>
+                        <button class="btn btn-primary btn-small" onclick="showApproveDeviceModal('${device.device_id}', '${device.registration_code}')">
+                            Approve Device
+                        </button>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading pending devices:', error);
+            }
+        }
+
+        // Show approve device modal
+        let currentApproveDeviceId = null;
+        async function showApproveDeviceModal(deviceId, regCode) {
+            currentApproveDeviceId = deviceId;
+            document.getElementById('approve-device-code').textContent = regCode;
+
+            // Load locations for dropdown
+            const locationSelect = document.getElementById('approve-device-location');
+            locationSelect.innerHTML = '<option value="">-- Select a location --</option>' +
+                locations.map(loc => `<option value="${loc.id}">${loc.name}</option>`).join('');
+
+            document.getElementById('approve-device-modal').classList.add('active');
+        }
+
+        function closeApproveDeviceModal() {
+            document.getElementById('approve-device-modal').classList.remove('active');
+            document.getElementById('approve-device-form').reset();
+            currentApproveDeviceId = null;
+        }
+
+        // Handle approve device form
+        document.getElementById('approve-device-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const deviceName = document.getElementById('approve-device-name').value;
+            const locationId = parseInt(document.getElementById('approve-device-location').value);
+            const deviceType = document.getElementById('approve-device-type').value;
+            const endpoint = document.getElementById('approve-device-endpoint').value;
+
+            if (!deviceName || !locationId || !deviceType || !endpoint) {
+                showAlert('All fields are required', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/devices/${currentApproveDeviceId}/approve`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        device_name: deviceName,
+                        location_id: locationId,
+                        device_type: deviceType,
+                        codeproject_endpoint: endpoint
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to approve device');
+                }
+
+                showAlert('Device approved successfully!');
+                closeApproveDeviceModal();
+                await loadPendingDevices();
+            } catch (error) {
+                showAlert(error.message, 'error');
+            }
+        });
     </script>
+
+    <!-- Approve Device Modal -->
+    <div id="approve-device-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Approve Device</h2>
+                <button class="close" onclick="closeApproveDeviceModal()">&times;</button>
+            </div>
+
+            <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
+                <p style="margin: 0 0 10px 0; color: #1565c0; font-size: 14px;">Registration Code:</p>
+                <p id="approve-device-code" style="font-size: 36px; font-family: monospace; font-weight: bold; color: #1976d2; margin: 0;"></p>
+            </div>
+
+            <form id="approve-device-form">
+                <div class="form-group">
+                    <label for="approve-device-name">Device Name *</label>
+                    <input type="text" id="approve-device-name" required placeholder="e.g., Front Desk Kiosk">
+                </div>
+
+                <div class="form-group">
+                    <label for="approve-device-location">Location *</label>
+                    <select id="approve-device-location" required>
+                        <option value="">-- Select a location --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="approve-device-type">Device Type *</label>
+                    <select id="approve-device-type" required>
+                        <option value="">-- Select type --</option>
+                        <option value="registration_kiosk">Registration Kiosk (for registering new faces)</option>
+                        <option value="people_scanner">People Scanner (for recognizing faces)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="approve-device-endpoint">CodeProject.AI Endpoint *</label>
+                    <input type="url" id="approve-device-endpoint" required placeholder="http://server:port/v1">
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        URL to the CodeProject.AI server this device will use for facial recognition
+                    </small>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Approve Device</button>
+            </form>
+        </div>
+    </div>
 </body>
 </html>

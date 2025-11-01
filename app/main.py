@@ -140,6 +140,36 @@ class UserLocationRole(Base):
     assigned_by_user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("user.id"), nullable=True)
 
 
+class ServerSettings(Base):
+    """Global server settings"""
+    __tablename__ = "server_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    setting_key: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    setting_value: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_by_user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("user.id"), nullable=True)
+
+
+class Device(Base):
+    """Devices registered for facial recognition (kiosks and scanners)"""
+    __tablename__ = "device"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    device_id: Mapped[str] = mapped_column(String(36), unique=True, nullable=False)  # UUID
+    registration_code: Mapped[str] = mapped_column(String(6), unique=True, nullable=False)  # 6-digit code
+    device_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    location_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("location.id"), nullable=True)
+    # Device type: 'registration_kiosk' or 'people_scanner'
+    device_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    codeproject_endpoint: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    is_approved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    registered_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    approved_by_user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("user.id"), nullable=True)
+    last_seen: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+
 # Database engine and session
 engine = create_async_engine(DATABASE_URL, echo=False, pool_pre_ping=True)
 async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
@@ -189,6 +219,29 @@ class RegisterRequest(BaseModel):
 
 class RecognizeRequest(BaseModel):
     image: str
+
+
+class UpdateSettingRequest(BaseModel):
+    setting_key: str
+    setting_value: Optional[str] = None
+
+
+class RegisterDeviceRequest(BaseModel):
+    device_id: str  # UUID from client
+
+
+class ApproveDeviceRequest(BaseModel):
+    device_name: str
+    location_id: int
+    device_type: str  # 'registration_kiosk' or 'people_scanner'
+    codeproject_endpoint: str
+
+
+class UpdateDeviceRequest(BaseModel):
+    device_name: Optional[str] = None
+    location_id: Optional[int] = None
+    device_type: Optional[str] = None
+    codeproject_endpoint: Optional[str] = None
 
 
 class CreateLocationRequest(BaseModel):
@@ -1413,6 +1466,416 @@ async def list_location_users(
             for assignment, user_obj in assignments
         ],
         "total": len(assignments)
+    }
+
+
+# ============================================================================
+# SERVER SETTINGS API ROUTES
+# ============================================================================
+
+@app.get("/api/settings")
+async def get_all_settings(
+    user: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Get all server settings (superadmin only)"""
+    result = await session.execute(select(ServerSettings))
+    settings = result.scalars().all()
+
+    return {
+        "settings": {
+            setting.setting_key: setting.setting_value
+            for setting in settings
+        }
+    }
+
+
+@app.get("/api/settings/{setting_key}")
+async def get_setting(
+    setting_key: str,
+    user: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Get a specific setting (superadmin only)"""
+    result = await session.execute(
+        select(ServerSettings).where(ServerSettings.setting_key == setting_key)
+    )
+    setting = result.scalar_one_or_none()
+
+    return {
+        "setting_key": setting_key,
+        "setting_value": setting.setting_value if setting else None
+    }
+
+
+@app.post("/api/settings")
+async def update_setting(
+    data: UpdateSettingRequest,
+    user: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Update or create a server setting (superadmin only)"""
+    # Check if setting exists
+    result = await session.execute(
+        select(ServerSettings).where(ServerSettings.setting_key == data.setting_key)
+    )
+    setting = result.scalar_one_or_none()
+
+    if setting:
+        setting.setting_value = data.setting_value
+        setting.updated_by_user_id = user.id
+        setting.updated_at = datetime.utcnow()
+    else:
+        setting = ServerSettings(
+            setting_key=data.setting_key,
+            setting_value=data.setting_value,
+            updated_by_user_id=user.id
+        )
+        session.add(setting)
+
+    await session.commit()
+
+    print(f"[SETTINGS] Setting updated by {user.email}: {data.setting_key} = {data.setting_value}")
+
+    return {
+        "success": True,
+        "setting_key": data.setting_key,
+        "setting_value": data.setting_value
+    }
+
+
+# ============================================================================
+# DEVICE MANAGEMENT API ROUTES
+# ============================================================================
+
+@app.post("/api/devices/register")
+async def register_device(
+    data: RegisterDeviceRequest,
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Register a new device (called by Facial_Display client)"""
+    import random
+    import string
+
+    # Check if device already exists
+    result = await session.execute(
+        select(Device).where(Device.device_id == data.device_id)
+    )
+    existing_device = result.scalar_one_or_none()
+
+    if existing_device:
+        # Device already registered, return existing registration code
+        return {
+            "success": True,
+            "device_id": existing_device.device_id,
+            "registration_code": existing_device.registration_code,
+            "is_approved": existing_device.is_approved,
+            "device_type": existing_device.device_type,
+            "location_id": existing_device.location_id,
+            "codeproject_endpoint": existing_device.codeproject_endpoint
+        }
+
+    # Generate unique 6-digit registration code
+    while True:
+        registration_code = ''.join(random.choices(string.digits, k=6))
+        # Check if code is unique
+        check_result = await session.execute(
+            select(Device).where(Device.registration_code == registration_code)
+        )
+        if not check_result.scalar_one_or_none():
+            break
+
+    # Create new device
+    new_device = Device(
+        device_id=data.device_id,
+        registration_code=registration_code,
+        is_approved=False
+    )
+
+    session.add(new_device)
+    await session.commit()
+
+    print(f"[DEVICE] New device registered: {data.device_id} with code {registration_code}")
+
+    return {
+        "success": True,
+        "device_id": data.device_id,
+        "registration_code": registration_code,
+        "is_approved": False
+    }
+
+
+@app.get("/api/devices/status/{device_id}")
+async def get_device_status(
+    device_id: str,
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Check device status (called by Facial_Display client for polling)"""
+    result = await session.execute(
+        select(Device).where(Device.device_id == device_id)
+    )
+    device = result.scalar_one_or_none()
+
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    # Update last_seen
+    device.last_seen = datetime.utcnow()
+    await session.commit()
+
+    return {
+        "device_id": device.device_id,
+        "registration_code": device.registration_code,
+        "is_approved": device.is_approved,
+        "device_name": device.device_name,
+        "device_type": device.device_type,
+        "location_id": device.location_id,
+        "codeproject_endpoint": device.codeproject_endpoint
+    }
+
+
+@app.get("/api/devices/pending")
+async def list_pending_devices(
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """List pending device approvals (for superadmins and location admins)"""
+    # Only superadmins and location admins can see pending devices
+    if not user.is_superuser:
+        # Check if they're a location admin
+        result = await session.execute(
+            select(UserLocationRole).where(
+                UserLocationRole.user_id == user.id,
+                UserLocationRole.role == 'location_admin'
+            )
+        )
+        admin_locations = result.scalars().all()
+
+        if not admin_locations:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+    # Get all pending devices
+    result = await session.execute(
+        select(Device).where(Device.is_approved == False)
+    )
+    pending_devices = result.scalars().all()
+
+    return {
+        "success": True,
+        "devices": [
+            {
+                "id": d.id,
+                "device_id": d.device_id,
+                "registration_code": d.registration_code,
+                "registered_at": d.registered_at.isoformat(),
+                "last_seen": d.last_seen.isoformat() if d.last_seen else None
+            }
+            for d in pending_devices
+        ]
+    }
+
+
+@app.post("/api/devices/{device_id}/approve")
+async def approve_device(
+    device_id: str,
+    data: ApproveDeviceRequest,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Approve a device and configure it (superadmin or location admin)"""
+    # Get the device
+    result = await session.execute(
+        select(Device).where(Device.device_id == device_id)
+    )
+    device = result.scalar_one_or_none()
+
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    # Check permissions - must be superadmin or admin of the target location
+    if not user.is_superuser:
+        location_check = await session.execute(
+            select(UserLocationRole).where(
+                UserLocationRole.user_id == user.id,
+                UserLocationRole.location_id == data.location_id,
+                UserLocationRole.role == 'location_admin'
+            )
+        )
+        if not location_check.scalar_one_or_none():
+            raise HTTPException(status_code=403, detail="You must be an admin of the target location")
+
+    # Verify location exists
+    location_result = await session.execute(
+        select(Location).where(Location.id == data.location_id)
+    )
+    if not location_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    # Approve and configure device
+    device.is_approved = True
+    device.device_name = data.device_name
+    device.location_id = data.location_id
+    device.device_type = data.device_type
+    device.codeproject_endpoint = data.codeproject_endpoint
+    device.approved_at = datetime.utcnow()
+    device.approved_by_user_id = user.id
+
+    await session.commit()
+
+    print(f"[DEVICE] Device approved by {user.email}: {device_id} -> {data.device_name} at location {data.location_id}")
+
+    return {
+        "success": True,
+        "message": f"Device {data.device_name} approved"
+    }
+
+
+@app.get("/api/devices")
+async def list_devices(
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """List all approved devices (filtered by user permissions)"""
+    if user.is_superuser:
+        # Superadmins see all devices
+        result = await session.execute(select(Device).where(Device.is_approved == True))
+        devices = result.scalars().all()
+    else:
+        # Location admins see devices in their locations
+        # Get user's admin locations
+        loc_result = await session.execute(
+            select(UserLocationRole).where(
+                UserLocationRole.user_id == user.id,
+                UserLocationRole.role == 'location_admin'
+            )
+        )
+        admin_locations = [ulr.location_id for ulr in loc_result.scalars().all()]
+
+        if not admin_locations:
+            return {"success": True, "devices": []}
+
+        result = await session.execute(
+            select(Device).where(
+                Device.is_approved == True,
+                Device.location_id.in_(admin_locations)
+            )
+        )
+        devices = result.scalars().all()
+
+    # Get location names
+    device_list = []
+    for device in devices:
+        location_name = None
+        if device.location_id:
+            loc_result = await session.execute(
+                select(Location).where(Location.id == device.location_id)
+            )
+            location = loc_result.scalar_one_or_none()
+            if location:
+                location_name = location.name
+
+        device_list.append({
+            "id": device.id,
+            "device_id": device.device_id,
+            "device_name": device.device_name,
+            "device_type": device.device_type,
+            "location_id": device.location_id,
+            "location_name": location_name,
+            "codeproject_endpoint": device.codeproject_endpoint,
+            "registered_at": device.registered_at.isoformat(),
+            "last_seen": device.last_seen.isoformat() if device.last_seen else None
+        })
+
+    return {
+        "success": True,
+        "devices": device_list
+    }
+
+
+@app.put("/api/devices/{device_id}")
+async def update_device(
+    device_id: str,
+    data: UpdateDeviceRequest,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Update device configuration (superadmin or location admin)"""
+    # Get the device
+    result = await session.execute(
+        select(Device).where(Device.device_id == device_id)
+    )
+    device = result.scalar_one_or_none()
+
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    # Check permissions
+    if not user.is_superuser:
+        # Must be admin of the device's current location or target location
+        locations_to_check = [device.location_id]
+        if data.location_id and data.location_id != device.location_id:
+            locations_to_check.append(data.location_id)
+
+        has_permission = False
+        for loc_id in locations_to_check:
+            if loc_id:
+                loc_check = await session.execute(
+                    select(UserLocationRole).where(
+                        UserLocationRole.user_id == user.id,
+                        UserLocationRole.location_id == loc_id,
+                        UserLocationRole.role == 'location_admin'
+                    )
+                )
+                if loc_check.scalar_one_or_none():
+                    has_permission = True
+                    break
+
+        if not has_permission:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+    # Update device
+    if data.device_name is not None:
+        device.device_name = data.device_name
+    if data.location_id is not None:
+        device.location_id = data.location_id
+    if data.device_type is not None:
+        device.device_type = data.device_type
+    if data.codeproject_endpoint is not None:
+        device.codeproject_endpoint = data.codeproject_endpoint
+
+    await session.commit()
+
+    print(f"[DEVICE] Device updated by {user.email}: {device_id}")
+
+    return {
+        "success": True,
+        "message": "Device updated successfully"
+    }
+
+
+@app.delete("/api/devices/{device_id}")
+async def delete_device(
+    device_id: str,
+    user: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Delete a device (superadmin only)"""
+    result = await session.execute(
+        select(Device).where(Device.device_id == device_id)
+    )
+    device = result.scalar_one_or_none()
+
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    await session.delete(device)
+    await session.commit()
+
+    print(f"[DEVICE] Device deleted by {user.email}: {device_id}")
+
+    return {
+        "success": True,
+        "message": "Device deleted successfully"
     }
 
 
