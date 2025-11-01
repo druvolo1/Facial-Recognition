@@ -86,7 +86,7 @@ greet:702 [AVATAR] Mesh 0 morph targets: (2) ['mouthOpen', 'mouthSmile']
 greet:702 [AVATAR] Mesh 1 morph targets: (2) ['mouthOpen', 'mouthSmile']
 greet:702 [AVATAR] Mesh 2 morph targets: (2) ['mouthOpen', 'mouthSmile']
 greet:702 [AVATAR] Mesh 3 morph targets: (2) ['mouthOpen', 'mouthSmile']
-greet:943 [Violation] 'requestAnimationFrame' handler took 216ms
+greet:943 [Violation] 'requestAnimationFrame' handler took 200ms
 greet:923 [EXPRESSION] Trying to show: smile with morphs: (4) ['mouthSmile', 'mouthSmileLeft', 'mouthSmileRight', 'viseme_aa']
 greet:929 [EXPRESSION] ✓ Applied: mouthSmile
 greet:1224 [TTS] Generating speech with Rhubarb lip sync
@@ -96,7 +96,7 @@ greetPerson @ greet:1161
 recognizeFaces @ greet:1115
 setInterval
 (anonymous) @ greet:1062
-greet:1236 [TTS] Server error: {error: 'Audio file was not created', success: false}
+greet:1236 [TTS] Server error: {error: 'Audio file was not created. Is Festival installed?', success: false}
 speakWithLipSync @ greet:1236
 await in speakWithLipSync
 greetPerson @ greet:1161
@@ -105,15 +105,3 @@ setInterval
 (anonymous) @ greet:1062
 greet:1195 [QR] Generating QR code for: https://nrf.ruvolo.loseyourip.com/video
 greet:1212 [QR] QR code displayed
-
-
-
-
-
-
-
-
-flask error
-
-[TTS] Running Festival TTS with male voice...
-[TTS] ✗ Error: File not found at /home/dave/Facial-Recognition/audio/tts_4515b05c47eb.wav

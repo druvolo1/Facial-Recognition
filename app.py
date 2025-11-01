@@ -520,25 +520,56 @@ def text_to_speech():
             print(f"[TTS] Text: {text}")
             print(f"[TTS] Output path: {audio_path}")
 
-            # Festival command with male voice and slower rate
-            # -eval commands set the voice and parameters before synthesis
-            result = subprocess.run([
-                'text2wave',
-                temp_text_file,
-                '-o', audio_path,
-                '-eval', '(Parameter.set \'Duration_Stretch 1.3)',  # Slow down by 30%
-                '-eval', '(voice_cmu_us_bdl_arctic_hts)'  # Male voice (BDL)
-            ],
-                capture_output=True,
-                timeout=30,
-                text=True
-            )
+            # Try different voices in order of preference
+            # List of male voices to try
+            voices_to_try = [
+                'voice_kal_diphone',  # Default male voice (always available)
+                'voice_cmu_us_bdl_arctic_hts',  # Better male if installed
+                'voice_cmu_us_rms_cg',  # Another male option
+            ]
+
+            result = None
+            voice_used = None
+
+            # Try each voice until one works
+            for voice in voices_to_try:
+                print(f"[TTS] Trying voice: {voice}")
+                result = subprocess.run([
+                    'text2wave',
+                    temp_text_file,
+                    '-o', audio_path,
+                    '-eval', f'(Parameter.set \'Duration_Stretch 1.4)',  # 40% slower
+                    '-eval', f'({voice})'  # Set voice
+                ],
+                    capture_output=True,
+                    timeout=30,
+                    text=True
+                )
+
+                # Check if file was created successfully
+                if result.returncode == 0 and os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
+                    voice_used = voice
+                    print(f"[TTS] ✓ Successfully using voice: {voice}")
+                    break
+                else:
+                    # This voice didn't work, try next
+                    if result.stderr:
+                        print(f"[TTS] Voice {voice} failed: {result.stderr}")
+                    if os.path.exists(audio_path):
+                        os.remove(audio_path)  # Clean up failed attempt
 
             # Clean up temp file
             try:
                 os.remove(temp_text_file)
             except:
                 pass
+
+            if not result:
+                print(f"[TTS] ✗ All voices failed")
+                return jsonify({
+                    "success": False,
+                    "error": "Could not generate audio with any available voice"
+                }), 500
 
             print(f"[TTS] Festival return code: {result.returncode}")
             if result.stdout:
