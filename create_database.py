@@ -6,11 +6,12 @@ Run this if the application cannot create the database automatically
 import sys
 import os
 
-# Add the app directory to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'app'))
+# Add the app directory to the path so we can import from it
+app_dir = os.path.join(os.path.dirname(__file__), 'app')
+sys.path.insert(0, app_dir)
 
 import asyncio
-from app.init_database import init_database
+from init_database import init_database
 
 def main():
     print("="*60)

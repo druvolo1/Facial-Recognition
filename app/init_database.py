@@ -8,8 +8,13 @@ from dotenv import load_dotenv
 import aiomysql
 import asyncio
 
-# Load environment variables
-load_dotenv()
+# Get the directory paths
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(CURRENT_DIR)
+
+# Load environment variables from the parent directory
+env_path = os.path.join(BASE_DIR, '.env')
+load_dotenv(env_path)
 
 # Parse database URL
 DATABASE_URL = os.getenv("DATABASE_URL")

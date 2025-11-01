@@ -25,7 +25,7 @@ Press Ctrl+C to stop
 
 INFO:     Will watch for changes in these directories: ['/home/dave/Facial-Recognition/app']
 INFO:     Uvicorn running on http://0.0.0.0:5000 (Press CTRL+C to quit)
-INFO:     Started reloader process [504583] using StatReload
+INFO:     Started reloader process [504865] using StatReload
 [CONFIG] Database URL: mariadb+aiomysql://app_user:testpass123@172.16.1.150:3306/facial_recognition
 [CONFIG] Base directory: /home/dave/Facial-Recognition
 [CONFIG] Upload folder: /home/dave/Facial-Recognition/uploads
@@ -34,79 +34,12 @@ INFO:     Started reloader process [504583] using StatReload
 [CONFIG] Base directory: /home/dave/Facial-Recognition
 [CONFIG] Upload folder: /home/dave/Facial-Recognition/uploads
 [CONFIG] CodeProject.AI: http://172.16.1.150:32168/v1
-INFO:     Started server process [504589]
+INFO:     Started server process [504871]
 INFO:     Waiting for application startup.
 
 ============================================================
 [STARTUP] Facial Recognition App starting...
 ERROR:    Traceback (most recent call last):
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 146, in __init__
-    self._dbapi_connection = engine.raw_connection()
-                             ^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 3302, in raw_connection
-    return self.pool.connect()
-           ^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/pool/base.py", line 449, in connect
-    return _ConnectionFairy._checkout(self)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/pool/base.py", line 1263, in _checkout
-    fairy = _ConnectionRecord.checkout(pool)
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/pool/base.py", line 712, in checkout
-    rec = pool._do_get()
-          ^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/pool/impl.py", line 179, in _do_get
-    with util.safe_reraise():
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/langhelpers.py", line 146, in __exit__
-    raise exc_value.with_traceback(exc_tb)
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/pool/impl.py", line 177, in _do_get
-    return self._create_connection()
-           ^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/pool/base.py", line 390, in _create_connection
-    return _ConnectionRecord(self)
-           ^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/pool/base.py", line 674, in __init__
-    self.__connect()
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/pool/base.py", line 900, in __connect
-    with util.safe_reraise():
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/langhelpers.py", line 146, in __exit__
-    raise exc_value.with_traceback(exc_tb)
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/pool/base.py", line 896, in __connect
-    self.dbapi_connection = connection = pool._invoke_creator(self)
-                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/create.py", line 643, in connect
-    return dialect.connect(*cargs, **cparams)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 621, in connect
-    return self.loaded_dbapi.connect(*cargs, **cparams)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 268, in connect
-    await_only(creator_fn(*arg, **kw)),
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
-    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
-    value = await result
-            ^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 75, in _connect
-    await conn._connect()
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 540, in _connect
-    await self._request_authentication()
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 844, in _request_authentication
-    auth_packet = await self._read_packet()
-                  ^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 652, in _read_packet
-    packet.raise_for_error()
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/protocol.py", line 219, in raise_for_error
-    err.raise_mysql_exception(self._data)
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/err.py", line 150, in raise_mysql_exception
-    raise errorclass(errno, errval)
-pymysql.err.OperationalError: (1044, "Access denied for user 'app_user'@'%' to database 'facial_recognition'")
-
-The above exception was the direct cause of the following exception:
-
-Traceback (most recent call last):
   File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/routing.py", line 693, in lifespan
     async with self.lifespan_context(app) as maybe_state:
   File "/usr/lib/python3.11/contextlib.py", line 204, in __aenter__
@@ -119,92 +52,19 @@ Traceback (most recent call last):
   File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/routing.py", line 670, in startup
     await handler()
   File "/home/dave/Facial-Recognition/app/main.py", line 235, in on_startup
-    await create_db_and_tables()
-  File "/home/dave/Facial-Recognition/app/main.py", line 104, in create_db_and_tables
-    async with engine.begin() as conn:
-  File "/usr/lib/python3.11/contextlib.py", line 204, in __aenter__
-    return await anext(self.gen)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/engine.py", line 1063, in begin
-    async with conn:
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/base.py", line 121, in __aenter__
-    return await self.start(is_ctxmanager=True)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/engine.py", line 273, in start
-    await greenlet_spawn(self.sync_engine.connect)
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 201, in greenlet_spawn
-    result = context.throw(*sys.exc_info())
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 3278, in connect
-    return self._connection_cls(self)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 148, in __init__
-    Connection._handle_dbapi_exception_noconnection(
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2442, in _handle_dbapi_exception_noconnection
-    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 146, in __init__
-    self._dbapi_connection = engine.raw_connection()
-                             ^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 3302, in raw_connection
-    return self.pool.connect()
-           ^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/pool/base.py", line 449, in connect
-    return _ConnectionFairy._checkout(self)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/pool/base.py", line 1263, in _checkout
-    fairy = _ConnectionRecord.checkout(pool)
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/pool/base.py", line 712, in checkout
-    rec = pool._do_get()
-          ^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/pool/impl.py", line 179, in _do_get
-    with util.safe_reraise():
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/langhelpers.py", line 146, in __exit__
-    raise exc_value.with_traceback(exc_tb)
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/pool/impl.py", line 177, in _do_get
-    return self._create_connection()
-           ^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/pool/base.py", line 390, in _create_connection
-    return _ConnectionRecord(self)
-           ^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/pool/base.py", line 674, in __init__
-    self.__connect()
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/pool/base.py", line 900, in __connect
-    with util.safe_reraise():
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/langhelpers.py", line 146, in __exit__
-    raise exc_value.with_traceback(exc_tb)
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/pool/base.py", line 896, in __connect
-    self.dbapi_connection = connection = pool._invoke_creator(self)
-                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/create.py", line 643, in connect
-    return dialect.connect(*cargs, **cparams)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 621, in connect
-    return self.loaded_dbapi.connect(*cargs, **cparams)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 268, in connect
-    await_only(creator_fn(*arg, **kw)),
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
-    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
-    value = await result
-            ^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 75, in _connect
-    await conn._connect()
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 540, in _connect
-    await self._request_authentication()
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 844, in _request_authentication
-    auth_packet = await self._read_packet()
-                  ^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 652, in _read_packet
-    packet.raise_for_error()
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/protocol.py", line 219, in raise_for_error
-    err.raise_mysql_exception(self._data)
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/err.py", line 150, in raise_mysql_exception
-    raise errorclass(errno, errval)
-sqlalchemy.exc.OperationalError: (pymysql.err.OperationalError) (1044, "Access denied for user 'app_user'@'%' to database 'facial_recognition'")
-(Background on this error at: https://sqlalche.me/e/20/e3q8)
+    from init_database import create_database as init_db
+  File "/home/dave/Facial-Recognition/app/init_database.py", line 17, in <module>
+    raise ValueError("DATABASE_URL not set in .env file")
+ValueError: DATABASE_URL not set in .env file
 
 ERROR:    Application startup failed. Exiting.
+^CINFO:     Stopping reloader process [504865]
+(venv) dave@Garden1:~/Facial-Recognition/app $ ls
+init_database.py  main.py  __pycache__
+(venv) dave@Garden1:~/Facial-Recognition/app $ cd ..
+(venv) dave@Garden1:~/Facial-Recognition $ python create_database.py
+Traceback (most recent call last):
+  File "/home/dave/Facial-Recognition/create_database.py", line 13, in <module>
+    from app.init_database import init_database
+ModuleNotFoundError: No module named 'app.init_database'; 'app' is not a package
+(venv) dave@Garden1:~/Facial-Recognition $
