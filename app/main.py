@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 
-from sqlalchemy import Boolean, Integer, String, Text, Column, ForeignKey, select
+from sqlalchemy import Boolean, Integer, String, Text, Column, ForeignKey, select, DateTime
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.exc import IntegrityError
@@ -93,6 +93,23 @@ class User(SQLAlchemyBaseUserTable[int], Base):
 class AccessToken(SQLAlchemyBaseAccessTokenTable[int], Base):
     """Access token table for JWT tokens"""
     pass
+
+
+class RegisteredFace(Base):
+    """Track registered faces and their associated files"""
+    __tablename__ = "registered_face"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    # The person's name - used as the user_id in CodeProject.AI
+    person_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    # The CodeProject.AI user_id (same as person_name but stored for clarity)
+    codeproject_user_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    # Path to the image file
+    file_path: Mapped[str] = mapped_column(String(512), nullable=False)
+    # When it was registered
+    registered_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    # User who registered this face
+    registered_by_user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("user.id"), nullable=True)
 
 
 # Database engine and session
@@ -601,25 +618,26 @@ async def registered_faces_page(request: Request, user: User = Depends(current_a
 
 
 @app.get("/api/registered-faces")
-async def get_registered_faces(user: User = Depends(current_active_user)):
-    """Get all registered faces and their photos"""
+async def get_registered_faces(
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Get all registered faces and their photos from database"""
     try:
-        import glob
         from collections import defaultdict
 
-        # Get all images from uploads folder
-        all_images = glob.glob(os.path.join(UPLOAD_FOLDER, "*.jpg"))
+        # Get all registered faces from database
+        result = await session.execute(select(RegisteredFace))
+        all_face_records = result.scalars().all()
 
-        # Group images by person name
+        # Group by person name
         faces_dict = defaultdict(list)
 
-        for image_path in all_images:
-            filename = os.path.basename(image_path)
-            # Filename format: {name}_{timestamp}_{index}.jpg
-            parts = filename.rsplit('_', 2)
-            if len(parts) >= 3:
-                person_name = parts[0].replace('_', ' ')
-                faces_dict[person_name].append(f"/uploads/{filename}")
+        for face_record in all_face_records:
+            # Convert absolute path to relative URL path
+            filename = os.path.basename(face_record.file_path)
+            photo_url = f"/uploads/{filename}"
+            faces_dict[face_record.person_name].append(photo_url)
 
         # Convert to list format with one sample photo per person
         registered_faces = []
@@ -645,7 +663,8 @@ async def get_registered_faces(user: User = Depends(current_active_user)):
 @app.post("/api/register")
 async def register_face(
     data: RegisterRequest,
-    user: User = Depends(current_active_user)
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
 ):
     """Register face images to CodeProject.AI"""
     try:
@@ -700,6 +719,17 @@ async def register_face(
                     if result.get('success'):
                         successful_registrations += 1
                         print(f"[REGISTER]   ✓ Photo {idx+1} registered successfully")
+
+                        # Save to database
+                        registered_face = RegisteredFace(
+                            person_name=data.name,
+                            codeproject_user_id=data.name,
+                            file_path=filepath,
+                            registered_by_user_id=user.id
+                        )
+                        session.add(registered_face)
+                        await session.commit()
+                        print(f"[REGISTER]   ✓ Saved to database")
                     else:
                         error_msg = result.get('error', 'Unknown error')
                         errors.append(f"Photo {idx+1}: {error_msg}")
@@ -794,6 +824,85 @@ async def recognize_face(
 
     except Exception as e:
         print(f"[RECOGNIZE] ✗ EXCEPTION: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/registered-faces/{person_name}")
+async def delete_registered_face(
+    person_name: str,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Delete a person's registered face from CodeProject.AI and remove all associated files"""
+    try:
+        print(f"\n{'='*60}")
+        print(f"[DELETE] Deleting registered face: {person_name}")
+
+        # Get all registered face records for this person
+        result = await session.execute(
+            select(RegisteredFace).where(RegisteredFace.person_name == person_name)
+        )
+        face_records = result.scalars().all()
+
+        if not face_records:
+            raise HTTPException(status_code=404, detail=f"No registered faces found for {person_name}")
+
+        print(f"[DELETE] Found {len(face_records)} file(s) to delete")
+
+        # Delete from CodeProject.AI
+        print(f"[DELETE] Removing from CodeProject.AI...")
+        try:
+            response = requests.post(
+                f"{CODEPROJECT_BASE_URL}/vision/face/delete",
+                data={'userid': person_name},
+                timeout=30
+            )
+
+            if response.status_code == 200:
+                result_data = response.json()
+                if result_data.get('success'):
+                    print(f"[DELETE]   ✓ Removed from CodeProject.AI")
+                else:
+                    print(f"[DELETE]   ⚠ CodeProject.AI response: {result_data.get('error', 'Unknown error')}")
+            else:
+                print(f"[DELETE]   ⚠ CodeProject.AI returned status {response.status_code}")
+        except Exception as e:
+            print(f"[DELETE]   ⚠ Error removing from CodeProject.AI: {e}")
+            # Continue with file deletion even if CodeProject.AI fails
+
+        # Delete files from disk
+        deleted_files = 0
+        for face_record in face_records:
+            try:
+                if os.path.exists(face_record.file_path):
+                    os.remove(face_record.file_path)
+                    deleted_files += 1
+                    print(f"[DELETE]   ✓ Deleted file: {os.path.basename(face_record.file_path)}")
+                else:
+                    print(f"[DELETE]   ⚠ File not found: {face_record.file_path}")
+            except Exception as e:
+                print(f"[DELETE]   ✗ Error deleting file {face_record.file_path}: {e}")
+
+        # Delete from database
+        for face_record in face_records:
+            await session.delete(face_record)
+        await session.commit()
+        print(f"[DELETE]   ✓ Removed {len(face_records)} record(s) from database")
+
+        print(f"[DELETE] Deletion complete for {person_name}")
+        print(f"{'='*60}\n")
+
+        return {
+            "success": True,
+            "message": f"Successfully deleted {person_name}",
+            "files_deleted": deleted_files,
+            "records_deleted": len(face_records)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[DELETE] ✗ EXCEPTION: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

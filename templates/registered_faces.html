@@ -19,17 +19,18 @@
         }
 
         .navbar {
-            background: rgba(255, 255, 255, 0.95);
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
             padding: 15px 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             margin-bottom: 20px;
         }
 
         .navbar h1 {
-            color: #667eea;
+            color: white;
             font-size: 24px;
             margin: 0;
         }
@@ -57,7 +58,7 @@
         }
 
         .logout-btn {
-            background: #f56565;
+            background: rgba(255, 255, 255, 0.2);
             color: white;
             padding: 8px 20px;
             border-radius: 8px;
@@ -68,7 +69,7 @@
         }
 
         .logout-btn:hover {
-            background: #e53e3e;
+            background: rgba(255, 255, 255, 0.3);
         }
 
         .container {
@@ -174,6 +175,24 @@
             border-radius: 12px;
             font-weight: 600;
             font-size: 12px;
+        }
+
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            margin-top: 10px;
+            width: 100%;
+            transition: all 0.3s;
+        }
+
+        .delete-btn:hover {
+            background: #c82333;
         }
 
         .no-faces {
@@ -306,11 +325,22 @@
     <div class="navbar">
         <h1>🔐 Facial Recognition</h1>
         <div class="nav-links">
-            <a href="/dashboard">Dashboard</a>
-            <a href="/register">Register Faces</a>
-            <a href="/recognize-face">Recognize Faces</a>
-            <a href="/registered-faces" class="active">Registered Faces</a>
-            <button class="logout-btn" onclick="logout()">Logout</button>
+            <div style="display: flex; gap: 20px; align-items: center;">
+                <a href="/dashboard" style="color: white; text-decoration: none; font-weight: 500;">Dashboard</a>
+                <a href="/register" style="color: white; text-decoration: none; font-weight: 500;">Register Faces</a>
+                <a href="/recognize-face" style="color: white; text-decoration: none; font-weight: 500;">Recognize Faces</a>
+                <a href="/registered-faces" style="color: white; text-decoration: none; font-weight: 600; border-bottom: 2px solid white;">Registered Faces</a>
+                {% if user.is_superuser %}
+                <a href="/admin/users" style="color: white; text-decoration: none; font-weight: 500;">Manage Users</a>
+                {% endif %}
+            </div>
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <span style="color: white;">{{ user.email }}</span>
+                {% if user.is_superuser %}
+                <span style="background: #ffc107; color: #333; padding: 4px 12px; border-radius: 15px; font-size: 12px; font-weight: 600;">ADMIN</span>
+                {% endif %}
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
         </div>
     </div>
 
@@ -388,14 +418,19 @@
             container.innerHTML = `
                 <div class="faces-grid">
                     ${faces.map(face => `
-                        <div class="face-card" onclick="showAllPhotos('${face.name}')">
-                            <img src="${face.photo}" alt="${face.name}" class="face-photo" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'280\\' height=\\'280\\'%3E%3Crect fill=\\'%23f0f0f0\\' width=\\'280\\' height=\\'280\\'/%3E%3Ctext fill=\\'%23999\\' x=\\'50%25\\' y=\\'50%25\\' text-anchor=\\'middle\\' dy=\\'.3em\\' font-size=\\'20\\'%3ENo Photo%3C/text%3E%3C/svg%3E'">
-                            <div class="face-info">
-                                <div class="face-name">${face.name}</div>
-                                <div class="face-meta">
-                                    <span>Click to view all</span>
-                                    <span class="photo-count">${face.photo_count} photo${face.photo_count !== 1 ? 's' : ''}</span>
+                        <div class="face-card">
+                            <div onclick="showAllPhotos('${face.name}')" style="cursor: pointer;">
+                                <img src="${face.photo}" alt="${face.name}" class="face-photo" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'280\\' height=\\'280\\'%3E%3Crect fill=\\'%23f0f0f0\\' width=\\'280\\' height=\\'280\\'/%3E%3Ctext fill=\\'%23999\\' x=\\'50%25\\' y=\\'50%25\\' text-anchor=\\'middle\\' dy=\\'.3em\\' font-size=\\'20\\'%3ENo Photo%3C/text%3E%3C/svg%3E'">
+                                <div class="face-info">
+                                    <div class="face-name">${face.name}</div>
+                                    <div class="face-meta">
+                                        <span>Click to view all</span>
+                                        <span class="photo-count">${face.photo_count} photo${face.photo_count !== 1 ? 's' : ''}</span>
+                                    </div>
                                 </div>
+                            </div>
+                            <div style="padding: 0 20px 20px 20px;">
+                                <button class="delete-btn" onclick="deleteFace('${face.name}', event)">Delete ${face.name}</button>
                             </div>
                         </div>
                     `).join('')}
@@ -445,6 +480,36 @@
                     <p>${message}</p>
                 </div>
             `;
+        }
+
+        // Delete a registered face
+        async function deleteFace(personName, event) {
+            event.stopPropagation(); // Prevent triggering parent click events
+
+            if (!confirm(`Are you sure you want to delete all photos and data for "${personName}"?\n\nThis will:\n- Remove the person from CodeProject.AI\n- Delete all photo files\n- Remove all database records\n\nThis action cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                console.log(`Deleting face: ${personName}`);
+
+                const response = await fetch(`/api/registered-faces/${encodeURIComponent(personName)}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    alert(`Successfully deleted ${personName}\n\nFiles deleted: ${result.files_deleted}\nRecords removed: ${result.records_deleted}`);
+                    // Reload the faces list
+                    loadFaces();
+                } else {
+                    alert(`Failed to delete ${personName}: ${result.detail || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+                alert(`Error deleting ${personName}: ${error.message}`);
+            }
         }
 
         // Logout function

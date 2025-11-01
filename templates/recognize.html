@@ -19,17 +19,18 @@
         }
 
         .navbar {
-            background: rgba(255, 255, 255, 0.95);
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
             padding: 15px 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             margin-bottom: 20px;
         }
 
         .navbar h1 {
-            color: #667eea;
+            color: white;
             font-size: 24px;
             margin: 0;
         }
@@ -57,7 +58,7 @@
         }
 
         .logout-btn {
-            background: #f56565;
+            background: rgba(255, 255, 255, 0.2);
             color: white;
             padding: 8px 20px;
             border-radius: 8px;
@@ -68,7 +69,7 @@
         }
 
         .logout-btn:hover {
-            background: #e53e3e;
+            background: rgba(255, 255, 255, 0.3);
         }
 
         .container {
@@ -306,11 +307,22 @@
     <div class="navbar">
         <h1>🔐 Facial Recognition</h1>
         <div class="nav-links">
-            <a href="/dashboard">Dashboard</a>
-            <a href="/register">Register Faces</a>
-            <a href="/recognize-face" class="active">Recognize Faces</a>
-            <a href="/registered-faces">Registered Faces</a>
-            <button class="logout-btn" onclick="logout()">Logout</button>
+            <div style="display: flex; gap: 20px; align-items: center;">
+                <a href="/dashboard" style="color: white; text-decoration: none; font-weight: 500;">Dashboard</a>
+                <a href="/register" style="color: white; text-decoration: none; font-weight: 500;">Register Faces</a>
+                <a href="/recognize-face" style="color: white; text-decoration: none; font-weight: 600; border-bottom: 2px solid white;">Recognize Faces</a>
+                <a href="/registered-faces" style="color: white; text-decoration: none; font-weight: 500;">Registered Faces</a>
+                {% if user.is_superuser %}
+                <a href="/admin/users" style="color: white; text-decoration: none; font-weight: 500;">Manage Users</a>
+                {% endif %}
+            </div>
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <span style="color: white;">{{ user.email }}</span>
+                {% if user.is_superuser %}
+                <span style="background: #ffc107; color: #333; padding: 4px 12px; border-radius: 15px; font-size: 12px; font-weight: 600;">ADMIN</span>
+                {% endif %}
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
         </div>
     </div>
 
