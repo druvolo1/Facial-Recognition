@@ -67,7 +67,6 @@ async def create_database():
                 autocommit=True
             )
             test_conn.close()
-            await test_conn.wait_closed()
             print(f"[DATABASE] ✓ Database '{DB_NAME}' already exists and is accessible")
             return True
         except aiomysql.OperationalError as e:
@@ -102,7 +101,6 @@ async def create_database():
                 raise
 
         conn.close()
-        await conn.wait_closed()
 
         print(f"[DATABASE] ✓ Database initialization complete")
         print(f"[DATABASE] Tables will be created by FastAPI on first run")
@@ -120,7 +118,6 @@ async def create_database():
     finally:
         if conn and not conn.closed:
             conn.close()
-            await conn.wait_closed()
 
 
 async def init_database():
