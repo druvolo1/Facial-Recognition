@@ -57,13 +57,13 @@
 
         .main-content {
             flex: 1;
-            display: flex;
-            position: relative;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
             min-height: 0;
         }
 
         .avatar-section {
-            flex: 1;
             display: flex;
             flex-direction: column;
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
@@ -117,13 +117,9 @@
 
 
         .camera-section {
-            position: absolute;
-            top: 30px;
-            right: 30px;
             display: flex;
             flex-direction: column;
-            gap: 15px;
-            z-index: 100;
+            gap: 20px;
         }
 
         .video-container {
@@ -132,13 +128,13 @@
             border-radius: 10px;
             overflow: hidden;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-            border: 3px solid rgba(255, 255, 255, 0.2);
         }
 
         #videoElement {
             display: block;
-            width: 320px;
-            height: 240px;
+            width: 100%;
+            height: auto;
+            aspect-ratio: 4 / 3;
             object-fit: cover;
         }
 
@@ -158,7 +154,7 @@
         }
 
         .controls button {
-            padding: 8px 20px;
+            padding: 10px 25px;
             font-size: 14px;
         }
 
@@ -223,25 +219,34 @@
         .qr-panel {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border-radius: 15px;
-            padding: 25px;
+            padding: 30px;
             text-align: center;
             animation: slideIn 0.5s ease-out;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-            border: 3px solid rgba(255, 255, 255, 0.2);
-            min-width: 320px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .qr-panel-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         .qr-panel-content h2 {
             color: white;
-            margin-bottom: 8px;
-            font-size: 20px;
+            margin-bottom: 10px;
+            font-size: 22px;
             font-weight: 600;
         }
 
         .qr-panel-content p {
             color: rgba(255, 255, 255, 0.9);
-            margin-bottom: 15px;
-            font-size: 14px;
+            margin-bottom: 20px;
+            font-size: 15px;
         }
 
         #qrcodeInline {
@@ -250,16 +255,16 @@
             background: white;
             border-radius: 10px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            margin-bottom: 10px;
+            margin-bottom: 15px;
         }
 
         .qr-link {
             color: white;
-            font-size: 14px;
+            font-size: 15px;
             text-decoration: underline;
             cursor: pointer;
             display: inline-block;
-            margin-top: 5px;
+            font-weight: 500;
         }
 
         .qr-link:hover {
@@ -855,9 +860,12 @@
                 video.srcObject = stream;
 
                 video.onloadedmetadata = () => {
-                    // Set canvas to match the displayed video size
-                    canvas.width = 320;
-                    canvas.height = 240;
+                    // Wait for video to render then set canvas to match displayed size
+                    setTimeout(() => {
+                        canvas.width = video.clientWidth;
+                        canvas.height = video.clientHeight;
+                        console.log('[VIDEO] Canvas size set to:', canvas.width, 'x', canvas.height);
+                    }, 100);
                 };
 
                 startBtn.disabled = true;
@@ -1132,9 +1140,9 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             faces.forEach((face) => {
-                // Canvas is fixed at 320x240, but we need to account for actual video dimensions
-                const displayWidth = 320;
-                const displayHeight = 240;
+                // Get actual display dimensions
+                const displayWidth = canvas.width;
+                const displayHeight = canvas.height;
                 const actualVideoWidth = video.videoWidth;
                 const actualVideoHeight = video.videoHeight;
 
