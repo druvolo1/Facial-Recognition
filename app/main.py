@@ -1732,13 +1732,17 @@ async def approve_device(
 
 @app.get("/api/devices")
 async def list_devices(
+    location_id: int = None,
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session)
 ):
-    """List all approved devices (filtered by user permissions)"""
+    """List all approved devices (filtered by user permissions and optionally by location)"""
     if user.is_superuser:
         # Superadmins see all devices
-        result = await session.execute(select(Device).where(Device.is_approved == True))
+        query = select(Device).where(Device.is_approved == True)
+        if location_id:
+            query = query.where(Device.location_id == location_id)
+        result = await session.execute(query)
         devices = result.scalars().all()
     else:
         # Location admins see devices in their locations
@@ -1754,12 +1758,18 @@ async def list_devices(
         if not admin_locations:
             return {"success": True, "devices": []}
 
-        result = await session.execute(
-            select(Device).where(
-                Device.is_approved == True,
-                Device.location_id.in_(admin_locations)
-            )
+        # Build query with location filter
+        query = select(Device).where(
+            Device.is_approved == True,
+            Device.location_id.in_(admin_locations)
         )
+        if location_id:
+            # Ensure user has access to the requested location
+            if location_id not in admin_locations:
+                raise HTTPException(status_code=403, detail="You don't have access to this location")
+            query = query.where(Device.location_id == location_id)
+
+        result = await session.execute(query)
         devices = result.scalars().all()
 
     # Get location names

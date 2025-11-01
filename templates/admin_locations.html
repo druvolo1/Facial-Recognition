@@ -395,6 +395,83 @@
         </div>
     </div>
 
+    <!-- Location Management Interface -->
+    <div id="location-management-view" style="display: none;">
+        <div class="container">
+            <div class="header">
+                <h1 id="manage-location-title">📍 Manage Location</h1>
+                <p id="manage-location-subtitle">Manage devices and users for this location</p>
+                <div class="nav-links">
+                    <a href="#" onclick="hideLocationManagement(); return false;">← Back to Locations</a>
+                    <a href="/logout">Logout</a>
+                </div>
+            </div>
+
+            <div class="content">
+                <!-- Location Info Card -->
+                <div style="background: white; border-radius: 15px; padding: 25px; margin-bottom: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <div id="manage-location-info"></div>
+                </div>
+
+                <!-- Tabs -->
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e0e0e0;">
+                    <button class="tab-button active" onclick="switchTab('devices')" id="devices-tab" style="padding: 12px 24px; background: none; border: none; border-bottom: 3px solid #667eea; color: #667eea; font-weight: 600; cursor: pointer; margin-bottom: -2px;">
+                        Devices
+                    </button>
+                    <button class="tab-button" onclick="switchTab('users')" id="users-tab" style="padding: 12px 24px; background: none; border: none; border-bottom: 3px solid transparent; color: #666; font-weight: 600; cursor: pointer; margin-bottom: -2px;">
+                        Users
+                    </button>
+                </div>
+
+                <div id="manage-alert-container"></div>
+
+                <!-- Devices Tab Content -->
+                <div id="devices-tab-content">
+                    <!-- Pending Devices -->
+                    <div style="background: white; border-radius: 15px; padding: 25px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                        <h3 style="color: #333; margin-bottom: 15px;">Pending Devices</h3>
+                        <div style="background: #e3f2fd; border-left: 4px solid #1976d2; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                            <p style="margin: 0; color: #1565c0; font-size: 14px;">
+                                <strong>Info:</strong> Enter the 6-digit registration code displayed on the device to approve it.
+                            </p>
+                        </div>
+                        <div>
+                            <button class="btn btn-primary" onclick="showApproveDeviceModal()" style="margin-bottom: 15px;">
+                                + Approve New Device
+                            </button>
+                        </div>
+                        <div id="manage-pending-devices-list">
+                            <p style="text-align: center; color: #999; padding: 20px;">Loading pending devices...</p>
+                        </div>
+                    </div>
+
+                    <!-- Active Devices -->
+                    <div style="background: white; border-radius: 15px; padding: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                        <h3 style="color: #333; margin-bottom: 15px;">Active Devices</h3>
+                        <div id="manage-active-devices-list">
+                            <p style="text-align: center; color: #999; padding: 20px;">Loading active devices...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Users Tab Content -->
+                <div id="users-tab-content" style="display: none;">
+                    <div style="background: white; border-radius: 15px; padding: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                        <h3 style="color: #333; margin-bottom: 15px;">Assigned Users</h3>
+                        <div>
+                            <button class="btn btn-primary" onclick="showAssignUserInManageView()" style="margin-bottom: 15px;">
+                                + Assign User
+                            </button>
+                        </div>
+                        <div id="manage-users-list">
+                            <p style="text-align: center; color: #999; padding: 20px;">Loading users...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Create Location Modal -->
     <div id="create-location-modal" class="modal">
         <div class="modal-content">
@@ -616,6 +693,9 @@
                     <td>${new Date(location.created_at).toLocaleDateString()}</td>
                     <td>
                         <div class="action-buttons">
+                            <button class="btn btn-primary btn-small" onclick="showLocationManagement(${location.id})" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                Manage
+                            </button>
                             <button class="btn btn-secondary btn-small" onclick="showEditLocationModal(${location.id})">
                                 Edit
                             </button>
@@ -1052,10 +1132,302 @@
                 showAlert('Device approved successfully!');
                 closeApproveDeviceModal();
                 await loadPendingDevices();
+
+                // If we're in the management view, reload that too
+                if (currentManagedLocationId) {
+                    await loadManageDevices();
+                }
             } catch (error) {
                 showAlert(error.message, 'error');
             }
         });
+
+        // ===== LOCATION MANAGEMENT VIEW FUNCTIONS =====
+        let currentManagedLocationId = null;
+
+        async function showLocationManagement(locationId) {
+            currentManagedLocationId = locationId;
+            const location = locations.find(l => l.id === locationId);
+            if (!location) return;
+
+            // Update header
+            document.getElementById('manage-location-title').textContent = `📍 ${location.name}`;
+
+            // Update location info
+            document.getElementById('manage-location-info').innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <div>
+                        <p style="color: #666; font-size: 12px; margin-bottom: 5px;">NAME</p>
+                        <p style="color: #333; font-weight: 600;">${escapeHtml(location.name)}</p>
+                    </div>
+                    <div>
+                        <p style="color: #666; font-size: 12px; margin-bottom: 5px;">ADDRESS</p>
+                        <p style="color: #333; font-weight: 600;">${escapeHtml(location.address || 'N/A')}</p>
+                    </div>
+                    <div>
+                        <p style="color: #666; font-size: 12px; margin-bottom: 5px;">TIMEZONE</p>
+                        <p style="color: #333; font-weight: 600;">${escapeHtml(location.timezone || 'UTC')}</p>
+                    </div>
+                    ${location.contact_info ? `
+                    <div>
+                        <p style="color: #666; font-size: 12px; margin-bottom: 5px;">CONTACT</p>
+                        <p style="color: #333; font-weight: 600;">${escapeHtml(location.contact_info)}</p>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+
+            // Hide main view, show management view
+            document.querySelector('.container').style.display = 'none';
+            document.getElementById('location-management-view').style.display = 'block';
+
+            // Load data
+            switchTab('devices');
+        }
+
+        function hideLocationManagement() {
+            document.querySelector('.container').style.display = 'block';
+            document.getElementById('location-management-view').style.display = 'none';
+            currentManagedLocationId = null;
+        }
+
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.getElementById('devices-tab').classList.remove('active');
+            document.getElementById('users-tab').classList.remove('active');
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+
+            // Update tab button styles
+            document.getElementById('devices-tab').style.borderBottom = tabName === 'devices' ? '3px solid #667eea' : '3px solid transparent';
+            document.getElementById('devices-tab').style.color = tabName === 'devices' ? '#667eea' : '#666';
+            document.getElementById('users-tab').style.borderBottom = tabName === 'users' ? '3px solid #667eea' : '3px solid transparent';
+            document.getElementById('users-tab').style.color = tabName === 'users' ? '#667eea' : '#666';
+
+            // Show/hide content
+            document.getElementById('devices-tab-content').style.display = tabName === 'devices' ? 'block' : 'none';
+            document.getElementById('users-tab-content').style.display = tabName === 'users' ? 'block' : 'none';
+
+            // Load data for the selected tab
+            if (tabName === 'devices') {
+                loadManageDevices();
+            } else {
+                loadManageUsers();
+            }
+        }
+
+        async function loadManageDevices() {
+            await loadManagePendingDevices();
+            await loadManageActiveDevices();
+        }
+
+        async function loadManagePendingDevices() {
+            try {
+                const response = await fetch('/api/devices/pending');
+                if (!response.ok) throw new Error('Failed to load pending devices');
+
+                const data = await response.json();
+                const devices = data.devices || [];
+
+                const container = document.getElementById('manage-pending-devices-list');
+                if (devices.length === 0) {
+                    container.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">No pending devices</p>';
+                    return;
+                }
+
+                container.innerHTML = devices.map(device => `
+                    <div class="user-item" style="margin-bottom: 10px;">
+                        <div class="user-info">
+                            <div>
+                                <div style="font-size: 24px; font-family: monospace; font-weight: bold; color: #667eea;">
+                                    ${device.registration_code}
+                                </div>
+                                <div style="font-size: 12px; color: #999;">
+                                    Device ID: ${device.device_id.substring(0, 8)}...
+                                </div>
+                                <div style="font-size: 12px; color: #999;">
+                                    Registered: ${new Date(device.registered_at).toLocaleString()}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="action-buttons">
+                            <button class="btn btn-primary btn-small" onclick="showApproveDeviceModalForLocation(${device.id}, '${device.registration_code}')">
+                                Approve
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading pending devices:', error);
+                document.getElementById('manage-pending-devices-list').innerHTML =
+                    '<p style="text-align: center; color: #c33; padding: 20px;">Error loading pending devices</p>';
+            }
+        }
+
+        async function loadManageActiveDevices() {
+            try {
+                const response = await fetch(`/api/devices?location_id=${currentManagedLocationId}`);
+                if (!response.ok) throw new Error('Failed to load active devices');
+
+                const data = await response.json();
+                const devices = data.devices || [];
+
+                const container = document.getElementById('manage-active-devices-list');
+                if (devices.length === 0) {
+                    container.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">No active devices</p>';
+                    return;
+                }
+
+                container.innerHTML = devices.map(device => `
+                    <div class="user-item" style="margin-bottom: 10px;">
+                        <div class="user-info">
+                            <div>
+                                <div style="font-weight: 600; color: #333; margin-bottom: 5px;">
+                                    ${escapeHtml(device.device_name)}
+                                </div>
+                                <div style="font-size: 13px; color: #666;">
+                                    Type: ${device.device_type === 'registration_kiosk' ? '📸 Registration Kiosk' : '🔍 People Scanner'}
+                                </div>
+                                <div style="font-size: 12px; color: #999;">
+                                    Last Seen: ${device.last_seen ? new Date(device.last_seen).toLocaleString() : 'Never'}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="action-buttons">
+                            <button class="btn btn-secondary btn-small" onclick="editDevice(${device.id})">
+                                Edit
+                            </button>
+                            <button class="btn btn-danger btn-small" onclick="removeDevice(${device.id}, '${escapeHtml(device.device_name)}')">
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading active devices:', error);
+                document.getElementById('manage-active-devices-list').innerHTML =
+                    '<p style="text-align: center; color: #c33; padding: 20px;">Error loading active devices</p>';
+            }
+        }
+
+        function showApproveDeviceModalForLocation(deviceId, regCode) {
+            currentApproveDeviceId = deviceId;
+            document.getElementById('approve-device-code').textContent = regCode;
+
+            // Pre-select the current location
+            const locationSelect = document.getElementById('approve-device-location');
+            locationSelect.innerHTML = '<option value="">-- Select a location --</option>' +
+                locations.map(loc => `<option value="${loc.id}" ${loc.id === currentManagedLocationId ? 'selected' : ''}>${loc.name}</option>`).join('');
+
+            document.getElementById('approve-device-modal').classList.add('active');
+        }
+
+        async function editDevice(deviceId) {
+            alert('Edit device functionality - to be implemented');
+        }
+
+        async function removeDevice(deviceId, deviceName) {
+            if (!confirm(`Are you sure you want to remove device "${deviceName}"?\n\nThis will unassign it from this location. The device will need to be re-approved to use again.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/devices/${deviceId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to remove device');
+                }
+
+                showManageAlert('Device removed successfully!');
+                loadManageActiveDevices();
+            } catch (error) {
+                showManageAlert(error.message, 'error');
+            }
+        }
+
+        async function loadManageUsers() {
+            try {
+                const response = await fetch(`/api/locations/${currentManagedLocationId}/users`);
+                if (!response.ok) throw new Error('Failed to load users');
+
+                const data = await response.json();
+                const users = data.users || [];
+
+                const container = document.getElementById('manage-users-list');
+                if (users.length === 0) {
+                    container.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">No assigned users</p>';
+                    return;
+                }
+
+                container.innerHTML = users.map(user => `
+                    <div class="user-item" style="margin-bottom: 10px;">
+                        <div class="user-info">
+                            <div>
+                                <div style="font-weight: 600; color: #333;">
+                                    ${escapeHtml(user.email)}
+                                </div>
+                                <div style="font-size: 13px; color: #666;">
+                                    ${user.first_name ? escapeHtml(user.first_name + ' ' + (user.last_name || '')) : 'No name set'}
+                                </div>
+                                <div style="font-size: 12px; color: #999;">
+                                    Role: ${user.role}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="action-buttons">
+                            <button class="btn btn-danger btn-small" onclick="removeUserFromLocation(${user.user_id}, '${escapeHtml(user.email)}')">
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading users:', error);
+                document.getElementById('manage-users-list').innerHTML =
+                    '<p style="text-align: center; color: #c33; padding: 20px;">Error loading users</p>';
+            }
+        }
+
+        function showAssignUserInManageView() {
+            // Reuse the existing manage users modal but set the location
+            showManageUsersModal(currentManagedLocationId);
+        }
+
+        async function removeUserFromLocation(userId, userEmail) {
+            if (!confirm(`Remove ${userEmail} from this location?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/locations/${currentManagedLocationId}/users/${userId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to remove user');
+                }
+
+                showManageAlert('User removed successfully!');
+                loadManageUsers();
+            } catch (error) {
+                showManageAlert(error.message, 'error');
+            }
+        }
+
+        function showManageAlert(message, type = 'success') {
+            const alertContainer = document.getElementById('manage-alert-container');
+            alertContainer.innerHTML = `
+                <div class="alert alert-${type}">
+                    ${message}
+                </div>
+            `;
+            setTimeout(() => {
+                alertContainer.innerHTML = '';
+            }, 5000);
+        }
     </script>
 
     <!-- Approve Device Modal -->
