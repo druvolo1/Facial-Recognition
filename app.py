@@ -516,14 +516,19 @@ def text_to_speech():
             with open(temp_text_file, 'w', encoding='utf-8') as f:
                 f.write(text)
 
-            print(f"[TTS] Running Festival TTS with default voice...")
+            print(f"[TTS] Running Festival TTS with male voice (slower)...")
             print(f"[TTS] Text: {text}")
             print(f"[TTS] Output path: {audio_path}")
 
-            # Simple Festival command - let it use default voice
-            # text2wave reads from stdin or file and outputs to -o
-            result = subprocess.run(
-                ['text2wave', temp_text_file, '-o', audio_path],
+            # Festival command with male voice and slower rate
+            # -eval commands set the voice and parameters before synthesis
+            result = subprocess.run([
+                'text2wave',
+                temp_text_file,
+                '-o', audio_path,
+                '-eval', '(Parameter.set \'Duration_Stretch 1.3)',  # Slow down by 30%
+                '-eval', '(voice_cmu_us_bdl_arctic_hts)'  # Male voice (BDL)
+            ],
                 capture_output=True,
                 timeout=30,
                 text=True

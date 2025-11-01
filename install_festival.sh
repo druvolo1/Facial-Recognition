@@ -11,9 +11,9 @@ if [[ "$OSTYPE" != "linux-gnu"* ]]; then
     exit 1
 fi
 
-echo "Step 1: Installing Festival TTS..."
+echo "Step 1: Installing Festival TTS with male voice..."
 sudo apt-get update
-sudo apt-get install -y festival festvox-us-slt-hts
+sudo apt-get install -y festival festvox-us-slt-hts festvox-us-bdl-hts
 
 if ! command -v festival &> /dev/null; then
     echo "❌ Festival installation failed"
