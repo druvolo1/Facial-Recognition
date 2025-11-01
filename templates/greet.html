@@ -715,39 +715,34 @@
         }
 
         // Rhubarb viseme to Ready Player Me morph target mapping
+        // Simplified for avatars with limited morph targets (mouthOpen + mouthSmile only)
         // Rhubarb uses letters A-H and X for visemes
         const rhubarbVisemeToMorph = {
             'X': [], // Rest/silence - mouth closed
-            'A': [{ name: 'mouthOpen', value: 0.8 }, { name: 'jawOpen', value: 0.6 }], // Wide open (ah, aa)
-            'B': [{ name: 'mouthPressLeft', value: 0.9 }, { name: 'mouthPressRight', value: 0.9 }], // Lips together (m, b, p)
-            'C': [{ name: 'mouthFunnel', value: 0.7 }, { name: 'mouthPucker', value: 0.5 }], // Rounded (oh, oo)
-            'D': [{ name: 'mouthSmileLeft', value: 0.8 }, { name: 'mouthSmileRight', value: 0.8 }], // Spread lips (ee, ay)
-            'E': [{ name: 'mouthOpen', value: 0.4 }, { name: 'jawOpen', value: 0.3 }], // Neutral/slight open (eh)
-            'F': [{ name: 'mouthLowerDownLeft', value: 0.7 }, { name: 'mouthLowerDownRight', value: 0.7 }], // Lower lip/upper teeth (f, v)
-            'G': [{ name: 'jawOpen', value: 0.5 }], // Tongue up (k, g, ng)
-            'H': [{ name: 'jawOpen', value: 0.25 }, { name: 'mouthRollLower', value: 0.3 }], // Tongue/teeth (th, l, r)
+            'A': [{ name: 'mouthOpen', value: 1.0 }], // Wide open (ah, aa)
+            'B': [], // Lips together (m, b, p) - close mouth
+            'C': [{ name: 'mouthOpen', value: 0.6 }], // Rounded (oh, oo) - medium open
+            'D': [{ name: 'mouthSmile', value: 0.9 }], // Spread lips (ee, ay) - smile
+            'E': [{ name: 'mouthOpen', value: 0.4 }], // Neutral/slight open (eh)
+            'F': [{ name: 'mouthOpen', value: 0.3 }], // Lower lip/upper teeth (f, v) - slight open
+            'G': [{ name: 'mouthOpen', value: 0.5 }], // Tongue up (k, g, ng) - medium open
+            'H': [{ name: 'mouthOpen', value: 0.3 }], // Tongue/teeth (th, l, r) - slight open
         };
 
 
         // Update lip sync based on Rhubarb viseme timeline
         function updateLipSync() {
             if (!document.getElementById('enableLipSync').checked) {
-                // Reset all morph targets
-                setMorphTarget('jawOpen', 0);
-                setMorphTarget('mouthSmileLeft', 0);
-                setMorphTarget('mouthSmileRight', 0);
-                setMorphTarget('mouthPucker', 0);
-                setMorphTarget('mouthFunnel', 0);
-                setMorphTarget('mouthPressLeft', 0);
-                setMorphTarget('mouthPressRight', 0);
+                // Reset morph targets
+                setMorphTarget('mouthOpen', 0);
+                setMorphTarget('mouthSmile', 0);
                 return;
             }
 
             if (!isSpeaking || !currentAudio || visemeTimeline.length === 0) {
                 // Close mouth when not speaking
-                setMorphTarget('jawOpen', 0);
-                setMorphTarget('mouthSmileLeft', 0);
-                setMorphTarget('mouthSmileRight', 0);
+                setMorphTarget('mouthOpen', 0);
+                setMorphTarget('mouthSmile', 0);
                 return;
             }
 
@@ -764,17 +759,9 @@
                 }
             }
 
-            // Reset all morph targets first
-            setMorphTarget('jawOpen', 0);
-            setMorphTarget('mouthSmileLeft', 0);
-            setMorphTarget('mouthSmileRight', 0);
-            setMorphTarget('mouthPucker', 0);
-            setMorphTarget('mouthFunnel', 0);
-            setMorphTarget('mouthPressLeft', 0);
-            setMorphTarget('mouthPressRight', 0);
-            setMorphTarget('mouthLowerDownLeft', 0);
-            setMorphTarget('mouthLowerDownRight', 0);
+            // Reset morph targets first
             setMorphTarget('mouthOpen', 0);
+            setMorphTarget('mouthSmile', 0);
 
             // Apply current viseme morphs
             const morphs = rhubarbVisemeToMorph[currentViseme];
@@ -1141,10 +1128,8 @@
 
                     // Close mouth
                     setTimeout(() => {
-                        setMorphTarget('jawOpen', 0);
-                        setMorphTarget('mouthSmileLeft', 0);
-                        setMorphTarget('mouthSmileRight', 0);
-                        setMorphTarget('mouthPucker', 0);
+                        setMorphTarget('mouthOpen', 0);
+                        setMorphTarget('mouthSmile', 0);
                     }, 100);
                 };
 

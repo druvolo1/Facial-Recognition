@@ -1,100 +1,121 @@
-index.html:268 [INIT] Starting Face Recognition Monitor
-index.html:359 [DISPLAY] Tizen API not available, generating ID
-index.html:292 [PERMISSIONS] Requesting Tizen runtime permissions...
-index.html:338 [PERMISSIONS] Tizen PPM API not available (may be in browser mode)
-index.html:394 [REGISTER] Attempting to connect to: http://172.16.1.102:5000
-index.html:395 [REGISTER] Display ID: display_1761950994055_w09623csy
-index.html:396 [REGISTER] Location: Unknown Location
-index.html:1 Access to fetch at 'http://172.16.1.102:5000/api/displays/register' from origin 'null' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-172.16.1.102:5000/api/displays/register:1  Failed to load resource: net::ERR_FAILED
-index.html:432 [REGISTER] ✗ Connection error: TypeError: Failed to fetch
-    at registerDisplay (index.html:398:40)
-    at init (index.html:277:19)
-registerDisplay @ index.html:432
-index.html:433 [REGISTER] Error details: Failed to fetch
-registerDisplay @ index.html:433
-index.html:452 [CAMERA] Requesting camera access...
-index.html:496 [CAMERA] Trying constraint option 1...
-index.html:716 [TEST] Testing connection to server...
-index.html:1 Access to fetch at 'http://172.16.1.102:5000/api/health-check' from origin 'null' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-172.16.1.102:5000/api/health-check:1  Failed to load resource: net::ERR_FAILED
-index.html:745 [TEST] ✗ Connection test failed: TypeError: Failed to fetch
-    at testConnection (index.html:721:40)
-    at HTMLButtonElement.onclick (index.html:235:69)
-testConnection @ index.html:745
-index.html:498 [CAMERA] Success with option 1
-index.html:531 [CAMERA] Camera started: 1280 x 720
-index.html:716 [TEST] Testing connection to server...
-index.html:1 Access to fetch at 'http://172.16.1.102:5000/api/health-check' from origin 'null' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-172.16.1.102:5000/api/health-check:1  Failed to load resource: net::ERR_FAILED
-index.html:745 [TEST] ✗ Connection test failed: TypeError: Failed to fetch
-    at testConnection (index.html:721:40)
-    at HTMLButtonElement.onclick (index.html:235:69)
-testConnection @ index.html:745
-index.html:1 Access to fetch at 'http://172.16.1.102:5000/api/displays/recognize' from origin 'null' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-172.16.1.102:5000/api/displays/recognize:1  Failed to load resource: net::ERR_FAILED
-index.html:593 [RECOGNITION] Error: TypeError: Failed to fetch
-    at recognizeFaces (index.html:565:40)
-    at index.html:555:27
-recognizeFaces @ index.html:593
-index.html:1 Access to fetch at 'http://172.16.1.102:5000/api/displays/recognize' from origin 'null' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-172.16.1.102:5000/api/displays/recognize:1  Failed to load resource: net::ERR_FAILED
-index.html:593 [RECOGNITION] Error: TypeError: Failed to fetch
-    at recognizeFaces (index.html:565:40)
-    at index.html:555:27
-recognizeFaces @ index.html:593
-index.html:716 [TEST] Testing connection to server...
-index.html:1 Access to fetch at 'http://172.16.1.102:5000/api/health-check' from origin 'null' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-172.16.1.102:5000/api/health-check:1  Failed to load resource: net::ERR_FAILED
-index.html:745 [TEST] ✗ Connection test failed: TypeError: Failed to fetch
-    at testConnection (index.html:721:40)
-    at HTMLButtonElement.onclick (index.html:235:69)
-testConnection @ index.html:745
-index.html:671 [HEARTBEAT] Sending heartbeat...
-index.html:1 Access to fetch at 'http://172.16.1.102:5000/api/displays/recognize' from origin 'null' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-172.16.1.102:5000/api/displays/recognize:1  Failed to load resource: net::ERR_FAILED
-index.html:593 [RECOGNITION] Error: TypeError: Failed to fetch
-    at recognizeFaces (index.html:565:40)
-    at index.html:555:27
-recognizeFaces @ index.html:593
-index.html:1 Access to fetch at 'http://172.16.1.102:5000/api/displays/heartbeat' from origin 'null' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-172.16.1.102:5000/api/displays/heartbeat:1  Failed to load resource: net::ERR_FAILED
-index.html:689 [HEARTBEAT] ✗ Error: TypeError: Failed to fetch
-    at sendHeartbeat (index.html:672:40)
-sendHeartbeat @ index.html:689
-index.html:1 Access to fetch at 'http://172.16.1.102:5000/api/displays/recognize' from origin 'null' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-172.16.1.102:5000/api/displays/recognize:1  Failed to load resource: net::ERR_FAILED
-index.html:593 [RECOGNITION] Error: TypeError: Failed to fetch
-    at recognizeFaces (index.html:565:40)
-    at index.html:555:27
-recognizeFaces @ index.html:593
-index.html:1 Access to fetch at 'http://172.16.1.102:5000/api/displays/recognize' from origin 'null' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-index.html:565  POST http://172.16.1.102:5000/api/displays/recognize net::ERR_FAILED
-recognizeFaces @ index.html:565
-(anonymous) @ index.html:555
-index.html:593 [RECOGNITION] Error: TypeError: Failed to fetch
-    at recognizeFaces (index.html:565:40)
-    at index.html:555:27
-recognizeFaces @ index.html:593
-await in recognizeFaces
-(anonymous) @ index.html:555
-index.html:1 Access to fetch at 'http://172.16.1.102:5000/api/displays/recognize' from origin 'null' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-index.html:565  POST http://172.16.1.102:5000/api/displays/recognize net::ERR_FAILED
-recognizeFaces @ index.html:565
-(anonymous) @ index.html:555
-index.html:593 [RECOGNITION] Error: TypeError: Failed to fetch
-    at recognizeFaces (index.html:565:40)
-    at index.html:555:27
-recognizeFaces @ index.html:593
-await in recognizeFaces
-(anonymous) @ index.html:555
-index.html:1 Access to fetch at 'http://172.16.1.102:5000/api/displays/recognize' from origin 'null' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-index.html:565  POST http://172.16.1.102:5000/api/displays/recognize net::ERR_FAILED
-recognizeFaces @ index.html:565
-(anonymous) @ index.html:555
-index.html:593 [RECOGNITION] Error: TypeError: Failed to fetch
-    at recognizeFaces (index.html:565:40)
-    at index.html:555:27
-recognizeFaces @ index.html:593
-await in recognizeFaces
-(anonymous) @ index.html:555
+greet:524 [AVATAR] Scanning for bones and morph targets...
+greet:528 [AVATAR] Found bone: Hips
+greet:528 [AVATAR] Found bone: Spine
+greet:528 [AVATAR] Found bone: Spine1
+greet:528 [AVATAR] Found bone: Spine2
+greet:528 [AVATAR] Found bone: Neck
+greet:536 [AVATAR] ✓ Neck bone found: Neck
+greet:528 [AVATAR] Found bone: Head
+greet:533 [AVATAR] ✓ Head bone found: Head
+greet:528 [AVATAR] Found bone: HeadTop_End
+greet:533 [AVATAR] ✓ Head bone found: HeadTop_End
+greet:528 [AVATAR] Found bone: LeftEye
+greet:568 [AVATAR] ✓ Left eye found: LeftEye
+greet:528 [AVATAR] Found bone: RightEye
+greet:572 [AVATAR] ✓ Right eye found: RightEye
+greet:528 [AVATAR] Found bone: LeftShoulder
+greet:528 [AVATAR] Found bone: LeftArm
+greet:528 [AVATAR] Found bone: LeftForeArm
+greet:528 [AVATAR] Found bone: LeftHand
+greet:528 [AVATAR] Found bone: LeftHandThumb1
+greet:528 [AVATAR] Found bone: LeftHandThumb2
+greet:528 [AVATAR] Found bone: LeftHandThumb3
+greet:528 [AVATAR] Found bone: LeftHandThumb4
+greet:528 [AVATAR] Found bone: LeftHandIndex1
+greet:528 [AVATAR] Found bone: LeftHandIndex2
+greet:528 [AVATAR] Found bone: LeftHandIndex3
+greet:528 [AVATAR] Found bone: LeftHandIndex4
+greet:528 [AVATAR] Found bone: LeftHandMiddle1
+greet:528 [AVATAR] Found bone: LeftHandMiddle2
+greet:528 [AVATAR] Found bone: LeftHandMiddle3
+greet:528 [AVATAR] Found bone: LeftHandMiddle4
+greet:528 [AVATAR] Found bone: LeftHandRing1
+greet:528 [AVATAR] Found bone: LeftHandRing2
+greet:528 [AVATAR] Found bone: LeftHandRing3
+greet:528 [AVATAR] Found bone: LeftHandRing4
+greet:528 [AVATAR] Found bone: LeftHandPinky1
+greet:528 [AVATAR] Found bone: LeftHandPinky2
+greet:528 [AVATAR] Found bone: LeftHandPinky3
+greet:528 [AVATAR] Found bone: LeftHandPinky4
+greet:528 [AVATAR] Found bone: RightShoulder
+greet:528 [AVATAR] Found bone: RightArm
+greet:528 [AVATAR] Found bone: RightForeArm
+greet:528 [AVATAR] Found bone: RightHand
+greet:528 [AVATAR] Found bone: RightHandThumb1
+greet:528 [AVATAR] Found bone: RightHandThumb2
+greet:528 [AVATAR] Found bone: RightHandThumb3
+greet:528 [AVATAR] Found bone: RightHandThumb4
+greet:528 [AVATAR] Found bone: RightHandIndex1
+greet:528 [AVATAR] Found bone: RightHandIndex2
+greet:528 [AVATAR] Found bone: RightHandIndex3
+greet:528 [AVATAR] Found bone: RightHandIndex4
+greet:528 [AVATAR] Found bone: RightHandMiddle1
+greet:528 [AVATAR] Found bone: RightHandMiddle2
+greet:528 [AVATAR] Found bone: RightHandMiddle3
+greet:528 [AVATAR] Found bone: RightHandMiddle4
+greet:528 [AVATAR] Found bone: RightHandRing1
+greet:528 [AVATAR] Found bone: RightHandRing2
+greet:528 [AVATAR] Found bone: RightHandRing3
+greet:528 [AVATAR] Found bone: RightHandRing4
+greet:528 [AVATAR] Found bone: RightHandPinky1
+greet:528 [AVATAR] Found bone: RightHandPinky2
+greet:528 [AVATAR] Found bone: RightHandPinky3
+greet:528 [AVATAR] Found bone: RightHandPinky4
+greet:528 [AVATAR] Found bone: LeftUpLeg
+greet:528 [AVATAR] Found bone: LeftLeg
+greet:528 [AVATAR] Found bone: LeftFoot
+greet:528 [AVATAR] Found bone: LeftToeBase
+greet:528 [AVATAR] Found bone: LeftToe_End
+greet:528 [AVATAR] Found bone: RightUpLeg
+greet:528 [AVATAR] Found bone: RightLeg
+greet:528 [AVATAR] Found bone: RightFoot
+greet:528 [AVATAR] Found bone: RightToeBase
+greet:528 [AVATAR] Found bone: RightToe_End
+greet:543 [AVATAR] Found mesh with morph targets: EyeLeft
+greet:544 [AVATAR] Available morph targets: (2) ['mouthOpen', 'mouthSmile']
+greet:543 [AVATAR] Found mesh with morph targets: EyeRight
+greet:544 [AVATAR] Available morph targets: (2) ['mouthOpen', 'mouthSmile']
+greet:543 [AVATAR] Found mesh with morph targets: Wolf3D_Head
+greet:544 [AVATAR] Available morph targets: (2) ['mouthOpen', 'mouthSmile']
+greet:543 [AVATAR] Found mesh with morph targets: Wolf3D_Teeth
+greet:544 [AVATAR] Available morph targets: (2) ['mouthOpen', 'mouthSmile']
+greet:595 [AVATAR] Loaded successfully
+greet:596 [AVATAR] Head bone: Found
+greet:600 [AVATAR] Total meshes with morph targets: 4
+greet:602 [AVATAR] Mesh 0 morph targets: (2) ['mouthOpen', 'mouthSmile']
+greet:602 [AVATAR] Mesh 1 morph targets: (2) ['mouthOpen', 'mouthSmile']
+greet:602 [AVATAR] Mesh 2 morph targets: (2) ['mouthOpen', 'mouthSmile']
+greet:602 [AVATAR] Mesh 3 morph targets: (2) ['mouthOpen', 'mouthSmile']
+greet:856 [Violation] 'requestAnimationFrame' handler took 244ms
+greet:836 [EXPRESSION] Trying to show: smile with morphs: (4) ['mouthSmile', 'mouthSmileLeft', 'mouthSmileRight', 'viseme_aa']
+greet:842 [EXPRESSION] ✓ Applied: mouthSmile
+greet:1091 [TTS] Generating speech with Rhubarb lip sync
+greet:1095  POST https://nrf.ruvolo.loseyourip.com/api/tts 500 (INTERNAL SERVER ERROR)
+speakWithLipSync @ greet:1095
+greetPerson @ greet:1074
+recognizeFaces @ greet:1028
+setInterval
+(anonymous) @ greet:975
+greet:1103 [TTS] Server error: {error: 'Failed to generate audio: libespeak.so.1: cannot open shared object file: No such file or directory', success: false}
+speakWithLipSync @ greet:1103
+await in speakWithLipSync
+greetPerson @ greet:1074
+recognizeFaces @ greet:1028
+setInterval
+(anonymous) @ greet:975
+greet:836 [EXPRESSION] Trying to show: smile with morphs: (4) ['mouthSmile', 'mouthSmileLeft', 'mouthSmileRight', 'viseme_aa']
+greet:842 [EXPRESSION] ✓ Applied: mouthSmile
+greet:1091 [TTS] Generating speech with Rhubarb lip sync
+greet:1095  POST https://nrf.ruvolo.loseyourip.com/api/tts 500 (INTERNAL SERVER ERROR)
+speakWithLipSync @ greet:1095
+greetPerson @ greet:1074
+recognizeFaces @ greet:1028
+setInterval
+(anonymous) @ greet:975
+greet:1103 [TTS] Server error: {error: 'Failed to generate audio: libespeak.so.1: cannot open shared object file: No such file or directory', success: false}
+speakWithLipSync @ greet:1103
+await in speakWithLipSync
+greetPerson @ greet:1074
+recognizeFaces @ greet:1028
+setInterval
+(anonymous) @ greet:975

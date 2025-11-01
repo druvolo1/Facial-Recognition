@@ -401,13 +401,24 @@ def text_to_speech():
         # Generate audio using pyttsx3
         print(f"[TTS] Generating audio with pyttsx3...")
         try:
-            engine = pyttsx3.init()
+            # Initialize with specific driver for Windows
+            try:
+                engine = pyttsx3.init('sapi5')  # Windows SAPI5
+            except:
+                engine = pyttsx3.init()  # Fallback to default
 
             # Set properties for better quality
             voices = engine.getProperty('voices')
+            print(f"[TTS] Available voices: {len(voices)}")
+
             # Try to use a female voice (usually index 1 on Windows)
             if len(voices) > 1:
                 engine.setProperty('voice', voices[1].id)
+                print(f"[TTS] Using voice: {voices[1].name}")
+            elif len(voices) > 0:
+                engine.setProperty('voice', voices[0].id)
+                print(f"[TTS] Using voice: {voices[0].name}")
+
             engine.setProperty('rate', 150)  # Speed
             engine.setProperty('volume', 1.0)
 
@@ -415,10 +426,15 @@ def text_to_speech():
             engine.save_to_file(text, audio_path)
             engine.runAndWait()
 
+            # Important: Stop the engine to release resources
+            engine.stop()
+
             print(f"[TTS] ✓ Audio generated: {audio_filename}")
 
         except Exception as e:
             print(f"[TTS] ✗ Error generating audio: {e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({
                 "success": False,
                 "error": f"Failed to generate audio: {str(e)}"
