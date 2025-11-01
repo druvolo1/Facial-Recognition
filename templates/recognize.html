@@ -467,46 +467,12 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             faces.forEach((face) => {
-                // Get actual video dimensions
-                const actualWidth = canvas.width;
-                const actualHeight = canvas.height;
-
-                // CodeProject.AI received a resized image (max 640x480)
-                // We need to figure out what size was actually sent
-                const maxWidth = 640;
-                const maxHeight = 480;
-
-                // Calculate the scale ratio
-                // The image was resized maintaining aspect ratio
-                let sentWidth, sentHeight;
-                const aspectRatio = actualWidth / actualHeight;
-
-                if (actualWidth > maxWidth || actualHeight > maxHeight) {
-                    // Image was resized
-                    if (aspectRatio > maxWidth / maxHeight) {
-                        // Width was the limiting factor
-                        sentWidth = maxWidth;
-                        sentHeight = maxWidth / aspectRatio;
-                    } else {
-                        // Height was the limiting factor
-                        sentHeight = maxHeight;
-                        sentWidth = maxHeight * aspectRatio;
-                    }
-                } else {
-                    // Image was not resized
-                    sentWidth = actualWidth;
-                    sentHeight = actualHeight;
-                }
-
-                // Calculate scale factors
-                const scaleX = actualWidth / sentWidth;
-                const scaleY = actualHeight / sentHeight;
-
-                // Scale coordinates from resized image to actual canvas size
-                const x = face.x_min * scaleX;
-                const y = face.y_min * scaleY;
-                const width = (face.x_max - face.x_min) * scaleX;
-                const height = (face.y_max - face.y_min) * scaleY;
+                // The backend sends the full-size image to CodeProject.AI
+                // So the coordinates already match our canvas dimensions - no scaling needed!
+                const x = face.x_min;
+                const y = face.y_min;
+                const width = face.x_max - face.x_min;
+                const height = face.y_max - face.y_min;
 
                 // Draw rectangle
                 ctx.strokeStyle = face.userid === 'unknown' ? '#ff4444' : '#48bb78';
