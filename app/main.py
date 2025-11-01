@@ -276,11 +276,15 @@ async def on_startup():
                             print(f"[STARTUP] ✓ Admin user created: {ADMIN_EMAIL}")
                     except Exception as e:
                         print(f"[STARTUP] ⚠ Could not create admin user: {e}")
+                        import traceback
+                        traceback.print_exc()
                     break
                 break
             break
     except Exception as e:
         print(f"[STARTUP] ⚠ Error during admin user creation: {e}")
+        import traceback
+        traceback.print_exc()
 
     print(f"[STARTUP] ✓ Startup complete")
     print(f"{'='*60}\n")
