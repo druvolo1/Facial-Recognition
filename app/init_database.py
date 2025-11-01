@@ -3,6 +3,7 @@ Database initialization script for Facial Recognition App
 Creates the database and required tables if they don't exist
 """
 import os
+import sys
 from dotenv import load_dotenv
 import aiomysql
 import asyncio
@@ -28,6 +29,10 @@ DB_HOST = match.group(3)
 DB_PORT = int(match.group(4))
 DB_NAME = match.group(5)
 
+print(f"[DB-INIT] Connecting to MariaDB server at {DB_HOST}:{DB_PORT}")
+print(f"[DB-INIT] User: {DB_USER}")
+print(f"[DB-INIT] Target database: {DB_NAME}")
+
 
 async def create_database():
     """Create the database if it doesn't exist"""
@@ -36,7 +41,30 @@ async def create_database():
     print(f"[DATABASE] Host: {DB_HOST}:{DB_PORT}")
     print(f"[DATABASE] User: {DB_USER}")
 
+    conn = None
     try:
+        # First, try to connect to the specific database
+        # If it exists, we're done
+        try:
+            test_conn = await aiomysql.connect(
+                host=DB_HOST,
+                port=DB_PORT,
+                user=DB_USER,
+                password=DB_PASSWORD,
+                db=DB_NAME,
+                autocommit=True
+            )
+            test_conn.close()
+            await test_conn.wait_closed()
+            print(f"[DATABASE] ✓ Database '{DB_NAME}' already exists and is accessible")
+            return True
+        except aiomysql.OperationalError as e:
+            if "Access denied" in str(e) and "database" in str(e):
+                # Database doesn't exist, we'll try to create it
+                print(f"[DATABASE] Database '{DB_NAME}' does not exist, attempting to create...")
+            else:
+                raise
+
         # Connect to MySQL server (without specifying database)
         conn = await aiomysql.connect(
             host=DB_HOST,
@@ -47,95 +75,40 @@ async def create_database():
         )
 
         async with conn.cursor() as cursor:
-            # Check if database exists
-            await cursor.execute(f"SHOW DATABASES LIKE '{DB_NAME}'")
-            result = await cursor.fetchone()
-
-            if result:
-                print(f"[DATABASE] ✓ Database '{DB_NAME}' already exists")
-            else:
-                # Create database
-                await cursor.execute(f"CREATE DATABASE {DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
+            # Create database
+            try:
+                await cursor.execute(f"CREATE DATABASE IF NOT EXISTS {DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
                 print(f"[DATABASE] ✓ Created database '{DB_NAME}'")
-
-        conn.close()
-        await conn.wait_closed()
-
-        # Now connect to the specific database to create tables
-        conn = await aiomysql.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            user=DB_USER,
-            password=DB_PASSWORD,
-            db=DB_NAME,
-            autocommit=True
-        )
-
-        async with conn.cursor() as cursor:
-            # Check and add columns to users table if needed
-            # This allows upgrading existing databases
-            await cursor.execute(f"""
-                SELECT TABLE_NAME
-                FROM information_schema.TABLES
-                WHERE TABLE_SCHEMA = '{DB_NAME}'
-                AND TABLE_NAME = 'user'
-            """)
-
-            table_exists = await cursor.fetchone()
-
-            if table_exists:
-                print(f"[DATABASE] User table exists, checking schema...")
-
-                # Check for custom columns
-                columns_to_add = [
-                    ("first_name", "VARCHAR(255) NULL"),
-                    ("last_name", "VARCHAR(255) NULL"),
-                    ("is_suspended", "BOOLEAN NOT NULL DEFAULT FALSE"),
-                    ("dashboard_preferences", "TEXT NULL")
-                ]
-
-                for column_name, column_def in columns_to_add:
-                    await cursor.execute(f"""
-                        SELECT COLUMN_NAME
-                        FROM information_schema.COLUMNS
-                        WHERE TABLE_SCHEMA = '{DB_NAME}'
-                        AND TABLE_NAME = 'user'
-                        AND COLUMN_NAME = '{column_name}'
-                    """)
-
-                    column_exists = await cursor.fetchone()
-
-                    if not column_exists:
-                        print(f"[DATABASE]   Adding column '{column_name}'...")
-                        await cursor.execute(f"ALTER TABLE user ADD COLUMN {column_name} {column_def}")
-                        print(f"[DATABASE]   ✓ Column '{column_name}' added")
-                    else:
-                        print(f"[DATABASE]   Column '{column_name}' already exists")
-
-                # Modify is_active default to FALSE (pending approval)
-                print(f"[DATABASE]   Setting is_active default to FALSE...")
-                await cursor.execute("""
-                    ALTER TABLE user
-                    MODIFY COLUMN is_active BOOLEAN NOT NULL DEFAULT FALSE
-                """)
-                print(f"[DATABASE]   ✓ is_active default set to FALSE (pending approval)")
-            else:
-                print(f"[DATABASE] User table will be created by FastAPI-Users on first run")
+            except aiomysql.OperationalError as e:
+                if "Access denied" in str(e):
+                    print(f"[DATABASE] ✗ Cannot create database - insufficient permissions")
+                    print(f"[DATABASE] Please run this SQL command as root user:")
+                    print(f"[DATABASE]   CREATE DATABASE {DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;")
+                    print(f"[DATABASE]   GRANT ALL PRIVILEGES ON {DB_NAME}.* TO '{DB_USER}'@'%';")
+                    print(f"[DATABASE]   FLUSH PRIVILEGES;")
+                    return False
+                raise
 
         conn.close()
         await conn.wait_closed()
 
         print(f"[DATABASE] ✓ Database initialization complete")
+        print(f"[DATABASE] Tables will be created by FastAPI on first run")
         print(f"{'='*60}\n")
 
         return True
 
     except Exception as e:
         print(f"[DATABASE] ✗ Error initializing database: {e}")
+        print(f"[DATABASE] Error type: {type(e).__name__}")
         import traceback
         traceback.print_exc()
         print(f"{'='*60}\n")
         return False
+    finally:
+        if conn and not conn.closed:
+            conn.close()
+            await conn.wait_closed()
 
 
 async def init_database():

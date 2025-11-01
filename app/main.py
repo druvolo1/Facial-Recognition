@@ -231,9 +231,27 @@ async def on_startup():
     print(f"\n{'='*60}")
     print(f"[STARTUP] Facial Recognition App starting...")
 
+    # Import database initialization
+    from init_database import create_database as init_db
+
+    # Try to create database if it doesn't exist
+    try:
+        db_created = await init_db()
+        if not db_created:
+            print(f"[STARTUP] ⚠ Database creation failed - see instructions above")
+            print(f"[STARTUP] Application will attempt to continue...")
+    except Exception as e:
+        print(f"[STARTUP] ⚠ Database initialization warning: {e}")
+        print(f"[STARTUP] Application will attempt to continue...")
+
     # Create tables
-    await create_db_and_tables()
-    print(f"[STARTUP] ✓ Database tables created/verified")
+    try:
+        await create_db_and_tables()
+        print(f"[STARTUP] ✓ Database tables created/verified")
+    except Exception as e:
+        print(f"[STARTUP] ✗ Error creating tables: {e}")
+        print(f"[STARTUP] Please ensure database exists and user has permissions")
+        raise
 
     # Create admin user if doesn't exist
     try:

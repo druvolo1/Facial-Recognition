@@ -84,17 +84,37 @@ nano .env
 - `ADMIN_EMAIL` and `ADMIN_PASSWORD` - Your admin account credentials
 
 ### 6. Create Database
-The database will be created automatically on first run, but you can test it manually:
 
+The application will **automatically create the database** on first run!
+
+**Option A: Automatic (Recommended)**
+Just run the application and it will create the database if it doesn't exist:
 ```bash
 cd app
-python init_database.py
+python main.py
 ```
 
-This will:
-- Create the `facial_recognition` database if it doesn't exist
-- Set up required tables
-- Configure schema for user approval workflow
+**Option B: Manual Setup (if automatic creation fails)**
+If you get permission errors, run this standalone script:
+```bash
+python create_database.py
+```
+
+**Option C: SQL Commands (if app_user lacks CREATE DATABASE permission)**
+If the above methods fail, connect to MariaDB as root and run:
+```bash
+mysql -h 172.16.1.150 -u root -p
+```
+
+Then execute:
+```sql
+CREATE DATABASE facial_recognition CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+GRANT ALL PRIVILEGES ON facial_recognition.* TO 'app_user'@'%';
+FLUSH PRIVILEGES;
+EXIT;
+```
+
+Then restart the application.
 
 ### 7. Run the Application
 
