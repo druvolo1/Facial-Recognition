@@ -347,6 +347,19 @@
 
             <div id="alert-container"></div>
 
+            <!-- Pending Users Section -->
+            <div id="pending-users-section" style="margin-bottom: 30px; display: none;">
+                <h3 style="color: #333; margin-bottom: 15px;">Pending User Approvals</h3>
+                <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <p style="margin: 0; color: #856404; font-size: 14px;">
+                        <strong>Info:</strong> When you approve a user, they will be automatically assigned to your location(s) as a Location User.
+                    </p>
+                </div>
+                <div id="pending-users-list" style="background: white; border-radius: 10px; padding: 15px;">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+
             <table id="locations-table">
                 <thead>
                     <tr>
@@ -501,6 +514,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadLocations();
             loadAllUsers();
+            loadPendingUsers();
         });
 
         // Show/hide modals
@@ -852,6 +866,69 @@
 
                 showAlert('User removed successfully!');
                 loadLocationUsers(currentLocationId);
+            } catch (error) {
+                showAlert(error.message, 'error');
+            }
+        }
+
+        // Load pending users
+        async function loadPendingUsers() {
+            try {
+                const response = await fetch('/api/pending-users');
+                if (!response.ok) {
+                    // If 403, user doesn't have permission (probably not a location admin)
+                    if (response.status === 403) {
+                        return; // Hide section silently
+                    }
+                    throw new Error('Failed to load pending users');
+                }
+
+                const data = await response.json();
+                const users = data.users || [];
+
+                if (users.length === 0) {
+                    return; // No pending users, keep section hidden
+                }
+
+                // Show the section
+                document.getElementById('pending-users-section').style.display = 'block';
+
+                // Render pending users
+                const container = document.getElementById('pending-users-list');
+                container.innerHTML = users.map(user => `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f9f9f9; border-radius: 6px; margin-bottom: 8px;">
+                        <div>
+                            <strong>${escapeHtml(user.email)}</strong>
+                            ${user.first_name ? `<br><small>${escapeHtml(user.first_name)} ${escapeHtml(user.last_name || '')}</small>` : ''}
+                        </div>
+                        <button class="btn btn-primary btn-small" onclick="approvePendingUser(${user.id}, '${escapeHtml(user.email)}')">
+                            Approve
+                        </button>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading pending users:', error);
+            }
+        }
+
+        // Approve pending user
+        async function approvePendingUser(userId, userEmail) {
+            if (!confirm(`Approve ${userEmail}?\n\nThey will be assigned to your location(s) as a Location User.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/admin/users/${userId}/approve`, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to approve user');
+                }
+
+                showAlert(`${userEmail} has been approved and assigned to your location(s)!`);
+                await loadPendingUsers(); // Refresh pending users list
             } catch (error) {
                 showAlert(error.message, 'error');
             }

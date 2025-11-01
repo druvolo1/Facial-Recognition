@@ -615,6 +615,24 @@ async def list_all_users(
     result = await session.execute(select(User))
     users = result.scalars().all()
 
+    # Get location assignments for all users
+    user_locations = {}
+    for u in users:
+        loc_result = await session.execute(
+            select(UserLocationRole, Location).join(Location).where(
+                UserLocationRole.user_id == u.id
+            )
+        )
+        assignments = loc_result.all()
+        user_locations[u.id] = [
+            {
+                "location_id": loc.id,
+                "location_name": loc.name,
+                "role": assignment.role
+            }
+            for assignment, loc in assignments
+        ]
+
     return {
         "current_user_id": user.id,
         "users": [
@@ -626,9 +644,46 @@ async def list_all_users(
                 "is_active": u.is_active,
                 "is_superuser": u.is_superuser,
                 "is_suspended": u.is_suspended,
-                "is_verified": u.is_verified
+                "is_verified": u.is_verified,
+                "locations": user_locations.get(u.id, [])
             }
             for u in users
+        ]
+    }
+
+
+@app.get("/api/users/{user_id}/locations")
+async def get_user_locations(
+    user_id: int,
+    admin: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Get location assignments for a specific user (superadmin only)"""
+    # Verify user exists
+    user_result = await session.execute(select(User).where(User.id == user_id))
+    user = user_result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Get user's location assignments
+    result = await session.execute(
+        select(UserLocationRole, Location).join(Location).where(
+            UserLocationRole.user_id == user_id
+        )
+    )
+    assignments = result.all()
+
+    return {
+        "user_id": user_id,
+        "locations": [
+            {
+                "location_id": loc.id,
+                "location_name": loc.name,
+                "role": assignment.role,
+                "assigned_at": assignment.assigned_at.isoformat()
+            }
+            for assignment, loc in assignments
         ]
     }
 
@@ -636,22 +691,107 @@ async def list_all_users(
 @app.post("/api/admin/users/{user_id}/approve")
 async def approve_user(
     user_id: int,
-    admin: User = Depends(current_superuser),
+    admin: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session)
 ):
-    """Approve a pending user"""
+    """Approve a pending user (superadmin or location admin)"""
+    # Check if user is superadmin or location admin
+    is_location_admin = False
+    admin_locations = []
+
+    if not admin.is_superuser:
+        # Check if they're a location admin
+        result = await session.execute(
+            select(UserLocationRole).where(
+                UserLocationRole.user_id == admin.id,
+                UserLocationRole.role == 'location_admin'
+            )
+        )
+        admin_locations = result.scalars().all()
+
+        if not admin_locations:
+            raise HTTPException(status_code=403, detail="Only superadmins and location admins can approve users")
+
+        is_location_admin = True
+
+    # Get the user to approve
     result = await session.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    # Approve the user
     user.is_active = True
     await session.commit()
 
-    print(f"[ADMIN] User approved: {user.email}")
+    # If approved by location admin, auto-assign to their location(s) as location_user
+    if is_location_admin:
+        for admin_loc in admin_locations:
+            # Check if assignment already exists
+            existing = await session.execute(
+                select(UserLocationRole).where(
+                    UserLocationRole.user_id == user_id,
+                    UserLocationRole.location_id == admin_loc.location_id
+                )
+            )
+            if not existing.scalar_one_or_none():
+                # Create new assignment
+                new_assignment = UserLocationRole(
+                    user_id=user_id,
+                    location_id=admin_loc.location_id,
+                    role='location_user',
+                    assigned_by_user_id=admin.id
+                )
+                session.add(new_assignment)
+
+        await session.commit()
+        print(f"[ADMIN] User {user.email} approved by location admin {admin.email} and assigned to {len(admin_locations)} location(s)")
+    else:
+        print(f"[ADMIN] User {user.email} approved by superadmin {admin.email}")
 
     return {"success": True, "message": f"User {user.email} approved"}
+
+
+@app.get("/api/pending-users")
+async def list_pending_users(
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """List pending users (for superadmins and location admins)"""
+    # Check if user is superadmin or location admin
+    if not user.is_superuser:
+        # Check if they're a location admin
+        result = await session.execute(
+            select(UserLocationRole).where(
+                UserLocationRole.user_id == user.id,
+                UserLocationRole.role == 'location_admin'
+            )
+        )
+        admin_locations = result.scalars().all()
+
+        if not admin_locations:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+    # Get all pending users
+    result = await session.execute(
+        select(User).where(User.is_active == False, User.is_suspended == False)
+    )
+    pending_users = result.scalars().all()
+
+    return {
+        "success": True,
+        "users": [
+            {
+                "id": u.id,
+                "email": u.email,
+                "first_name": u.first_name,
+                "last_name": u.last_name,
+                "is_verified": u.is_verified
+            }
+            for u in pending_users
+        ]
+    }
 
 
 @app.post("/api/admin/users/{user_id}/suspend")

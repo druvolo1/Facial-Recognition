@@ -129,6 +129,12 @@
             color: #333;
         }
 
+        .badge-location {
+            background: #e3f2fd;
+            color: #1976d2;
+            margin-right: 4px;
+        }
+
         .btn {
             padding: 6px 15px;
             border: none;
@@ -223,6 +229,20 @@
 
         .btn-delete:hover {
             background: #c82333;
+        }
+
+        .btn-small {
+            padding: 4px 10px;
+            font-size: 11px;
+        }
+
+        .btn-manage-locations {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-manage-locations:hover {
+            background: #5568d3;
         }
 
         .modal {
@@ -378,12 +398,13 @@
                         <th>Name</th>
                         <th>Status</th>
                         <th>Role</th>
+                        <th>Locations</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="users-list">
                     <tr>
-                        <td colspan="5" class="loading">Loading users...</td>
+                        <td colspan="6" class="loading">Loading users...</td>
                     </tr>
                 </tbody>
             </table>
@@ -465,11 +486,25 @@
 
                     const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ') || '-';
 
+                    // Locations display
+                    let locationsHtml = '';
+                    if (user.is_superuser) {
+                        locationsHtml = '<span class="badge badge-admin">All Locations</span>';
+                    } else if (user.locations && user.locations.length > 0) {
+                        locationsHtml = user.locations.map(loc =>
+                            `<span class="badge badge-location" title="${loc.role === 'location_admin' ? 'Admin' : 'User'}">${loc.location_name}${loc.role === 'location_admin' ? ' 👑' : ''}</span>`
+                        ).join(' ');
+                    } else {
+                        locationsHtml = '<span style="color: #999;">None</span>';
+                    }
+                    locationsHtml += ` <button class="btn btn-small btn-manage-locations" onclick="manageUserLocations(${user.id}, '${user.email}')">Manage</button>`;
+
                     row.innerHTML = `
                         <td>${user.email}</td>
                         <td>${fullName}</td>
                         <td>${statusBadge}</td>
                         <td>${roleBadge}</td>
+                        <td>${locationsHtml}</td>
                         <td>${actions}</td>
                     `;
 
@@ -478,7 +513,7 @@
             } catch (error) {
                 console.error('Error loading users:', error);
                 document.getElementById('users-list').innerHTML =
-                    '<tr><td colspan="5" class="loading" style="color: red;">Error loading users</td></tr>';
+                    '<tr><td colspan="6" class="loading" style="color: red;">Error loading users</td></tr>';
             }
         }
 
@@ -598,7 +633,19 @@
         }
 
         // Show create user modal
-        function showCreateUserModal() {
+        async function showCreateUserModal() {
+            // Load locations for the dropdown
+            await loadAllLocations();
+            const select = document.getElementById('newUserLocation');
+            select.innerHTML = '<option value="">-- None --</option>' +
+                allLocations.map(loc => `<option value="${loc.id}">${loc.name}</option>`).join('');
+
+            // Show/hide role selection based on location choice
+            select.addEventListener('change', function() {
+                const roleGroup = document.getElementById('newUserRoleGroup');
+                roleGroup.style.display = this.value ? 'block' : 'none';
+            });
+
             document.getElementById('createUserModal').style.display = 'flex';
         }
 
@@ -615,6 +662,8 @@
             const lastName = document.getElementById('newUserLastName').value;
             const isActive = document.getElementById('newUserActive').checked;
             const isAdmin = document.getElementById('newUserAdmin').checked;
+            const locationId = document.getElementById('newUserLocation').value;
+            const role = document.getElementById('newUserRole').value;
 
             if (!email || !password) {
                 alert('Email and password are required');
@@ -622,6 +671,7 @@
             }
 
             try {
+                // Create the user
                 const response = await fetch('/api/admin/users/create', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -638,9 +688,30 @@
                 const result = await response.json();
 
                 if (response.ok) {
+                    // If location was selected, assign user to location
+                    if (locationId) {
+                        try {
+                            const assignResponse = await fetch(`/api/locations/${locationId}/users`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    user_id: result.id,
+                                    role: role
+                                })
+                            });
+
+                            if (!assignResponse.ok) {
+                                console.error('Failed to assign location, but user was created');
+                            }
+                        } catch (assignError) {
+                            console.error('Error assigning location:', assignError);
+                        }
+                    }
+
                     alert(`User created successfully!\n\nEmail: ${result.email}\n\nThe user will be required to change their password on first login.`);
                     closeModal('createUserModal');
                     document.getElementById('createUserForm').reset();
+                    document.getElementById('newUserRoleGroup').style.display = 'none';
                     loadUsers();
                 } else {
                     alert(`Failed to create user: ${result.detail}`);
@@ -719,6 +790,128 @@
                 alert('Error deleting user');
             }
         }
+
+        // Manage user locations
+        let allLocations = [];
+        let currentManageUserId = null;
+
+        async function manageUserLocations(userId, userEmail) {
+            currentManageUserId = userId;
+            document.getElementById('manageLocationsEmail').textContent = userEmail;
+            document.getElementById('assignLocationUserId').value = userId;
+
+            // Load all locations
+            await loadAllLocations();
+
+            // Load user's current assignments
+            await loadUserAssignments(userId);
+
+            // Show modal
+            openModal('manageLocationsModal');
+        }
+
+        async function loadAllLocations() {
+            try {
+                const response = await fetch('/api/locations');
+                const data = await response.json();
+                allLocations = data.locations || [];
+
+                // Populate location dropdown
+                const select = document.getElementById('assignLocationSelect');
+                select.innerHTML = '<option value="">-- Select a location --</option>' +
+                    allLocations.map(loc => `<option value="${loc.id}">${loc.name}</option>`).join('');
+            } catch (error) {
+                console.error('Error loading locations:', error);
+            }
+        }
+
+        async function loadUserAssignments(userId) {
+            try {
+                const response = await fetch(`/api/users/${userId}/locations`);
+                const data = await response.json();
+                const assignments = data.locations || [];
+
+                const container = document.getElementById('currentLocationAssignments');
+
+                if (assignments.length === 0) {
+                    container.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No location assignments</p>';
+                    return;
+                }
+
+                container.innerHTML = assignments.map(assign => `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f9f9f9; border-radius: 6px; margin-bottom: 8px;">
+                        <div>
+                            <strong>${assign.location_name}</strong>
+                            <span class="badge badge-location" style="margin-left: 10px;">
+                                ${assign.role === 'location_admin' ? 'Admin' : 'User'}
+                            </span>
+                        </div>
+                        <button class="btn btn-small btn-delete" onclick="removeUserLocation(${userId}, ${assign.location_id})">Remove</button>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading user assignments:', error);
+                document.getElementById('currentLocationAssignments').innerHTML =
+                    '<p style="color: #c33; text-align: center; padding: 20px;">Error loading assignments</p>';
+            }
+        }
+
+        // Handle assign location form submission
+        document.getElementById('assignLocationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const userId = parseInt(document.getElementById('assignLocationUserId').value);
+            const locationId = parseInt(document.getElementById('assignLocationSelect').value);
+            const role = document.getElementById('assignRoleSelect').value;
+
+            try {
+                const response = await fetch(`/api/locations/${locationId}/users`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        role: role
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to assign location');
+                }
+
+                alert('Location assigned successfully!');
+                await loadUserAssignments(userId);
+                await loadUsers(); // Refresh the main user list
+                e.target.reset();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        });
+
+        async function removeUserLocation(userId, locationId) {
+            if (!confirm('Remove this location assignment?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/locations/${locationId}/users/${userId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to remove location');
+                }
+
+                alert('Location removed successfully!');
+                await loadUserAssignments(userId);
+                await loadUsers(); // Refresh the main user list
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
     </script>
 
     <!-- Create User Modal -->
@@ -753,6 +946,24 @@
                     <input type="checkbox" id="newUserAdmin">
                     <label for="newUserAdmin" style="margin: 0;">Grant admin privileges</label>
                 </div>
+
+                <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;">
+
+                <h4 style="margin-bottom: 10px; color: #333;">Location Assignment (Optional)</h4>
+                <div class="form-group">
+                    <label>Assign to Location</label>
+                    <select id="newUserLocation" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
+                        <option value="">-- None --</option>
+                    </select>
+                </div>
+                <div class="form-group" id="newUserRoleGroup" style="display: none;">
+                    <label>Role at Location</label>
+                    <select id="newUserRole" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
+                        <option value="location_user">Location User</option>
+                        <option value="location_admin">Location Admin</option>
+                    </select>
+                </div>
+
                 <div class="modal-actions">
                     <button type="button" class="btn-cancel" onclick="closeModal('createUserModal')">Cancel</button>
                     <button type="submit" class="btn-submit">Create User</button>
@@ -775,6 +986,44 @@
             <div class="modal-actions">
                 <button type="button" class="btn-cancel" onclick="copyPassword()">Copy Password</button>
                 <button type="button" class="btn-submit" onclick="closeModal('tempPasswordModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manage User Locations Modal -->
+    <div id="manageLocationsModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3>Manage Locations</h3>
+                <p style="color: #666; font-size: 14px;">User: <strong id="manageLocationsEmail"></strong></p>
+            </div>
+
+            <h4 style="margin-bottom: 10px; color: #333;">Assign to Location</h4>
+            <form id="assignLocationForm" style="margin-bottom: 30px;">
+                <input type="hidden" id="assignLocationUserId">
+                <div class="form-group">
+                    <label for="assignLocationSelect">Select Location</label>
+                    <select id="assignLocationSelect" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
+                        <option value="">-- Select a location --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="assignRoleSelect">Role</label>
+                    <select id="assignRoleSelect" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
+                        <option value="location_user">Location User</option>
+                        <option value="location_admin">Location Admin</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-submit" style="width: 100%;">Assign Location</button>
+            </form>
+
+            <h4 style="margin-bottom: 10px; color: #333;">Current Assignments</h4>
+            <div id="currentLocationAssignments" style="margin-bottom: 20px;">
+                <p style="color: #999; text-align: center; padding: 20px;">Loading...</p>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" onclick="closeModal('manageLocationsModal')">Close</button>
             </div>
         </div>
     </div>
