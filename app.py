@@ -516,47 +516,22 @@ def text_to_speech():
             with open(temp_text_file, 'w', encoding='utf-8') as f:
                 f.write(text)
 
-            print(f"[TTS] Running Festival TTS with male voice (slower)...")
+            print(f"[TTS] Running Festival TTS (slower speech)...")
             print(f"[TTS] Text: {text}")
             print(f"[TTS] Output path: {audio_path}")
 
-            # Try different voices in order of preference
-            # List of male voices to try
-            voices_to_try = [
-                'voice_kal_diphone',  # Default male voice (always available)
-                'voice_cmu_us_bdl_arctic_hts',  # Better male if installed
-                'voice_cmu_us_rms_cg',  # Another male option
-            ]
-
-            result = None
-            voice_used = None
-
-            # Try each voice until one works
-            for voice in voices_to_try:
-                print(f"[TTS] Trying voice: {voice}")
-                result = subprocess.run([
-                    'text2wave',
-                    temp_text_file,
-                    '-o', audio_path,
-                    '-eval', f'(Parameter.set \'Duration_Stretch 1.4)',  # 40% slower
-                    '-eval', f'({voice})'  # Set voice
-                ],
-                    capture_output=True,
-                    timeout=30,
-                    text=True
-                )
-
-                # Check if file was created successfully
-                if result.returncode == 0 and os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
-                    voice_used = voice
-                    print(f"[TTS] ✓ Successfully using voice: {voice}")
-                    break
-                else:
-                    # This voice didn't work, try next
-                    if result.stderr:
-                        print(f"[TTS] Voice {voice} failed: {result.stderr}")
-                    if os.path.exists(audio_path):
-                        os.remove(audio_path)  # Clean up failed attempt
+            # Use Festival with default voice, just slow it down
+            # Duration_Stretch: 1.4 = 40% slower for better clarity
+            result = subprocess.run([
+                'text2wave',
+                temp_text_file,
+                '-o', audio_path,
+                '-eval', '(Parameter.set \'Duration_Stretch 1.4)'  # 40% slower
+            ],
+                capture_output=True,
+                timeout=30,
+                text=True
+            )
 
             # Clean up temp file
             try:
@@ -564,18 +539,11 @@ def text_to_speech():
             except:
                 pass
 
-            if not result:
-                print(f"[TTS] ✗ All voices failed")
-                return jsonify({
-                    "success": False,
-                    "error": "Could not generate audio with any available voice"
-                }), 500
-
             print(f"[TTS] Festival return code: {result.returncode}")
             if result.stdout:
-                print(f"[TTS] Festival stdout: {result.stdout}")
+                print(f"[TTS] Festival stdout: {result.stdout[:200]}")
             if result.stderr:
-                print(f"[TTS] Festival stderr: {result.stderr}")
+                print(f"[TTS] Festival stderr: {result.stderr[:200]}")
 
             # Verify file was created
             if os.path.exists(audio_path):

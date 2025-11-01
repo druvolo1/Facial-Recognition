@@ -1,107 +1,112 @@
-greet:624 [AVATAR] Scanning for bones and morph targets...
-greet:628 [AVATAR] Found bone: Hips
-greet:628 [AVATAR] Found bone: Spine
-greet:628 [AVATAR] Found bone: Spine1
-greet:628 [AVATAR] Found bone: Spine2
-greet:628 [AVATAR] Found bone: Neck
-greet:636 [AVATAR] ✓ Neck bone found: Neck
-greet:628 [AVATAR] Found bone: Head
-greet:633 [AVATAR] ✓ Head bone found: Head
-greet:628 [AVATAR] Found bone: HeadTop_End
-greet:633 [AVATAR] ✓ Head bone found: HeadTop_End
-greet:628 [AVATAR] Found bone: LeftEye
-greet:668 [AVATAR] ✓ Left eye found: LeftEye
-greet:628 [AVATAR] Found bone: RightEye
-greet:672 [AVATAR] ✓ Right eye found: RightEye
-greet:628 [AVATAR] Found bone: LeftShoulder
-greet:628 [AVATAR] Found bone: LeftArm
-greet:628 [AVATAR] Found bone: LeftForeArm
-greet:628 [AVATAR] Found bone: LeftHand
-greet:628 [AVATAR] Found bone: LeftHandThumb1
-greet:628 [AVATAR] Found bone: LeftHandThumb2
-greet:628 [AVATAR] Found bone: LeftHandThumb3
-greet:628 [AVATAR] Found bone: LeftHandThumb4
-greet:628 [AVATAR] Found bone: LeftHandIndex1
-greet:628 [AVATAR] Found bone: LeftHandIndex2
-greet:628 [AVATAR] Found bone: LeftHandIndex3
-greet:628 [AVATAR] Found bone: LeftHandIndex4
-greet:628 [AVATAR] Found bone: LeftHandMiddle1
-greet:628 [AVATAR] Found bone: LeftHandMiddle2
-greet:628 [AVATAR] Found bone: LeftHandMiddle3
-greet:628 [AVATAR] Found bone: LeftHandMiddle4
-greet:628 [AVATAR] Found bone: LeftHandRing1
-greet:628 [AVATAR] Found bone: LeftHandRing2
-greet:628 [AVATAR] Found bone: LeftHandRing3
-greet:628 [AVATAR] Found bone: LeftHandRing4
-greet:628 [AVATAR] Found bone: LeftHandPinky1
-greet:628 [AVATAR] Found bone: LeftHandPinky2
-greet:628 [AVATAR] Found bone: LeftHandPinky3
-greet:628 [AVATAR] Found bone: LeftHandPinky4
-greet:628 [AVATAR] Found bone: RightShoulder
-greet:628 [AVATAR] Found bone: RightArm
-greet:628 [AVATAR] Found bone: RightForeArm
-greet:628 [AVATAR] Found bone: RightHand
-greet:628 [AVATAR] Found bone: RightHandThumb1
-greet:628 [AVATAR] Found bone: RightHandThumb2
-greet:628 [AVATAR] Found bone: RightHandThumb3
-greet:628 [AVATAR] Found bone: RightHandThumb4
-greet:628 [AVATAR] Found bone: RightHandIndex1
-greet:628 [AVATAR] Found bone: RightHandIndex2
-greet:628 [AVATAR] Found bone: RightHandIndex3
-greet:628 [AVATAR] Found bone: RightHandIndex4
-greet:628 [AVATAR] Found bone: RightHandMiddle1
-greet:628 [AVATAR] Found bone: RightHandMiddle2
-greet:628 [AVATAR] Found bone: RightHandMiddle3
-greet:628 [AVATAR] Found bone: RightHandMiddle4
-greet:628 [AVATAR] Found bone: RightHandRing1
-greet:628 [AVATAR] Found bone: RightHandRing2
-greet:628 [AVATAR] Found bone: RightHandRing3
-greet:628 [AVATAR] Found bone: RightHandRing4
-greet:628 [AVATAR] Found bone: RightHandPinky1
-greet:628 [AVATAR] Found bone: RightHandPinky2
-greet:628 [AVATAR] Found bone: RightHandPinky3
-greet:628 [AVATAR] Found bone: RightHandPinky4
-greet:628 [AVATAR] Found bone: LeftUpLeg
-greet:628 [AVATAR] Found bone: LeftLeg
-greet:628 [AVATAR] Found bone: LeftFoot
-greet:628 [AVATAR] Found bone: LeftToeBase
-greet:628 [AVATAR] Found bone: LeftToe_End
-greet:628 [AVATAR] Found bone: RightUpLeg
-greet:628 [AVATAR] Found bone: RightLeg
-greet:628 [AVATAR] Found bone: RightFoot
-greet:628 [AVATAR] Found bone: RightToeBase
-greet:628 [AVATAR] Found bone: RightToe_End
-greet:643 [AVATAR] Found mesh with morph targets: EyeLeft
-greet:644 [AVATAR] Available morph targets: (2) ['mouthOpen', 'mouthSmile']
-greet:643 [AVATAR] Found mesh with morph targets: EyeRight
-greet:644 [AVATAR] Available morph targets: (2) ['mouthOpen', 'mouthSmile']
-greet:643 [AVATAR] Found mesh with morph targets: Wolf3D_Head
-greet:644 [AVATAR] Available morph targets: (2) ['mouthOpen', 'mouthSmile']
-greet:643 [AVATAR] Found mesh with morph targets: Wolf3D_Teeth
-greet:644 [AVATAR] Available morph targets: (2) ['mouthOpen', 'mouthSmile']
-greet:695 [AVATAR] Loaded successfully
-greet:696 [AVATAR] Head bone: Found
-greet:700 [AVATAR] Total meshes with morph targets: 4
-greet:702 [AVATAR] Mesh 0 morph targets: (2) ['mouthOpen', 'mouthSmile']
-greet:702 [AVATAR] Mesh 1 morph targets: (2) ['mouthOpen', 'mouthSmile']
-greet:702 [AVATAR] Mesh 2 morph targets: (2) ['mouthOpen', 'mouthSmile']
-greet:702 [AVATAR] Mesh 3 morph targets: (2) ['mouthOpen', 'mouthSmile']
-greet:943 [Violation] 'requestAnimationFrame' handler took 200ms
-greet:923 [EXPRESSION] Trying to show: smile with morphs: (4) ['mouthSmile', 'mouthSmileLeft', 'mouthSmileRight', 'viseme_aa']
-greet:929 [EXPRESSION] ✓ Applied: mouthSmile
-greet:1224 [TTS] Generating speech with Rhubarb lip sync
-greet:1228  POST https://nrf.ruvolo.loseyourip.com/api/tts 500 (INTERNAL SERVER ERROR)
-speakWithLipSync @ greet:1228
-greetPerson @ greet:1161
-recognizeFaces @ greet:1115
-setInterval
-(anonymous) @ greet:1062
-greet:1236 [TTS] Server error: {error: 'Audio file was not created. Is Festival installed?', success: false}
-speakWithLipSync @ greet:1236
-await in speakWithLipSync
-greetPerson @ greet:1161
-recognizeFaces @ greet:1115
-setInterval
-(anonymous) @ greet:1062
-greet:1195 [QR] Generating QR code for: https://nrf.ruvolo.loseyourip.com/video
-greet:1212 [QR] QR code displayed
+[RESIZE] Image resized from (1280, 720) to (640, 360)
+[RESIZE] Size reduced from 55.78KB to 24.85KB
+[RECOGNIZE] Final image size: 24.85 KB
+[RECOGNIZE] Sending POST to: http://172.16.1.150:32168/v1/vision/face/recognize
+[RECOGNIZE] Timeout set to: 30 seconds
+[RECOGNIZE] Response received in 0.04 seconds
+[RECOGNIZE] Status code: 200
+[RECOGNIZE] Response JSON: {'message': 'A face was recognised', 'count': 1, 'predictions': [{'confidence': 0.8160504102706909, 'userid': 'dave', 'x_min': 286, 'y_min': 187, 'x_max': 357, 'y_max': 283}], 'success': True, 'inferenceMs': 30, 'processMs': 33, 'code': 200, 'command': 'recognize', 'moduleId': 'FaceProcessing', 'executionProvider': 'CUDA', 'analysisRoundTripMs': 36}
+[RECOGNIZE] Found 1 face prediction(s)
+[RECOGNIZE]   Face #1: dave (confidence: 81.61%)
+[RECOGNIZE] ✓ SUCCESS - Total time: 0.10s
+============================================================
+
+172.16.1.150 - - [31/Oct/2025 22:13:08] "POST /api/recognize HTTP/1.1" 200 -
+
+============================================================
+[RECOGNIZE] New recognition request at 22:13:09
+[RECOGNIZE] Base64 data length: 77368 characters
+[RECOGNIZE] Original image size: 56.66 KB
+[RESIZE] Image resized from (1280, 720) to (640, 360)
+[RESIZE] Size reduced from 56.66KB to 25.28KB
+[RECOGNIZE] Final image size: 25.28 KB
+[RECOGNIZE] Sending POST to: http://172.16.1.150:32168/v1/vision/face/recognize
+[RECOGNIZE] Timeout set to: 30 seconds
+[RECOGNIZE] Response received in 0.04 seconds
+[RECOGNIZE] Status code: 200
+[RECOGNIZE] Response JSON: {'message': 'A face was recognised', 'count': 1, 'predictions': [{'confidence': 0.8699413537979126, 'userid': 'dave', 'x_min': 294, 'y_min': 182, 'x_max': 368, 'y_max': 275}], 'success': True, 'inferenceMs': 30, 'processMs': 33, 'code': 200, 'command': 'recognize', 'moduleId': 'FaceProcessing', 'executionProvider': 'CUDA', 'analysisRoundTripMs': 35}
+[RECOGNIZE] Found 1 face prediction(s)
+[RECOGNIZE]   Face #1: dave (confidence: 86.99%)
+[RECOGNIZE] ✓ SUCCESS - Total time: 0.10s
+============================================================
+
+172.16.1.150 - - [31/Oct/2025 22:13:10] "POST /api/recognize HTTP/1.1" 200 -
+
+============================================================
+[RECOGNIZE] New recognition request at 22:13:11
+[RECOGNIZE] Base64 data length: 77272 characters
+[RECOGNIZE] Original image size: 56.60 KB
+[RESIZE] Image resized from (1280, 720) to (640, 360)
+[RESIZE] Size reduced from 56.60KB to 25.04KB
+[RECOGNIZE] Final image size: 25.04 KB
+[RECOGNIZE] Sending POST to: http://172.16.1.150:32168/v1/vision/face/recognize
+[RECOGNIZE] Timeout set to: 30 seconds
+[RECOGNIZE] Response received in 0.04 seconds
+[RECOGNIZE] Status code: 200
+[RECOGNIZE] Response JSON: {'message': 'A face was recognised', 'count': 1, 'predictions': [{'confidence': 0.8833484351634979, 'userid': 'dave', 'x_min': 294, 'y_min': 183, 'x_max': 367, 'y_max': 274}], 'success': True, 'inferenceMs': 31, 'processMs': 34, 'code': 200, 'command': 'recognize', 'moduleId': 'FaceProcessing', 'executionProvider': 'CUDA', 'analysisRoundTripMs': 37}
+[RECOGNIZE] Found 1 face prediction(s)
+[RECOGNIZE]   Face #1: dave (confidence: 88.33%)
+[RECOGNIZE] ✓ SUCCESS - Total time: 0.10s
+============================================================
+
+172.16.1.150 - - [31/Oct/2025 22:13:12] "POST /api/recognize HTTP/1.1" 200 -
+
+============================================================
+[RECOGNIZE] New recognition request at 22:13:13
+[RECOGNIZE] Base64 data length: 76960 characters
+[RECOGNIZE] Original image size: 56.37 KB
+[RESIZE] Image resized from (1280, 720) to (640, 360)
+[RESIZE] Size reduced from 56.37KB to 25.02KB
+[RECOGNIZE] Final image size: 25.02 KB
+[RECOGNIZE] Sending POST to: http://172.16.1.150:32168/v1/vision/face/recognize
+[RECOGNIZE] Timeout set to: 30 seconds
+[RECOGNIZE] Response received in 0.04 seconds
+[RECOGNIZE] Status code: 200
+[RECOGNIZE] Response JSON: {'message': 'A face was recognised', 'count': 1, 'predictions': [{'confidence': 0.8613986670970917, 'userid': 'dave', 'x_min': 294, 'y_min': 183, 'x_max': 367, 'y_max': 275}], 'success': True, 'inferenceMs': 31, 'processMs': 34, 'code': 200, 'command': 'recognize', 'moduleId': 'FaceProcessing', 'executionProvider': 'CUDA', 'analysisRoundTripMs': 36}
+[RECOGNIZE] Found 1 face prediction(s)
+[RECOGNIZE]   Face #1: dave (confidence: 86.14%)
+[RECOGNIZE] ✓ SUCCESS - Total time: 0.10s
+============================================================
+
+172.16.1.150 - - [31/Oct/2025 22:13:14] "POST /api/recognize HTTP/1.1" 200 -
+
+============================================================
+[TTS] Text-to-speech request at 22:13:14
+[TTS] Text: Hello Dave, welcome!
+[TTS] Generating audio with Festival TTS...
+[TTS] Running Festival TTS with male voice (slower)...
+[TTS] Text: Hello Dave, welcome!
+[TTS] Output path: /home/dave/Facial-Recognition/audio/tts_4515b05c47eb.wav
+[TTS] Trying voice: voice_kal_diphone
+[TTS] Voice voice_kal_diphone failed: SIOD ERROR: unbound variable : voice_kal_diphone
+
+[TTS] Trying voice: voice_cmu_us_bdl_arctic_hts
+[TTS] Voice voice_cmu_us_bdl_arctic_hts failed: SIOD ERROR: unbound variable : voice_cmu_us_bdl_arctic_hts
+
+[TTS] Trying voice: voice_cmu_us_rms_cg
+
+============================================================
+[RECOGNIZE] New recognition request at 22:13:15
+[RECOGNIZE] Base64 data length: 77048 characters
+[RECOGNIZE] Original image size: 56.43 KB
+[RESIZE] Image resized from (1280, 720) to (640, 360)
+[RESIZE] Size reduced from 56.43KB to 24.96KB
+[RECOGNIZE] Final image size: 24.96 KB
+[RECOGNIZE] Sending POST to: http://172.16.1.150:32168/v1/vision/face/recognize
+[RECOGNIZE] Timeout set to: 30 seconds
+[RECOGNIZE] Response received in 0.04 seconds
+[RECOGNIZE] Status code: 200
+[RECOGNIZE] Response JSON: {'message': 'A face was recognised', 'count': 1, 'predictions': [{'confidence': 0.8809268474578857, 'userid': 'dave', 'x_min': 294, 'y_min': 182, 'x_max': 367, 'y_max': 275}], 'success': True, 'inferenceMs': 26, 'processMs': 29, 'code': 200, 'command': 'recognize', 'moduleId': 'FaceProcessing', 'executionProvider': 'CUDA', 'analysisRoundTripMs': 30}
+[RECOGNIZE] Found 1 face prediction(s)
+[RECOGNIZE]   Face #1: dave (confidence: 88.09%)
+[RECOGNIZE] ✓ SUCCESS - Total time: 0.10s
+============================================================
+
+172.16.1.150 - - [31/Oct/2025 22:13:16] "POST /api/recognize HTTP/1.1" 200 -
+[TTS] Voice voice_cmu_us_rms_cg failed: SIOD ERROR: unbound variable : voice_cmu_us_rms_cg
+
+[TTS] Festival return code: 0
+[TTS] Festival stderr: SIOD ERROR: unbound variable : voice_cmu_us_rms_cg
+
+[TTS] ✗ Error: File not found at /home/dave/Facial-Recognition/audio/tts_4515b05c47eb.wav
+[TTS] Festival may not be installed or text2wave not in PATH
