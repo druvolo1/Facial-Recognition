@@ -1389,7 +1389,9 @@ async def list_location_users(
 
     # Get all user assignments for this location
     result = await session.execute(
-        select(UserLocationRole, User).join(User).where(
+        select(UserLocationRole, User).join(
+            User, UserLocationRole.user_id == User.id
+        ).where(
             UserLocationRole.location_id == location_id
         )
     )

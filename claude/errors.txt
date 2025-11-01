@@ -1,6 +1,27 @@
-locations:548 Error loading locations: TypeError: locations.map is not a function
-    at renderLocations (locations:577:41)
-    at loadLocations (locations:546:17)
-loadLocations @ locations:548
-await in loadLocations
-(anonymous) @ locations:502
+locations:773  GET https://nrf.ruvolo.loseyourip.com/api/locations/1/users 500 (Internal Server Error)
+loadLocationUsers @ locations:773
+showManageUsersModal @ locations:765
+onclick @ locations:1
+locations:779 Error loading location users: Error: Failed to load users
+    at loadLocationUsers (locations:774:41)
+    at async showManageUsersModal (locations:765:13)
+loadLocationUsers @ locations:779
+await in loadLocationUsers
+showManageUsersModal @ locations:765
+onclick @ locations:1
+locations:773  GET https://nrf.ruvolo.loseyourip.com/api/locations/1/users 500 (Internal Server Error)
+loadLocationUsers @ locations:773
+(anonymous) @ locations:845
+locations:779 Error loading location users: Error: Failed to load users
+    at loadLocationUsers (locations:774:41)
+loadLocationUsers @ locations:779
+await in loadLocationUsers
+(anonymous) @ locations:845
+locations:773  GET https://nrf.ruvolo.loseyourip.com/api/locations/1/users 500 (Internal Server Error)
+loadLocationUsers @ locations:773
+(anonymous) @ locations:845
+locations:779 Error loading location users: Error: Failed to load users
+    at loadLocationUsers (locations:774:41)
+loadLocationUsers @ locations:779
+await in loadLocationUsers
+(anonymous) @ locations:845
