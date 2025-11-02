@@ -1,7 +1,578 @@
-
+(venv) dave@Garden1:~/Facial-Recognition/app $ python main.py
+[CONFIG] Database URL: mariadb+aiomysql://app_user:testpass123@172.16.1.150:3306/facial_recognition
+[CONFIG] Base directory: /home/dave/Facial-Recognition
+[CONFIG] Upload folder: /home/dave/Facial-Recognition/uploads
 [CONFIG] CodeProject.AI: http://172.16.1.150:32168/v1
+/home/dave/Facial-Recognition/app/main.py:775: DeprecationWarning:
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+  @app.on_event("startup")
+
+************************************************************
+*                                                          *
+*  Facial Recognition App with Authentication              *
+*                                                          *
+************************************************************
+
+Server will start at: http://localhost:5000
+Login page: http://localhost:5000/login
+Dashboard: http://localhost:5000/dashboard
+
+Press Ctrl+C to stop
+
+INFO:     Will watch for changes in these directories: ['/home/dave/Facial-Recognition/app']
+INFO:     Uvicorn running on http://0.0.0.0:5000 (Press CTRL+C to quit)
+INFO:     Started reloader process [587964] using StatReload
+[CONFIG] Database URL: mariadb+aiomysql://app_user:testpass123@172.16.1.150:3306/facial_recognition
+[CONFIG] Base directory: /home/dave/Facial-Recognition
+[CONFIG] Upload folder: /home/dave/Facial-Recognition/uploads
+[CONFIG] CodeProject.AI: http://172.16.1.150:32168/v1
+[CONFIG] Database URL: mariadb+aiomysql://app_user:testpass123@172.16.1.150:3306/facial_recognition
+[CONFIG] Base directory: /home/dave/Facial-Recognition
+[CONFIG] Upload folder: /home/dave/Facial-Recognition/uploads
+[CONFIG] CodeProject.AI: http://172.16.1.150:32168/v1
+INFO:     Started server process [587970]
+INFO:     Waiting for application startup.
+
+============================================================
+[STARTUP] Facial Recognition App starting...
+[DB-INIT] Looking for .env file at: /home/dave/Facial-Recognition/.env
+[DB-INIT] .env file exists: True
+[DB-INIT] Connecting to MariaDB server at 172.16.1.150:3306
+[DB-INIT] User: app_user
+[DB-INIT] Target database: facial_recognition
+
+============================================================
+[DATABASE] Initializing database: facial_recognition
+[DATABASE] Host: 172.16.1.150:3306
+[DATABASE] User: app_user
+[DATABASE] ✓ Database 'facial_recognition' already exists and is accessible
+[STARTUP] ✓ Database tables created/verified
+[STARTUP] ✓ Admin user already exists: admin@example.com
+[STARTUP] ✓ Startup complete
+============================================================
+
+INFO:     Application startup complete.
+INFO:     172.16.1.150:36324 - "POST /api/devices/heartbeat HTTP/1.1" 200 OK
+[WEBSOCKET] Connection attempt for location 2
+[WEBSOCKET] Headers: Headers({'upgrade': 'websocket', 'connection': 'Upgrade', 'host': 'nrf.ruvolo.loseyourip.com', 'x-forwarded-scheme': 'https', 'x-forwarded-proto': 'https', 'x-forwarded-for': '172.16.1.1', 'x-real-ip': '172.16.1.1', 'pragma': 'no-cache', 'cache-control': 'no-cache', 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'origin': 'http://localhost:8002', 'sec-websocket-version': '13', 'accept-encoding': 'gzip, deflate, br, zstd', 'accept-language': 'en-US,en;q=0.9', 'sec-websocket-key': 'rliNI/z2+5d1J3Nh3Kx3oQ==', 'sec-websocket-extensions': 'permessage-deflate; client_max_window_bits'})
+INFO:     ('172.16.1.150', 48362) - "WebSocket /ws/dashboard/2" [accepted]
+[WEBSOCKET] New connection for location 2. Total: 1
+[WEBSOCKET] Connected successfully for location 2
+INFO:     connection open
+[WEBSOCKET] Error: (pymysql.err.OperationalError) (1054, "Unknown column 'registered_face.is_employee' in 'SELECT'")
+[SQL: SELECT registered_face.person_name, registered_face.profile_photo, registered_face.is_employee
+FROM registered_face
+WHERE registered_face.location_id = %s]
+[parameters: (2,)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+[WEBSOCKET] Connection closed for location 2. Remaining: 0
+INFO:     172.16.1.150:48372 - "POST /api/devices/heartbeat HTTP/1.1" 200 OK
+INFO:     172.16.1.150:48382 - "GET /registered-faces HTTP/1.1" 200 OK
+[GET-LOCATIONS] User: admin@example.com (ID: 1, Superuser: True)
+[GET-LOCATIONS] Superuser - returning 2 locations
+INFO:     172.16.1.150:48384 - "GET /api/my-locations HTTP/1.1" 200 OK
+[GET-REGISTERED-FACES] User: admin@example.com (ID: 1)
+[GET-REGISTERED-FACES] Location filter: None
+[REGISTERED-FACES] ERROR: OperationalError: (pymysql.err.OperationalError) (1054, "Unknown column 'registered_face.is_employee' in 'SELECT'")
+[SQL: SELECT registered_face.id, registered_face.person_name, registered_face.codeproject_user_id, registered_face.file_path, registered_face.codeproject_endpoint, registered_face.location_id, registered_face.registered_at, registered_face.registered_by_user_id, registered_face.profile_photo, registered_face.is_employee
+FROM registered_face]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
 Traceback (most recent call last):
-  File "/home/dave/Facial-Recognition/app/main.py", line 682, in <module>
-    @app.exception_handler(HTTPException)
-     ^^^
-NameError: name 'app' is not defined
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 95, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 104, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 239, in execute
+    await self._query(query)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 457, in _query
+    await conn.query(q)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 469, in query
+    await self._read_query_result(unbuffered=unbuffered)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+    await result.read()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 1164, in read
+    first_packet = await self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 652, in _read_packet
+    packet.raise_for_error()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.OperationalError: (1054, "Unknown column 'registered_face.is_employee' in 'SELECT'")
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/dave/Facial-Recognition/app/main.py", line 4298, in get_registered_faces
+    result = await session.execute(select(RegisteredFace))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/session.py", line 461, in execute
+    result = await greenlet_spawn(
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 201, in greenlet_spawn
+    result = context.throw(*sys.exc_info())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2362, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2247, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/context.py", line 305, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1418, in execute
+    return meth(
+           ^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 515, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1640, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2355, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 95, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 104, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 239, in execute
+    await self._query(query)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 457, in _query
+    await conn.query(q)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 469, in query
+    await self._read_query_result(unbuffered=unbuffered)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+    await result.read()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 1164, in read
+    first_packet = await self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 652, in _read_packet
+    packet.raise_for_error()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+sqlalchemy.exc.OperationalError: (pymysql.err.OperationalError) (1054, "Unknown column 'registered_face.is_employee' in 'SELECT'")
+[SQL: SELECT registered_face.id, registered_face.person_name, registered_face.codeproject_user_id, registered_face.file_path, registered_face.codeproject_endpoint, registered_face.location_id, registered_face.registered_at, registered_face.registered_by_user_id, registered_face.profile_photo, registered_face.is_employee
+FROM registered_face]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+INFO:     172.16.1.150:48392 - "GET /api/registered-faces HTTP/1.1" 500 Internal Server Error
+INFO:     172.16.1.150:48408 - "GET /api/users/me/selected-location HTTP/1.1" 200 OK
+INFO:     172.16.1.150:54320 - "GET /dashboard HTTP/1.1" 200 OK
+[GET-LOCATIONS] User: admin@example.com (ID: 1, Superuser: True)
+[GET-LOCATIONS] Superuser - returning 2 locations
+INFO:     172.16.1.150:54330 - "GET /api/my-locations HTTP/1.1" 200 OK
+INFO:     172.16.1.150:54340 - "GET /api/users/me/selected-location HTTP/1.1" 200 OK
+INFO:     172.16.1.150:54348 - "GET /recognize-face HTTP/1.1" 200 OK
+[GET-LOCATIONS] User: admin@example.com (ID: 1, Superuser: True)
+[GET-LOCATIONS] Superuser - returning 2 locations
+INFO:     172.16.1.150:54354 - "GET /api/my-locations HTTP/1.1" 200 OK
+INFO:     172.16.1.150:54356 - "GET /api/users/me/selected-location HTTP/1.1" 200 OK
+INFO:     172.16.1.150:54372 - "GET /registered-faces HTTP/1.1" 200 OK
+[GET-LOCATIONS] User: admin@example.com (ID: 1, Superuser: True)
+[GET-LOCATIONS] Superuser - returning 2 locations
+INFO:     172.16.1.150:54384 - "GET /api/my-locations HTTP/1.1" 200 OK
+[GET-REGISTERED-FACES] User: admin@example.com (ID: 1)
+[GET-REGISTERED-FACES] Location filter: None
+[REGISTERED-FACES] ERROR: OperationalError: (pymysql.err.OperationalError) (1054, "Unknown column 'registered_face.is_employee' in 'SELECT'")
+[SQL: SELECT registered_face.id, registered_face.person_name, registered_face.codeproject_user_id, registered_face.file_path, registered_face.codeproject_endpoint, registered_face.location_id, registered_face.registered_at, registered_face.registered_by_user_id, registered_face.profile_photo, registered_face.is_employee
+FROM registered_face]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Traceback (most recent call last):
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 95, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 104, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 239, in execute
+    await self._query(query)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 457, in _query
+    await conn.query(q)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 469, in query
+    await self._read_query_result(unbuffered=unbuffered)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+    await result.read()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 1164, in read
+    first_packet = await self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 652, in _read_packet
+    packet.raise_for_error()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.OperationalError: (1054, "Unknown column 'registered_face.is_employee' in 'SELECT'")
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/dave/Facial-Recognition/app/main.py", line 4298, in get_registered_faces
+    result = await session.execute(select(RegisteredFace))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/session.py", line 461, in execute
+    result = await greenlet_spawn(
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 201, in greenlet_spawn
+    result = context.throw(*sys.exc_info())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2362, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2247, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/context.py", line 305, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1418, in execute
+    return meth(
+           ^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 515, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1640, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2355, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 95, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 104, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 239, in execute
+    await self._query(query)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 457, in _query
+    await conn.query(q)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 469, in query
+    await self._read_query_result(unbuffered=unbuffered)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+    await result.read()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 1164, in read
+    first_packet = await self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 652, in _read_packet
+    packet.raise_for_error()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+sqlalchemy.exc.OperationalError: (pymysql.err.OperationalError) (1054, "Unknown column 'registered_face.is_employee' in 'SELECT'")
+[SQL: SELECT registered_face.id, registered_face.person_name, registered_face.codeproject_user_id, registered_face.file_path, registered_face.codeproject_endpoint, registered_face.location_id, registered_face.registered_at, registered_face.registered_by_user_id, registered_face.profile_photo, registered_face.is_employee
+FROM registered_face]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+INFO:     172.16.1.150:54398 - "GET /api/registered-faces HTTP/1.1" 500 Internal Server Error
+INFO:     172.16.1.150:54414 - "GET /api/users/me/selected-location HTTP/1.1" 200 OK
+INFO:     172.16.1.150:54426 - "POST /api/devices/heartbeat HTTP/1.1" 200 OK
+INFO:     172.16.1.150:54438 - "GET /admin/manage HTTP/1.1" 200 OK
+INFO:     172.16.1.150:54444 - "GET /static/js/admin-manage.js HTTP/1.1" 200 OK
+INFO:     172.16.1.150:54454 - "GET /api/admin/overview HTTP/1.1" 200 OK
+INFO:     172.16.1.150:54462 - "GET /api/admin/overview HTTP/1.1" 200 OK
+INFO:     172.16.1.150:54470 - "GET /api/devices/pending HTTP/1.1" 200 OK
+INFO:     172.16.1.150:54482 - "GET /api/locations HTTP/1.1" 200 OK
+INFO:     172.16.1.150:54494 - "GET /api/codeproject-servers HTTP/1.1" 200 OK
+INFO:     172.16.1.150:54502 - "GET /api/admin/users HTTP/1.1" 200 OK
+INFO:     172.16.1.150:54504 - "POST /api/devices/heartbeat HTTP/1.1" 200 OK
+INFO:     172.16.1.150:44776 - "POST /api/devices/heartbeat HTTP/1.1" 200 OK
+INFO:     172.16.1.150:41270 - "POST /api/devices/heartbeat HTTP/1.1" 200 OK
+[GET-REGISTERED-FACES] User: admin@example.com (ID: 1)
+[GET-REGISTERED-FACES] Location filter: None
+[REGISTERED-FACES] ERROR: OperationalError: (pymysql.err.OperationalError) (1054, "Unknown column 'registered_face.is_employee' in 'SELECT'")
+[SQL: SELECT registered_face.id, registered_face.person_name, registered_face.codeproject_user_id, registered_face.file_path, registered_face.codeproject_endpoint, registered_face.location_id, registered_face.registered_at, registered_face.registered_by_user_id, registered_face.profile_photo, registered_face.is_employee
+FROM registered_face]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Traceback (most recent call last):
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 95, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 104, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 239, in execute
+    await self._query(query)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 457, in _query
+    await conn.query(q)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 469, in query
+    await self._read_query_result(unbuffered=unbuffered)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+    await result.read()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 1164, in read
+    first_packet = await self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 652, in _read_packet
+    packet.raise_for_error()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.OperationalError: (1054, "Unknown column 'registered_face.is_employee' in 'SELECT'")
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/dave/Facial-Recognition/app/main.py", line 4298, in get_registered_faces
+    result = await session.execute(select(RegisteredFace))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/session.py", line 461, in execute
+    result = await greenlet_spawn(
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 201, in greenlet_spawn
+    result = context.throw(*sys.exc_info())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2362, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2247, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/context.py", line 305, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1418, in execute
+    return meth(
+           ^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 515, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1640, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2355, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 95, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 104, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 239, in execute
+    await self._query(query)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 457, in _query
+    await conn.query(q)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 469, in query
+    await self._read_query_result(unbuffered=unbuffered)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+    await result.read()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 1164, in read
+    first_packet = await self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 652, in _read_packet
+    packet.raise_for_error()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+sqlalchemy.exc.OperationalError: (pymysql.err.OperationalError) (1054, "Unknown column 'registered_face.is_employee' in 'SELECT'")
+[SQL: SELECT registered_face.id, registered_face.person_name, registered_face.codeproject_user_id, registered_face.file_path, registered_face.codeproject_endpoint, registered_face.location_id, registered_face.registered_at, registered_face.registered_by_user_id, registered_face.profile_photo, registered_face.is_employee
+FROM registered_face]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+INFO:     172.16.1.150:34024 - "GET /api/registered-faces HTTP/1.1" 500 Internal Server Error
+INFO:     172.16.1.150:34032 - "POST /api/devices/heartbeat HTTP/1.1" 200 OK
+[GET-REGISTERED-FACES] User: admin@example.com (ID: 1)
+[GET-REGISTERED-FACES] Location filter: None
+[REGISTERED-FACES] ERROR: OperationalError: (pymysql.err.OperationalError) (1054, "Unknown column 'registered_face.is_employee' in 'SELECT'")
+[SQL: SELECT registered_face.id, registered_face.person_name, registered_face.codeproject_user_id, registered_face.file_path, registered_face.codeproject_endpoint, registered_face.location_id, registered_face.registered_at, registered_face.registered_by_user_id, registered_face.profile_photo, registered_face.is_employee
+FROM registered_face]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Traceback (most recent call last):
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 95, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 104, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 239, in execute
+    await self._query(query)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 457, in _query
+    await conn.query(q)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 469, in query
+    await self._read_query_result(unbuffered=unbuffered)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+    await result.read()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 1164, in read
+    first_packet = await self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 652, in _read_packet
+    packet.raise_for_error()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.OperationalError: (1054, "Unknown column 'registered_face.is_employee' in 'SELECT'")
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/dave/Facial-Recognition/app/main.py", line 4298, in get_registered_faces
+    result = await session.execute(select(RegisteredFace))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/session.py", line 461, in execute
+    result = await greenlet_spawn(
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 201, in greenlet_spawn
+    result = context.throw(*sys.exc_info())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2362, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2247, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/context.py", line 305, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1418, in execute
+    return meth(
+           ^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 515, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1640, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2355, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 95, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 104, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 239, in execute
+    await self._query(query)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 457, in _query
+    await conn.query(q)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 469, in query
+    await self._read_query_result(unbuffered=unbuffered)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+    await result.read()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 1164, in read
+    first_packet = await self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 652, in _read_packet
+    packet.raise_for_error()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+sqlalchemy.exc.OperationalError: (pymysql.err.OperationalError) (1054, "Unknown column 'registered_face.is_employee' in 'SELECT'")
+[SQL: SELECT registered_face.id, registered_face.person_name, registered_face.codeproject_user_id, registered_face.file_path, registered_face.codeproject_endpoint, registered_face.location_id, registered_face.registered_at, registered_face.registered_by_user_id, registered_face.profile_photo, registered_face.is_employee
+
+
+
+
+
+
+

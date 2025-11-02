@@ -538,10 +538,10 @@
                 <div class="faces-grid">
                     ${faces.map(face => `
                         <div class="face-card">
-                            <div onclick="showAllPhotos('${face.name}')" style="cursor: pointer;">
-                                <img src="${face.photo}" alt="${face.name}" class="face-photo" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'280\\' height=\\'280\\'%3E%3Crect fill=\\'%23f0f0f0\\' width=\\'280\\' height=\\'280\\'/%3E%3Ctext fill=\\'%23999\\' x=\\'50%25\\' y=\\'50%25\\' text-anchor=\\'middle\\' dy=\\'.3em\\' font-size=\\'20\\'%3ENo Photo%3C/text%3E%3C/svg%3E'">
+                            <div onclick="showAllPhotos('${face.person_name}')" style="cursor: pointer;">
+                                <img src="${face.photo}" alt="${face.person_name}" class="face-photo" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'280\\' height=\\'280\\'%3E%3Crect fill=\\'%23f0f0f0\\' width=\\'280\\' height=\\'280\\'/%3E%3Ctext fill=\\'%23999\\' x=\\'50%25\\' y=\\'50%25\\' text-anchor=\\'middle\\' dy=\\'.3em\\' font-size=\\'20\\'%3ENo Photo%3C/text%3E%3C/svg%3E'">
                                 <div class="face-info">
-                                    <div class="face-name">${face.name}</div>
+                                    <div class="face-name">${face.person_name}</div>
                                     <div class="face-meta">
                                         <span>Click to view all</span>
                                         <span class="photo-count">${face.photo_count} photo${face.photo_count !== 1 ? 's' : ''}</span>
@@ -549,7 +549,7 @@
                                 </div>
                             </div>
                             <div style="padding: 0 20px 20px 20px;">
-                                <button class="delete-btn" onclick="deleteFace('${face.name}', event)">Delete ${face.name}</button>
+                                <button class="delete-btn" onclick="deleteFace('${face.person_name}', event)">Delete ${face.person_name}</button>
                             </div>
                             <div class="codeproject-id">
                                 <strong>CodeProject ID:</strong> ${face.codeproject_user_id}
@@ -571,7 +571,7 @@
 
         // Show all photos for a person in modal
         function showAllPhotos(personName) {
-            const face = allFaces.find(f => f.name === personName);
+            const face = allFaces.find(f => f.person_name === personName);
             if (!face) return;
 
             document.getElementById('modalPersonName').textContent = personName;
