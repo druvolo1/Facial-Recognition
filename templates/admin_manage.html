@@ -762,7 +762,7 @@
                 // Get current user
                 const response = await fetch('/api/users/me');
                 if (!response.ok) {
-                    window.location.href = '/auth/login';
+                    window.location.href = '/login';
                     return;
                 }
                 currentUser = await response.json();
@@ -1538,10 +1538,10 @@
         async function logout() {
             try {
                 await fetch('/auth/logout', { method: 'POST' });
-                window.location.href = '/auth/login';
+                window.location.href = '/login';
             } catch (error) {
                 console.error('Logout error:', error);
-                window.location.href = '/auth/login';
+                window.location.href = '/login';
             }
         }
 
