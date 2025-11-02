@@ -1566,6 +1566,30 @@ async def reset_user_password(
     }
 
 
+@app.post("/api/admin/users/{user_id}/activate")
+async def activate_user(
+    user_id: int,
+    admin: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Activate a pending user account"""
+    result = await session.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user.is_active:
+        raise HTTPException(status_code=400, detail="User is already active")
+
+    # Activate the user
+    user.is_active = True
+    user.is_verified = True
+    await session.commit()
+
+    return {"success": True, "message": f"User {user.email} has been activated"}
+
+
 @app.delete("/api/admin/users/{user_id}")
 async def delete_user(
     user_id: int,

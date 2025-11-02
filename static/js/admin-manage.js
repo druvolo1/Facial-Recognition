@@ -530,6 +530,19 @@ async function loadUsers() {
                             }).join(' ')
                             : '<span style="color: #999;">None</span>';
 
+                        // Build action buttons
+                        let actionButtons = '';
+                        if (user.id !== data.current_user_id) {
+                            // Show Approve button for pending users
+                            if (!user.is_active && !user.is_suspended) {
+                                actionButtons += `<button class="btn btn-success btn-sm" onclick="approveUser(${user.id}, '${escapeHtml(user.email)}')">Approve</button> `;
+                            }
+                            actionButtons += `<button class="btn btn-secondary btn-sm" onclick="manageUserLocations(${user.id}, '${escapeHtml(user.email)}')">Locations</button> `;
+                            actionButtons += `<button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id}, '${escapeHtml(user.email)}')">Delete</button>`;
+                        } else {
+                            actionButtons = '<span style="color: #999;">Current User</span>';
+                        }
+
                         return `
                             <tr>
                                 <td>${escapeHtml(user.email)}</td>
@@ -537,12 +550,7 @@ async function loadUsers() {
                                 <td>${user.is_superuser ? '<span class="badge badge-danger">Superadmin</span>' : '<span class="badge badge-info">User</span>'}</td>
                                 <td>${statusBadge}</td>
                                 <td>${locationList}</td>
-                                <td>
-                                    ${user.id !== data.current_user_id ? `
-                                        <button class="btn btn-secondary btn-sm" onclick="manageUserLocations(${user.id}, '${escapeHtml(user.email)}')">Locations</button>
-                                        <button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id}, '${escapeHtml(user.email)}')">Delete</button>
-                                    ` : '<span style="color: #999;">Current User</span>'}
-                                </td>
+                                <td>${actionButtons}</td>
                             </tr>
                         `;
                     }).join('')}
@@ -932,6 +940,29 @@ async function deleteUser(userId, email) {
     } catch (error) {
         console.error('Error:', error);
         showAlert('Error deleting user', 'error');
+    }
+}
+
+async function approveUser(userId, email) {
+    if (!confirm(`Approve user ${email}?\n\nThis will activate their account and allow them to log in.`)) return;
+
+    try {
+        const response = await fetch(`/api/admin/users/${userId}/activate`, {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            showAlert('User approved successfully', 'success');
+            await loadOverview();
+            await loadUsers();
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Failed to approve user', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error approving user', 'error');
     }
 }
 
