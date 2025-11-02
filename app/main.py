@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 
-from sqlalchemy import Boolean, Integer, String, Text, Column, ForeignKey, select, DateTime
+from sqlalchemy import Boolean, Integer, String, Text, Column, ForeignKey, select, DateTime, func
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.exc import IntegrityError
@@ -461,6 +461,7 @@ templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 # Mount static files
 app.mount("/uploads", StaticFiles(directory=UPLOAD_FOLDER), name="uploads")
 app.mount("/audio", StaticFiles(directory=AUDIO_FOLDER), name="audio")
+app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 
 
 # ============================================================================
@@ -658,6 +659,8 @@ async def dashboard(
     session: AsyncSession = Depends(get_async_session)
 ):
     """Main dashboard (requires authentication and location assignment)"""
+    is_location_admin = False
+
     # Superadmins have access to all locations, so they bypass the check
     if not user.is_superuser:
         # Check if user has any location assignments
@@ -670,9 +673,13 @@ async def dashboard(
         if not user_locations:
             return RedirectResponse(url="/no-location", status_code=302)
 
+        # Check if user is admin of any location
+        is_location_admin = any(loc.role == 'location_admin' for loc in user_locations)
+
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
-        "user": user
+        "user": user,
+        "is_location_admin": is_location_admin
     })
 
 
@@ -743,9 +750,31 @@ async def logout(response: HTMLResponse):
 # ADMIN ROUTES
 # ============================================================================
 
+# Helper dependency to check if user has admin privileges (superadmin or location admin)
+async def require_any_admin_access(
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Require user to be either a superadmin or location admin"""
+    if user.is_superuser:
+        return user
+
+    # Check if user is admin of any location
+    result = await session.execute(
+        select(UserLocationRole).where(
+            UserLocationRole.user_id == user.id,
+            UserLocationRole.role == 'location_admin'
+        )
+    )
+    if result.scalar_one_or_none():
+        return user
+
+    raise HTTPException(status_code=403, detail="Admin access required")
+
+
 @app.get("/admin/manage", response_class=HTMLResponse)
-async def admin_manage_page(request: Request, user: User = Depends(current_superuser)):
-    """Combined admin management page"""
+async def admin_manage_page(request: Request, user: User = Depends(require_any_admin_access)):
+    """Combined admin management page - for superadmins and location admins"""
     return templates.TemplateResponse("admin_manage.html", {"request": request, "user": user})
 
 
@@ -761,6 +790,111 @@ async def admin_locations_page(request: Request, user: User = Depends(current_su
     """Admin location management page - redirects to new combined page"""
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url="/admin/manage")
+
+
+@app.get("/api/admin/overview")
+async def get_admin_overview(
+    user: User = Depends(require_any_admin_access),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Get overview stats for the management dashboard"""
+    stats = {
+        "is_superuser": user.is_superuser,
+        "total_users": 0,
+        "total_locations": 0,
+        "total_devices": 0,
+        "pending_devices": 0,
+        "total_registered_faces": 0,
+        "managed_locations": []
+    }
+
+    if user.is_superuser:
+        # Superadmin sees everything
+        # Count users
+        user_count = await session.execute(select(func.count(User.id)))
+        stats["total_users"] = user_count.scalar()
+
+        # Count locations
+        location_count = await session.execute(select(func.count(Location.id)))
+        stats["total_locations"] = location_count.scalar()
+
+        # Count all devices
+        device_count = await session.execute(
+            select(func.count(Device.id)).where(Device.is_approved == True)
+        )
+        stats["total_devices"] = device_count.scalar()
+
+        # Count pending devices
+        pending_count = await session.execute(
+            select(func.count(Device.id)).where(Device.is_approved == False)
+        )
+        stats["pending_devices"] = pending_count.scalar()
+
+        # Count registered faces
+        face_count = await session.execute(select(func.count(RegisteredFace.id)))
+        stats["total_registered_faces"] = face_count.scalar()
+
+        # Get all locations for managed_locations
+        locations_result = await session.execute(select(Location))
+        all_locations = locations_result.scalars().all()
+        stats["managed_locations"] = [
+            {"id": loc.id, "name": loc.name} for loc in all_locations
+        ]
+
+    else:
+        # Location admin sees only their locations
+        # Get admin's locations
+        admin_locations = await session.execute(
+            select(UserLocationRole, Location)
+            .join(Location)
+            .where(
+                UserLocationRole.user_id == user.id,
+                UserLocationRole.role == 'location_admin'
+            )
+        )
+        managed_locs = admin_locations.all()
+        location_ids = [loc.id for _, loc in managed_locs]
+        stats["managed_locations"] = [
+            {"id": loc.id, "name": loc.name} for _, loc in managed_locs
+        ]
+        stats["total_locations"] = len(location_ids)
+
+        if location_ids:
+            # Count devices in managed locations
+            device_count = await session.execute(
+                select(func.count(Device.id)).where(
+                    Device.is_approved == True,
+                    Device.location_id.in_(location_ids)
+                )
+            )
+            stats["total_devices"] = device_count.scalar()
+
+            # Count pending devices in managed locations
+            pending_count = await session.execute(
+                select(func.count(Device.id)).where(
+                    Device.is_approved == False,
+                    Device.location_id.in_(location_ids)
+                )
+            )
+            stats["pending_devices"] = pending_count.scalar()
+
+            # Count registered faces in managed locations
+            face_count = await session.execute(
+                select(func.count(RegisteredFace.id)).where(
+                    RegisteredFace.location_id.in_(location_ids)
+                )
+            )
+            stats["total_registered_faces"] = face_count.scalar()
+
+            # Count users assigned to these locations
+            user_count = await session.execute(
+                select(func.count(func.distinct(UserLocationRole.user_id))).where(
+                    UserLocationRole.location_id.in_(location_ids)
+                )
+            )
+            stats["total_users"] = user_count.scalar()
+
+    return stats
 
 
 @app.get("/api/admin/users")

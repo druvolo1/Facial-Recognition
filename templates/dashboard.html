@@ -152,7 +152,7 @@
                 <a href="/register" style="color: white; text-decoration: none; font-weight: 500;">Register Faces</a>
                 <a href="/recognize-face" style="color: white; text-decoration: none; font-weight: 500;">Recognize Faces</a>
                 <a href="/registered-faces" style="color: white; text-decoration: none; font-weight: 500;">Registered Faces</a>
-                {% if user.is_superuser %}
+                {% if user.is_superuser or is_location_admin %}
                 <a href="/admin/manage" style="color: white; text-decoration: none; font-weight: 500;">Manage</a>
                 {% endif %}
             </div>
