@@ -750,6 +750,22 @@
         </div>
     </div>
 
+    <!-- View Location Devices Modal -->
+    <div id="view-devices-modal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2 id="devices-modal-title">Location Devices</h2>
+                <button class="close-modal" onclick="closeModal('view-devices-modal')">&times;</button>
+            </div>
+            <div id="devices-list-container">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading devices...
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         let currentUser = {
             id: {{ user.id }},
@@ -1002,6 +1018,18 @@
         }
 
         async function viewLocationDevices(locationId) {
+            // Set modal title and show loading
+            const location = allLocations.find(loc => loc.id === locationId);
+            document.getElementById('devices-modal-title').textContent = location ? `Devices at ${location.name}` : 'Location Devices';
+            document.getElementById('devices-list-container').innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading devices...
+                </div>
+            `;
+
+            openModal('view-devices-modal');
+
             try {
                 const response = await fetch(`/api/locations/${locationId}`, {
                     credentials: 'include'
@@ -1012,15 +1040,15 @@
                 }
 
                 const data = await response.json();
-                const location = data.location;
+                const locationData = data.location;
+                const devices = locationData.approved_devices || [];
 
-                const devices = location.approved_devices || [];
-                let html = `<h3>Devices at ${escapeHtml(location.name)}</h3>`;
+                const container = document.getElementById('devices-list-container');
 
                 if (devices.length === 0) {
-                    html += '<div class="empty-state"><p>No devices at this location</p></div>';
+                    container.innerHTML = '<div class="empty-state"><p>No devices at this location</p></div>';
                 } else {
-                    html += `
+                    container.innerHTML = `
                         <table>
                             <thead>
                                 <tr>
@@ -1037,8 +1065,8 @@
                                         <td><span class="badge badge-info">${escapeHtml(device.device_type)}</span></td>
                                         <td>${device.last_seen ? new Date(device.last_seen).toLocaleString() : 'Never'}</td>
                                         <td>
-                                            <button class="btn btn-warning btn-sm" onclick="editDevice('${device.device_id}', '${escapeHtml(device.device_name)}', '${device.device_type}', '${escapeHtml(device.codeproject_endpoint)}', ${device.location_id})">Edit</button>
-                                            <button class="btn btn-danger btn-sm" onclick="removeDevice('${device.device_id}', '${escapeHtml(device.device_name)}')">Remove</button>
+                                            <button class="btn btn-warning btn-sm" onclick="editDevice('${device.device_id}', '${escapeHtml(device.device_name)}', '${device.device_type}', '${escapeHtml(device.codeproject_endpoint)}', ${device.location_id}); closeModal('view-devices-modal');">Edit</button>
+                                            <button class="btn btn-danger btn-sm" onclick="removeDevice('${device.device_id}', '${escapeHtml(device.device_name)}'); closeModal('view-devices-modal');">Remove</button>
                                         </td>
                                     </tr>
                                 `).join('')}
@@ -1046,11 +1074,9 @@
                         </table>
                     `;
                 }
-
-                showAlert(html, 'success');
             } catch (error) {
                 console.error('Error:', error);
-                showAlert('Error loading devices', 'error');
+                document.getElementById('devices-list-container').innerHTML = '<div class="alert alert-error">Error loading devices</div>';
             }
         }
 
