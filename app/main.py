@@ -783,7 +783,8 @@ async def require_any_admin_access(
             UserLocationRole.role == 'location_admin'
         )
     )
-    if result.scalar_one_or_none():
+    admin_locations = result.scalars().all()
+    if admin_locations:
         return user
 
     raise HTTPException(status_code=403, detail="Admin access required")
