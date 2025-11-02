@@ -729,15 +729,24 @@ async function showApproveDeviceModal(deviceId, code) {
 document.getElementById('approve-device-type').addEventListener('change', (e) => {
     const serverGroup = document.getElementById('approve-device-server-group');
     const serverSelect = document.getElementById('approve-device-server');
+    const processingMode = document.getElementById('approve-device-processing-mode');
     const scannerSettings = document.getElementById('approve-device-scanner-settings');
 
     if (e.target.value === 'location_dashboard') {
         serverGroup.style.display = 'none';
         serverSelect.removeAttribute('required');
+        processingMode.style.display = 'none';
         scannerSettings.style.display = 'none';
     } else {
         serverGroup.style.display = 'block';
         serverSelect.setAttribute('required', 'required');
+
+        // Show processing mode for devices that process images (kiosk and scanner)
+        if (e.target.value === 'registration_kiosk' || e.target.value === 'people_scanner') {
+            processingMode.style.display = 'block';
+        } else {
+            processingMode.style.display = 'none';
+        }
 
         // Show scanner settings only for people_scanner
         if (e.target.value === 'people_scanner') {
@@ -762,6 +771,12 @@ document.getElementById('approve-device-form').addEventListener('submit', async 
         device_type: deviceType,
         codeproject_endpoint: deviceType === 'location_dashboard' ? null : (server ? server.endpoint_url : '')
     };
+
+    // Add processing mode for devices that process images
+    if (deviceType === 'registration_kiosk' || deviceType === 'people_scanner') {
+        const processingModeRadio = document.querySelector('input[name="approve-processing-mode"]:checked');
+        data.processing_mode = processingModeRadio ? processingModeRadio.value : 'server';
+    }
 
     // Add scanner settings if device is a people_scanner
     if (deviceType === 'people_scanner') {
@@ -845,18 +860,33 @@ async function editDeviceById(deviceId) {
         document.getElementById('edit-device-server').value = server.id;
     }
 
-    // Show/hide server dropdown based on device type
+    // Show/hide server dropdown and processing mode based on device type
     const serverGroup = document.getElementById('edit-device-server-group');
     const serverSelect = document.getElementById('edit-device-server');
+    const processingMode = document.getElementById('edit-device-processing-mode');
     const scannerSettings = document.getElementById('edit-device-scanner-settings');
 
     if (device.device_type === 'location_dashboard') {
         serverGroup.style.display = 'none';
         serverSelect.removeAttribute('required');
+        processingMode.style.display = 'none';
         scannerSettings.style.display = 'none';
     } else {
         serverGroup.style.display = 'block';
         serverSelect.setAttribute('required', 'required');
+
+        // Show processing mode for devices that process images
+        if (device.device_type === 'registration_kiosk' || device.device_type === 'people_scanner') {
+            processingMode.style.display = 'block';
+            // Set processing mode radio button
+            const processingModeValue = device.processing_mode || 'server';
+            const radioButton = document.querySelector(`input[name="edit-processing-mode"][value="${processingModeValue}"]`);
+            if (radioButton) {
+                radioButton.checked = true;
+            }
+        } else {
+            processingMode.style.display = 'none';
+        }
 
         // Show scanner settings only for people_scanner
         if (device.device_type === 'people_scanner') {
@@ -877,15 +907,24 @@ async function editDeviceById(deviceId) {
 document.getElementById('edit-device-type').addEventListener('change', (e) => {
     const serverGroup = document.getElementById('edit-device-server-group');
     const serverSelect = document.getElementById('edit-device-server');
+    const processingMode = document.getElementById('edit-device-processing-mode');
     const scannerSettings = document.getElementById('edit-device-scanner-settings');
 
     if (e.target.value === 'location_dashboard') {
         serverGroup.style.display = 'none';
         serverSelect.removeAttribute('required');
+        processingMode.style.display = 'none';
         scannerSettings.style.display = 'none';
     } else {
         serverGroup.style.display = 'block';
         serverSelect.setAttribute('required', 'required');
+
+        // Show processing mode for devices that process images (kiosk and scanner)
+        if (e.target.value === 'registration_kiosk' || e.target.value === 'people_scanner') {
+            processingMode.style.display = 'block';
+        } else {
+            processingMode.style.display = 'none';
+        }
 
         // Show scanner settings only for people_scanner
         if (e.target.value === 'people_scanner') {
@@ -910,6 +949,12 @@ document.getElementById('edit-device-form').addEventListener('submit', async (e)
         device_type: deviceType,
         codeproject_endpoint: deviceType === 'location_dashboard' ? null : (server ? server.endpoint_url : '')
     };
+
+    // Add processing mode for devices that process images
+    if (deviceType === 'registration_kiosk' || deviceType === 'people_scanner') {
+        const processingModeRadio = document.querySelector('input[name="edit-processing-mode"]:checked');
+        data.processing_mode = processingModeRadio ? processingModeRadio.value : 'server';
+    }
 
     // Add scanner settings if device is a people_scanner
     if (deviceType === 'people_scanner') {

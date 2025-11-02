@@ -732,6 +732,20 @@
                         <option value="">Select a server...</option>
                     </select>
                 </div>
+                <div class="form-group" id="approve-device-processing-mode" style="display: none;">
+                    <label>Image Processing Mode *</label>
+                    <div style="margin-top: 8px;">
+                        <label style="display: inline-flex; align-items: center; margin-right: 20px; cursor: pointer;">
+                            <input type="radio" name="approve-processing-mode" value="server" checked style="margin-right: 8px;">
+                            <span>Server (Flask → CodeProject.AI)</span>
+                        </label>
+                        <label style="display: inline-flex; align-items: center; cursor: pointer;">
+                            <input type="radio" name="approve-processing-mode" value="direct" style="margin-right: 8px;">
+                            <span>Direct (Device → CodeProject.AI)</span>
+                        </label>
+                    </div>
+                    <p style="font-size: 12px; color: #666; margin-top: 6px;">Server mode works anywhere but adds latency. Direct mode is faster but requires network access to CodeProject.AI.</p>
+                </div>
                 <div class="form-group" id="approve-device-scanner-settings" style="display: none;">
                     <h4 style="margin-bottom: 10px; color: #667eea;">Scanner Detection Settings</h4>
                     <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Leave blank to use system defaults (.env file)</p>
@@ -790,6 +804,20 @@
                     <select id="edit-device-server" required>
                         <option value="">Select a server...</option>
                     </select>
+                </div>
+                <div class="form-group" id="edit-device-processing-mode" style="display: none;">
+                    <label>Image Processing Mode *</label>
+                    <div style="margin-top: 8px;">
+                        <label style="display: inline-flex; align-items: center; margin-right: 20px; cursor: pointer;">
+                            <input type="radio" name="edit-processing-mode" value="server" checked style="margin-right: 8px;">
+                            <span>Server (Flask → CodeProject.AI)</span>
+                        </label>
+                        <label style="display: inline-flex; align-items: center; cursor: pointer;">
+                            <input type="radio" name="edit-processing-mode" value="direct" style="margin-right: 8px;">
+                            <span>Direct (Device → CodeProject.AI)</span>
+                        </label>
+                    </div>
+                    <p style="font-size: 12px; color: #666; margin-top: 6px;">Server mode works anywhere but adds latency. Direct mode is faster but requires network access to CodeProject.AI.</p>
                 </div>
                 <div class="form-group" id="edit-device-scanner-settings" style="display: none;">
                     <h4 style="margin-bottom: 10px; color: #667eea;">Scanner Detection Settings</h4>

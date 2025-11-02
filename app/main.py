@@ -73,6 +73,15 @@ print(f"[CONFIG] Upload folder: {UPLOAD_FOLDER}")
 print(f"[CONFIG] CodeProject.AI: {CODEPROJECT_BASE_URL}")
 
 # ============================================================================
+# TOKEN CACHE
+# ============================================================================
+
+# In-memory cache for device token validation
+# Structure: { device_id: { 'token': str, 'device': Device, 'expires_at': datetime, 'is_approved': bool } }
+DEVICE_TOKEN_CACHE = {}
+DEVICE_TOKEN_CACHE_TTL = 300  # 5 minutes in seconds
+
+# ============================================================================
 # DATABASE MODELS
 # ============================================================================
 
@@ -204,6 +213,8 @@ class Device(Base):
     confidence_threshold: Mapped[Optional[float]] = mapped_column(Numeric(5, 4), nullable=True)
     presence_timeout_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     detection_cooldown_seconds: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # Processing mode for image recognition: 'direct' (device calls CodeProject.AI directly) or 'server' (device -> flask -> CodeProject.AI)
+    processing_mode: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, default='server')
 
 
 class Detection(Base):
@@ -263,12 +274,63 @@ async def rotate_device_token_if_needed(device: Device, session: AsyncSession) -
     return None
 
 
+# ============================================================================
+# TOKEN CACHE FUNCTIONS
+# ============================================================================
+
+def invalidate_device_cache(device_id: str):
+    """Invalidate cache entry for a specific device"""
+    if device_id in DEVICE_TOKEN_CACHE:
+        del DEVICE_TOKEN_CACHE[device_id]
+        print(f"[CACHE] Invalidated cache for device {device_id[:8]}...")
+
+
+def get_device_from_cache(device_id: str, token: str) -> Optional[Device]:
+    """
+    Get device from cache if valid.
+    Returns Device object if cache hit and valid, None otherwise.
+    """
+    if device_id not in DEVICE_TOKEN_CACHE:
+        return None
+
+    cache_entry = DEVICE_TOKEN_CACHE[device_id]
+
+    # Check if cache expired
+    if datetime.utcnow() > cache_entry['expires_at']:
+        del DEVICE_TOKEN_CACHE[device_id]
+        return None
+
+    # Check if token matches
+    if cache_entry['token'] != token:
+        # Token changed - invalidate cache
+        del DEVICE_TOKEN_CACHE[device_id]
+        return None
+
+    # Check if still approved
+    if not cache_entry['is_approved']:
+        # Device was unapproved - invalidate cache
+        del DEVICE_TOKEN_CACHE[device_id]
+        return None
+
+    return cache_entry['device']
+
+
+def add_device_to_cache(device_id: str, token: str, device: Device):
+    """Add device to cache with TTL"""
+    DEVICE_TOKEN_CACHE[device_id] = {
+        'token': token,
+        'device': device,
+        'is_approved': device.is_approved,
+        'expires_at': datetime.utcnow() + timedelta(seconds=DEVICE_TOKEN_CACHE_TTL)
+    }
+
+
 # Device authentication dependency
 async def get_current_device(
     request: Request,
     session: AsyncSession = Depends(get_async_session)
 ) -> Device:
-    """Authenticate device by device_id and token from request headers"""
+    """Authenticate device by device_id and token from request headers (with caching)"""
     # Get device_id from header first
     device_id = request.headers.get("X-Device-ID")
 
@@ -289,7 +351,24 @@ async def get_current_device(
     # Get device token from header
     device_token = request.headers.get("X-Device-Token")
 
-    # Get device from database
+    if not device_token:
+        raise HTTPException(
+            status_code=403,
+            detail="Invalid or missing device token"
+        )
+
+    # Check cache first
+    cached_device = get_device_from_cache(device_id, device_token)
+    if cached_device:
+        # Cache hit - update last_seen asynchronously without blocking
+        try:
+            cached_device.last_seen = datetime.utcnow()
+            await session.commit()
+        except:
+            await session.rollback()
+        return cached_device
+
+    # Cache miss - fetch from database
     result = await session.execute(
         select(Device).where(Device.device_id == device_id)
     )
@@ -314,7 +393,7 @@ async def get_current_device(
             detail="Device has no token. Please re-register."
         )
 
-    if not device_token or device_token != device.device_token:
+    if device_token != device.device_token:
         raise HTTPException(
             status_code=403,
             detail="Invalid or missing device token"
@@ -325,6 +404,8 @@ async def get_current_device(
     if new_token:
         # Token was rotated - include in response header for client to update
         request.state.new_device_token = new_token
+        # Invalidate cache since token changed
+        invalidate_device_cache(device_id)
 
     # Update last_seen (ignore concurrency errors since this is not critical)
     try:
@@ -336,6 +417,10 @@ async def get_current_device(
         await session.rollback()
         # Re-fetch the device to get the latest state
         await session.refresh(device)
+
+    # Add to cache if token wasn't rotated (if rotated, we'll cache on next request with new token)
+    if not new_token:
+        add_device_to_cache(device_id, device_token, device)
 
     return device
 
@@ -402,6 +487,8 @@ class ApproveDeviceRequest(BaseModel):
     location_id: int
     device_type: str  # 'registration_kiosk', 'people_scanner', or 'location_dashboard'
     codeproject_endpoint: Optional[str] = None  # Not required for location_dashboard
+    # Processing mode: 'direct' (device -> CodeProject.AI) or 'server' (device -> flask -> CodeProject.AI)
+    processing_mode: Optional[str] = 'server'  # Default to 'server'
     # Scanner detection settings (optional, defaults to .env values)
     confidence_threshold: Optional[float] = None
     presence_timeout_minutes: Optional[int] = None
@@ -413,6 +500,8 @@ class UpdateDeviceRequest(BaseModel):
     location_id: Optional[int] = None
     device_type: Optional[str] = None
     codeproject_endpoint: Optional[str] = None
+    # Processing mode: 'direct' or 'server'
+    processing_mode: Optional[str] = None
     # Scanner detection settings
     confidence_threshold: Optional[float] = None
     presence_timeout_minutes: Optional[int] = None
@@ -2808,6 +2897,8 @@ async def device_heartbeat(
         "location_id": device.location_id,
         "codeproject_endpoint": device.codeproject_endpoint,
         "is_approved": device.is_approved,
+        # Processing mode (default to 'server' if not set)
+        "processing_mode": device.processing_mode or 'server',
         # Detection settings (use device-specific or fall back to .env defaults)
         "confidence_threshold": float(device.confidence_threshold) if device.confidence_threshold is not None else DEFAULT_CONFIDENCE_THRESHOLD,
         "presence_timeout_minutes": device.presence_timeout_minutes if device.presence_timeout_minutes is not None else DEFAULT_PRESENCE_TIMEOUT_MINUTES,
@@ -3141,7 +3232,13 @@ async def approve_device(
     if data.detection_cooldown_seconds is not None:
         device.detection_cooldown_seconds = data.detection_cooldown_seconds
 
+    # Set processing mode (default to 'server' if not specified)
+    device.processing_mode = data.processing_mode or 'server'
+
     await session.commit()
+
+    # Invalidate cache for this device
+    invalidate_device_cache(device_id)
 
     print(f"[DEVICE] Device approved by {user.email}: {device_id} -> {data.device_name} at location {data.location_id}")
     print(f"[TOKEN] Generated token for device {data.device_name}")
@@ -3273,6 +3370,7 @@ async def list_devices(
             "location_id": device.location_id,
             "location_name": location_name,
             "codeproject_endpoint": device.codeproject_endpoint,
+            "processing_mode": device.processing_mode or 'server',
             "registered_at": device.registered_at.isoformat(),
             "last_seen": device.last_seen.isoformat() if device.last_seen else None,
             "token_status": token_status,
@@ -3368,7 +3466,14 @@ async def update_device(
     if data.detection_cooldown_seconds is not None:
         device.detection_cooldown_seconds = data.detection_cooldown_seconds
 
+    # Update processing mode
+    if data.processing_mode is not None:
+        device.processing_mode = data.processing_mode
+
     await session.commit()
+
+    # Invalidate cache for this device since settings changed
+    invalidate_device_cache(device_id)
 
     print(f"[DEVICE] Device updated by {user.email}: {device_id}")
 
@@ -3480,6 +3585,9 @@ async def delete_device(
 
     await session.delete(device)
     await session.commit()
+
+    # Invalidate cache for this device
+    invalidate_device_cache(device_id)
 
     print(f"[DEVICE] Device deleted by {user.email}: {device_id}")
 
