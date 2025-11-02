@@ -766,6 +766,41 @@
         </div>
     </div>
 
+    <!-- Manage User Locations Modal -->
+    <div id="manage-user-locations-modal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2 id="user-locations-modal-title">Manage User Locations</h2>
+                <button class="close-modal" onclick="closeModal('manage-user-locations-modal')">&times;</button>
+            </div>
+            <div id="user-locations-container">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading...
+                </div>
+            </div>
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #dee2e6;">
+                <h3 style="margin-bottom: 15px;">Assign to New Location</h3>
+                <form id="assign-location-form" style="display: flex; gap: 10px; align-items: flex-end;">
+                    <div class="form-group" style="flex: 1; margin: 0;">
+                        <label for="assign-location-select">Location</label>
+                        <select id="assign-location-select" required>
+                            <option value="">Select location...</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1; margin: 0;">
+                        <label for="assign-role-select">Role</label>
+                        <select id="assign-role-select" required>
+                            <option value="location_user">Location User</option>
+                            <option value="location_admin">Location Admin</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Assign</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script>
         let currentUser = {
             id: {{ user.id }},
@@ -966,9 +1001,138 @@
             }
         }
 
+        let currentManageUserId = null;
+        let currentManageUserEmail = null;
+
         async function manageUserLocations(userId, email) {
-            // For now, show alert - TODO: add modal for managing location assignments
-            showAlert('Location assignment coming soon. For now, approve the user and they can be assigned to locations.', 'success');
+            currentManageUserId = userId;
+            currentManageUserEmail = email;
+
+            document.getElementById('user-locations-modal-title').textContent = `Manage Locations for ${email}`;
+            document.getElementById('user-locations-container').innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading...
+                </div>
+            `;
+
+            // Populate location dropdown
+            const locationSelect = document.getElementById('assign-location-select');
+            locationSelect.innerHTML = '<option value="">Select location...</option>' +
+                allLocations.map(loc => `<option value="${loc.id}">${escapeHtml(loc.name)}</option>`).join('');
+
+            openModal('manage-user-locations-modal');
+
+            // Load user's current locations
+            try {
+                const response = await fetch(`/api/users/${userId}/locations`, {
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                const userLocations = data.locations || [];
+
+                const container = document.getElementById('user-locations-container');
+
+                if (userLocations.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><p>User is not assigned to any locations</p></div>';
+                } else {
+                    container.innerHTML = `
+                        <h3 style="margin-bottom: 15px;">Current Location Assignments</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Location</th>
+                                    <th>Role</th>
+                                    <th>Assigned</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${userLocations.map(loc => `
+                                    <tr>
+                                        <td>${escapeHtml(loc.location_name)}</td>
+                                        <td><span class="badge ${loc.role === 'location_admin' ? 'badge-danger' : 'badge-info'}">${escapeHtml(loc.role)}</span></td>
+                                        <td>${new Date(loc.assigned_at).toLocaleDateString()}</td>
+                                        <td>
+                                            <button class="btn btn-danger btn-sm" onclick="removeUserFromLocation(${userId}, ${loc.location_id}, '${escapeHtml(loc.location_name)}')">Remove</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading user locations:', error);
+                document.getElementById('user-locations-container').innerHTML = '<div class="alert alert-error">Error loading locations</div>';
+            }
+        }
+
+        document.getElementById('assign-location-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const locationId = document.getElementById('assign-location-select').value;
+            const role = document.getElementById('assign-role-select').value;
+
+            if (!locationId) {
+                showAlert('Please select a location', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/locations/${locationId}/users`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        user_id: currentManageUserId,
+                        role: role
+                    })
+                });
+
+                if (response.ok) {
+                    showAlert('User assigned to location successfully', 'success');
+                    document.getElementById('assign-location-form').reset();
+                    // Reload the locations list
+                    manageUserLocations(currentManageUserId, currentManageUserEmail);
+                    loadUsers(); // Refresh the users table
+                } else {
+                    const error = await response.json();
+                    showAlert(error.detail || 'Failed to assign user to location', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('Error assigning user to location', 'error');
+            }
+        });
+
+        async function removeUserFromLocation(userId, locationId, locationName) {
+            if (!confirm(`Remove user from ${locationName}?`)) return;
+
+            try {
+                const response = await fetch(`/api/locations/${locationId}/users/${userId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    showAlert('User removed from location successfully', 'success');
+                    // Reload the locations list
+                    manageUserLocations(currentManageUserId, currentManageUserEmail);
+                    loadUsers(); // Refresh the users table
+                } else {
+                    const error = await response.json();
+                    showAlert(error.detail || 'Failed to remove user from location', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('Error removing user from location', 'error');
+            }
         }
 
         async function deleteUser(userId, email) {
