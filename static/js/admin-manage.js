@@ -127,9 +127,9 @@ function buildStatsCards() {
             </div>
         `);
     } else {
-        // Location admin sees their location count
+        // Location admin sees their location count (but can't click - no locations tab for them)
         cards.push(`
-            <div class="stat-card">
+            <div class="stat-card" style="cursor: default;">
                 <div class="stat-icon">📍</div>
                 <div class="stat-value">${overviewStats.total_locations}</div>
                 <div class="stat-label">My Locations</div>

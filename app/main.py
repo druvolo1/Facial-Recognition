@@ -843,7 +843,20 @@ async def get_admin_overview(
 
     else:
         # Location admin sees only their locations
-        # Get admin's locations
+        # Get ALL user's locations (both admin and user roles)
+        all_user_locations = await session.execute(
+            select(UserLocationRole, Location)
+            .join(Location)
+            .where(UserLocationRole.user_id == user.id)
+        )
+        all_locs = all_user_locations.all()
+        location_ids = [loc.id for _, loc in all_locs]
+        stats["managed_locations"] = [
+            {"id": loc.id, "name": loc.name} for _, loc in all_locs
+        ]
+        stats["total_locations"] = len(location_ids)
+
+        # Get locations where user is admin (for permission filtering)
         admin_locations = await session.execute(
             select(UserLocationRole, Location)
             .join(Location)
@@ -852,12 +865,9 @@ async def get_admin_overview(
                 UserLocationRole.role == 'location_admin'
             )
         )
-        managed_locs = admin_locations.all()
-        location_ids = [loc.id for _, loc in managed_locs]
-        stats["managed_locations"] = [
-            {"id": loc.id, "name": loc.name} for _, loc in managed_locs
-        ]
-        stats["total_locations"] = len(location_ids)
+        admin_locs = admin_locations.all()
+        admin_location_ids = [loc.id for _, loc in admin_locs]
+        stats["admin_location_ids"] = admin_location_ids
 
         if location_ids:
             # Count devices in managed locations

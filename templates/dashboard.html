@@ -152,8 +152,10 @@
                 <a href="/register" style="color: white; text-decoration: none; font-weight: 500;">Register Faces</a>
                 <a href="/recognize-face" style="color: white; text-decoration: none; font-weight: 500;">Recognize Faces</a>
                 <a href="/registered-faces" style="color: white; text-decoration: none; font-weight: 500;">Registered Faces</a>
-                {% if user.is_superuser or is_location_admin %}
+                {% if user.is_superuser %}
                 <a href="/admin/manage" style="color: white; text-decoration: none; font-weight: 500;">Manage</a>
+                {% else %}
+                <a href="/admin/manage" id="manageLink" style="color: white; text-decoration: none; font-weight: 500; display: none;">Manage</a>
                 {% endif %}
             </div>
             <div style="display: flex; gap: 15px; align-items: center;">
@@ -208,6 +210,25 @@
         let userLocations = [];
         let selectedLocationId = null;
 
+        // Update manage link visibility based on current location
+        function updateManageLink() {
+            const manageLink = document.getElementById('manageLink');
+            if (!manageLink) return; // Superadmins don't have this element
+
+            if (!selectedLocationId) {
+                manageLink.style.display = 'none';
+                return;
+            }
+
+            // Find the selected location and check if user is admin
+            const selectedLocation = userLocations.find(loc => loc.location_id === selectedLocationId);
+            if (selectedLocation && selectedLocation.role === 'location_admin') {
+                manageLink.style.display = 'inline';
+            } else {
+                manageLink.style.display = 'none';
+            }
+        }
+
         // Load user's locations and selected location
         async function loadLocations() {
             try {
@@ -224,6 +245,9 @@
                 });
                 const selectedData = await selectedResponse.json();
                 selectedLocationId = selectedData.selected_location_id;
+
+                // Update manage link visibility
+                updateManageLink();
 
                 // Only show location selector if user has multiple locations
                 const selector = document.getElementById('locationSelector');
