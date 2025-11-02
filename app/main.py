@@ -3193,6 +3193,14 @@ async def log_scan(
         if not device.location_id:
             raise HTTPException(status_code=400, detail="Device must have a location assigned")
 
+        # Get area name if device has an area assigned
+        area_name = None
+        if device.area_id:
+            area_result = await session.execute(select(Area).where(Area.id == device.area_id))
+            area = area_result.scalar_one_or_none()
+            if area:
+                area_name = area.area_name
+
         # Create detection records
         detection_records = []
         for det in detections:
@@ -3214,6 +3222,7 @@ async def log_scan(
                 "person_name": person_name,
                 "confidence": confidence,
                 "device_name": device.device_name or device.device_id[:8],
+                "area_name": area_name,
                 "detected_at": detection.detected_at.isoformat()
             })
 
@@ -3309,11 +3318,17 @@ async def websocket_dashboard(
                         "detected_at": det.detected_at.isoformat()
                     }
 
-            # Get device names
+            # Get device names and areas
             device_result = await session.execute(
                 select(Device).where(Device.location_id == location_id)
             )
-            devices = {d.device_id: d.device_name for d in device_result.scalars().all()}
+            devices = {d.device_id: {"name": d.device_name, "area_id": d.area_id} for d in device_result.scalars().all()}
+
+            # Get area names
+            area_result = await session.execute(
+                select(Area).where(Area.location_id == location_id)
+            )
+            areas = {a.id: a.area_name for a in area_result.scalars().all()}
 
             # Get profile photos from registered_face table
             # Group by person_name to get one photo per person
@@ -3327,9 +3342,12 @@ async def websocket_dashboard(
                 if row.person_name not in profile_photos:
                     profile_photos[row.person_name] = row.profile_photo
 
-            # Add device names and profile photos to detections
+            # Add device names, area names, and profile photos to detections
             for detection in person_latest.values():
-                detection["device_name"] = devices.get(detection["device_id"], detection["device_id"][:8])
+                device_info = devices.get(detection["device_id"], {})
+                detection["device_name"] = device_info.get("name", detection["device_id"][:8])
+                area_id = device_info.get("area_id")
+                detection["area_name"] = areas.get(area_id) if area_id else None
                 detection["profile_photo"] = profile_photos.get(detection["person_name"])
 
             await websocket.send_json({
