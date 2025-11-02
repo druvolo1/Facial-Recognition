@@ -1392,11 +1392,25 @@ async def delete_location(
 
     location_name = location.name
 
+    # Check if any devices are assigned to this location
+    devices_result = await session.execute(
+        select(Device).where(Device.location_id == location_id)
+    )
+    devices = devices_result.scalars().all()
+
+    if devices:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete location: {len(devices)} device(s) are assigned to it. Please remove or reassign devices first."
+        )
+
     # Delete associated user-location roles
-    await session.execute(
+    roles_result = await session.execute(
         select(UserLocationRole).where(UserLocationRole.location_id == location_id)
     )
-    # Note: The delete will cascade if we set up the foreign key properly
+    roles = roles_result.scalars().all()
+    for role in roles:
+        await session.delete(role)
 
     await session.delete(location)
     await session.commit()
