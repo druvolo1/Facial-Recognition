@@ -107,6 +107,8 @@ class RegisteredFace(Base):
     codeproject_user_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     # Path to the image file
     file_path: Mapped[str] = mapped_column(String(512), nullable=False)
+    # CodeProject.AI endpoint URL where this face was registered
+    codeproject_endpoint: Mapped[str] = mapped_column(String(512), nullable=False)
     # When it was registered
     registered_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     # User who registered this face
@@ -2027,6 +2029,7 @@ async def device_register_face(
                             person_name=data.name,
                             codeproject_user_id=data.name,
                             file_path=filepath,
+                            codeproject_endpoint=codeproject_url,
                             registered_by_user_id=None  # Device registration
                         )
                         session.add(registered_face)
@@ -2319,6 +2322,7 @@ async def register_face(
                             person_name=data.name,
                             codeproject_user_id=data.name,
                             file_path=filepath,
+                            codeproject_endpoint=CODEPROJECT_BASE_URL,
                             registered_by_user_id=user.id
                         )
                         session.add(registered_face)
@@ -2443,26 +2447,36 @@ async def delete_registered_face(
 
         print(f"[DELETE] Found {len(face_records)} file(s) to delete")
 
-        # Delete from CodeProject.AI
-        print(f"[DELETE] Removing from CodeProject.AI...")
-        try:
-            response = requests.post(
-                f"{CODEPROJECT_BASE_URL}/vision/face/delete",
-                data={'userid': person_name},
-                timeout=30
-            )
+        # Group face records by CodeProject endpoint
+        endpoints = {}
+        for face_record in face_records:
+            endpoint = face_record.codeproject_endpoint
+            if endpoint not in endpoints:
+                endpoints[endpoint] = []
+            endpoints[endpoint].append(face_record)
 
-            if response.status_code == 200:
-                result_data = response.json()
-                if result_data.get('success'):
-                    print(f"[DELETE]   ✓ Removed from CodeProject.AI")
+        # Delete from each CodeProject.AI server
+        print(f"[DELETE] Removing from {len(endpoints)} CodeProject.AI server(s)...")
+        for endpoint, records in endpoints.items():
+            try:
+                print(f"[DELETE]   Deleting from {endpoint}...")
+                response = requests.post(
+                    f"{endpoint}/vision/face/delete",
+                    data={'userid': person_name},
+                    timeout=30
+                )
+
+                if response.status_code == 200:
+                    result_data = response.json()
+                    if result_data.get('success'):
+                        print(f"[DELETE]     ✓ Removed from {endpoint} ({len(records)} record(s))")
+                    else:
+                        print(f"[DELETE]     ⚠ CodeProject.AI response: {result_data.get('error', 'Unknown error')}")
                 else:
-                    print(f"[DELETE]   ⚠ CodeProject.AI response: {result_data.get('error', 'Unknown error')}")
-            else:
-                print(f"[DELETE]   ⚠ CodeProject.AI returned status {response.status_code}")
-        except Exception as e:
-            print(f"[DELETE]   ⚠ Error removing from CodeProject.AI: {e}")
-            # Continue with file deletion even if CodeProject.AI fails
+                    print(f"[DELETE]     ⚠ CodeProject.AI returned status {response.status_code}")
+            except Exception as e:
+                print(f"[DELETE]     ⚠ Error removing from {endpoint}: {e}")
+                # Continue with file deletion even if CodeProject.AI fails
 
         # Delete files from disk
         deleted_files = 0
