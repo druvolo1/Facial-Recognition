@@ -12,6 +12,13 @@ let activeTab = null;
 // Initialize dashboard
 async function init() {
     try {
+        // Check if location_id is in URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const locationIdParam = urlParams.get('location_id');
+        if (locationIdParam) {
+            managedLocationFilter = parseInt(locationIdParam);
+        }
+
         // Load overview stats first (determines user role and permissions)
         await loadOverview();
 

@@ -153,7 +153,7 @@
                 <a href="/recognize-face" style="color: white; text-decoration: none; font-weight: 500;">Recognize Faces</a>
                 <a href="/registered-faces" style="color: white; text-decoration: none; font-weight: 500;">Registered Faces</a>
                 {% if user.is_superuser %}
-                <a href="/admin/manage" style="color: white; text-decoration: none; font-weight: 500;">Manage</a>
+                <a href="/admin/manage" id="manageLink" style="color: white; text-decoration: none; font-weight: 500;">Manage</a>
                 {% else %}
                 <a href="/admin/manage" id="manageLink" style="color: white; text-decoration: none; font-weight: 500; display: none;">Manage</a>
                 {% endif %}
@@ -197,7 +197,7 @@
             </div>
 
             {% if user.is_superuser %}
-            <div class="card" onclick="location.href='/admin/manage'">
+            <div class="card" onclick="goToManage()">
                 <div class="card-icon">⚙️</div>
                 <h3>Manage</h3>
                 <p>Manage users, locations, and CodeProject servers</p>
@@ -209,14 +209,45 @@
     <script>
         let userLocations = [];
         let selectedLocationId = null;
+        const isSuperuser = {{ 'true' if user.is_superuser else 'false' }};
 
-        // Update manage link visibility based on current location
+        // Navigate to manage page with current location filter
+        function goToManage() {
+            if (selectedLocationId) {
+                window.location.href = `/admin/manage?location_id=${selectedLocationId}`;
+            } else {
+                window.location.href = '/admin/manage';
+            }
+        }
+
+        // Update manage link visibility and URL based on current location
         function updateManageLink() {
             const manageLink = document.getElementById('manageLink');
-            if (!manageLink) return; // Superadmins don't have this element
+            if (!manageLink) return;
 
-            if (!selectedLocationId) {
+            // For superadmins, always show manage link and update URL with location
+            if (isSuperuser) {
+                manageLink.style.display = 'inline';
+                if (selectedLocationId) {
+                    manageLink.href = `/admin/manage?location_id=${selectedLocationId}`;
+                } else {
+                    manageLink.href = '/admin/manage';
+                }
+                return;
+            }
+
+            // For location admins, check permissions
+            const hasAdminLocations = userLocations.some(loc => loc.role === 'location_admin');
+
+            if (!hasAdminLocations) {
                 manageLink.style.display = 'none';
+                return;
+            }
+
+            // If "All Locations" is selected (no specific location ID)
+            if (!selectedLocationId) {
+                manageLink.style.display = 'inline';
+                manageLink.href = '/admin/manage'; // No location filter
                 return;
             }
 
@@ -224,6 +255,7 @@
             const selectedLocation = userLocations.find(loc => loc.location_id === selectedLocationId);
             if (selectedLocation && selectedLocation.role === 'location_admin') {
                 manageLink.style.display = 'inline';
+                manageLink.href = `/admin/manage?location_id=${selectedLocationId}`;
             } else {
                 manageLink.style.display = 'none';
             }
@@ -252,8 +284,28 @@
                 // Only show location selector if user has multiple locations
                 const selector = document.getElementById('locationSelector');
                 if (userLocations.length > 1) {
+                    // Check if user is admin of multiple locations
+                    const adminLocations = userLocations.filter(loc => loc.role === 'location_admin');
+
                     // Populate dropdown
-                    selector.innerHTML = '<option value="">Select Location...</option>';
+                    selector.innerHTML = '';
+
+                    // Add "All Locations" option if user is admin of multiple locations
+                    if (adminLocations.length > 1) {
+                        const allOption = document.createElement('option');
+                        allOption.value = '';
+                        allOption.textContent = 'All Locations';
+                        if (!selectedLocationId) {
+                            allOption.selected = true;
+                        }
+                        selector.appendChild(allOption);
+                    } else {
+                        const selectOption = document.createElement('option');
+                        selectOption.value = '';
+                        selectOption.textContent = 'Select Location...';
+                        selector.appendChild(selectOption);
+                    }
+
                     userLocations.forEach(loc => {
                         const option = document.createElement('option');
                         option.value = loc.location_id;
@@ -265,9 +317,13 @@
                     });
                     selector.style.display = 'block';
 
-                    // If no location selected yet, auto-select the first one
+                    // If no location selected yet, auto-select based on admin status
                     if (!selectedLocationId && userLocations.length > 0) {
-                        await setSelectedLocation(userLocations[0].location_id);
+                        // Only auto-select if NOT an admin with multiple locations
+                        // (let them keep "All Locations" as default)
+                        if (adminLocations.length <= 1) {
+                            await setSelectedLocation(userLocations[0].location_id);
+                        }
                     }
                 } else if (userLocations.length === 1) {
                     // Auto-select the only location
@@ -283,9 +339,26 @@
         // Change selected location
         async function changeLocation() {
             const selector = document.getElementById('locationSelector');
-            const locationId = parseInt(selector.value);
+            const value = selector.value;
 
-            if (locationId) {
+            if (value === '') {
+                // "All Locations" selected - clear selection
+                selectedLocationId = null;
+                updateManageLink();
+
+                // Save to server (only if user had a previous selection)
+                try {
+                    await fetch('/api/users/me/selected-location', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ location_id: null })
+                    });
+                } catch (error) {
+                    console.error('Error clearing selected location:', error);
+                }
+            } else {
+                const locationId = parseInt(value);
                 await setSelectedLocation(locationId);
             }
         }
