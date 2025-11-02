@@ -1222,21 +1222,42 @@ async def list_locations(
             )
             locations = result.scalars().all()
 
+        # Get approved devices for each location
+        location_list = []
+        for loc in locations:
+            devices_result = await session.execute(
+                select(Device).where(
+                    Device.location_id == loc.id,
+                    Device.is_approved == True
+                )
+            )
+            devices = devices_result.scalars().all()
+
+            location_list.append({
+                "id": loc.id,
+                "name": loc.name,
+                "address": loc.address,
+                "description": loc.description,
+                "timezone": loc.timezone,
+                "contact_info": loc.contact_info,
+                "created_at": loc.created_at.isoformat(),
+                "approved_devices": [
+                    {
+                        "device_id": d.device_id,
+                        "device_name": d.device_name,
+                        "device_type": d.device_type,
+                        "codeproject_endpoint": d.codeproject_endpoint,
+                        "location_id": d.location_id,
+                        "last_seen": d.last_seen.isoformat() if d.last_seen else None
+                    }
+                    for d in devices
+                ]
+            })
+
         return {
             "success": True,
-            "locations": [
-                {
-                    "id": loc.id,
-                    "name": loc.name,
-                    "address": loc.address,
-                    "description": loc.description,
-                    "timezone": loc.timezone,
-                    "contact_info": loc.contact_info,
-                    "created_at": loc.created_at.isoformat()
-                }
-                for loc in locations
-            ],
-            "total": len(locations)
+            "locations": location_list,
+            "total": len(location_list)
         }
 
     except Exception as e:

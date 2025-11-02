@@ -752,6 +752,7 @@
 
     <script>
         let currentUser = {
+            id: {{ user.id }},
             email: "{{ user.email }}",
             is_superuser: {{ 'true' if user.is_superuser else 'false' }}
         };
@@ -798,8 +799,16 @@
         // Users Management
         async function loadUsers() {
             try {
-                const response = await fetch('/api/admin/users');
-                const users = await response.json();
+                const response = await fetch('/api/admin/users', {
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                const users = data.users || [];
 
                 const container = document.getElementById('users-list-container');
                 if (users.length === 0) {
@@ -924,8 +933,16 @@
         // Locations Management
         async function loadLocations() {
             try {
-                const response = await fetch('/api/locations');
-                allLocations = await response.json();
+                const response = await fetch('/api/locations', {
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                allLocations = data.locations || [];
 
                 // Update location dropdowns
                 updateLocationDropdowns();
@@ -1090,8 +1107,16 @@
         // Device Management
         async function loadPendingDevices() {
             try {
-                const response = await fetch('/api/devices/pending');
-                const devices = await response.json();
+                const response = await fetch('/api/devices/pending', {
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                const devices = data.devices || [];
 
                 const container = document.getElementById('pending-devices-container');
                 if (devices.length === 0) {
@@ -1279,7 +1304,14 @@
         // CodeProject Servers Management
         async function loadServers() {
             try {
-                const response = await fetch('/api/codeproject-servers');
+                const response = await fetch('/api/codeproject-servers', {
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
                 allServers = await response.json();
 
                 // Update server dropdowns

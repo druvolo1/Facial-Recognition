@@ -1,12 +1,52 @@
-18dd HTTP/1.1" 200 OK
-INFO:     172.16.1.150:37886 - "GET /registered-faces HTTP/1.1" 200 OK
-INFO:     172.16.1.150:37894 - "GET /api/registered-faces HTTP/1.1" 200 OK
-INFO:     172.16.1.150:49210 - "GET /admin/manage HTTP/1.1" 200 OK
-INFO:     172.16.1.150:49226 - "GET /api/users/me HTTP/1.1" 404 Not Found
-INFO:     172.16.1.150:49242 - "GET /login HTTP/1.1" 200 OK
-INFO:     172.16.1.150:49250 - "POST /auth/jwt/login HTTP/1.1" 200 OK
-INFO:     172.16.1.150:49264 - "GET /dashboard HTTP/1.1" 200 OK
-INFO:     172.16.1.150:49268 - "GET /admin/manage HTTP/1.1" 200 OK
-INFO:     172.16.1.150:49274 - "GET /api/users/me HTTP/1.1" 404 Not Found
-INFO:     172.16.1.150:49282 - "GET /login HTTP/1.1" 200 OK
-INFO:     172.16.1.150:51236 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+manage:1 [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) <input type=​"password" id=​"user-password" required minlength=​"6">​
+manage:842 Error loading users: TypeError: users.map is not a function
+    at loadUsers (manage:822:37)
+loadUsers @ manage:842
+await in loadUsers
+init @ manage:766
+(anonymous) @ manage:1536
+manage:968 Error loading locations: TypeError: allLocations.map is not a function
+    at manage:982:34
+    at Array.forEach (<anonymous>)
+    at updateLocationDropdowns (manage:979:21)
+    at loadLocations (manage:931:17)
+loadLocations @ manage:968
+await in loadLocations
+init @ manage:767
+(anonymous) @ manage:1536
+manage:1126 Error loading pending devices: TypeError: devices.map is not a function
+    at loadPendingDevices (manage:1112:39)
+loadPendingDevices @ manage:1126
+await in loadPendingDevices
+switchTab @ manage:793
+onclick @ manage:457
+manage:968 Error loading locations: TypeError: allLocations.map is not a function
+    at manage:982:34
+    at Array.forEach (<anonymous>)
+    at updateLocationDropdowns (manage:979:21)
+    at loadLocations (manage:931:17)
+loadLocations @ manage:968
+await in loadLocations
+switchTab @ manage:792
+onclick @ manage:457
+manage:1126 Error loading pending devices: TypeError: devices.map is not a function
+    at loadPendingDevices (manage:1112:39)
+loadPendingDevices @ manage:1126
+await in loadPendingDevices
+switchTab @ manage:793
+onclick @ manage:457
+manage:968 Error loading locations: TypeError: allLocations.map is not a function
+    at manage:982:34
+    at Array.forEach (<anonymous>)
+    at updateLocationDropdowns (manage:979:21)
+    at loadLocations (manage:931:17)
+loadLocations @ manage:968
+await in loadLocations
+switchTab @ manage:792
+onclick @ manage:457
+manage:842 Error loading users: TypeError: users.map is not a function
+    at loadUsers (manage:822:37)
+loadUsers @ manage:842
+await in loadUsers
+switchTab @ manage:790
+onclick @ manage:456
