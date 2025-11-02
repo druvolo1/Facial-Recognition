@@ -2729,11 +2729,12 @@ async def device_register_face(
                             codeproject_user_id=data.name,
                             file_path=filepath,
                             codeproject_endpoint=codeproject_url,
+                            location_id=device.location_id,  # Tag with device's location
                             registered_by_user_id=None  # Device registration
                         )
                         session.add(registered_face)
                         await session.commit()
-                        print(f"[DEVICE-REGISTER]   ✓ Saved to database")
+                        print(f"[DEVICE-REGISTER]   ✓ Saved to database (location_id: {device.location_id})")
                     else:
                         error_msg = result.get('error', 'Unknown error')
                         errors.append(f"Photo {idx+1}: {error_msg}")
