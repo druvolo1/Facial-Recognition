@@ -3235,7 +3235,31 @@ async def approve_device(
     # Set processing mode (default to 'server' if not specified)
     device.processing_mode = data.processing_mode or 'server'
 
-    await session.commit()
+    # Commit with retry on concurrency error
+    try:
+        await session.commit()
+    except Exception as e:
+        # If concurrent modification (heartbeat updated last_seen), retry
+        await session.rollback()
+        await session.refresh(device)
+        # Reapply all changes
+        device.device_name = data.device_name
+        device.location_id = data.location_id
+        device.device_type = data.device_type
+        device.codeproject_endpoint = data.codeproject_endpoint
+        device.is_approved = True
+        device.approved_at = datetime.utcnow()
+        device.approved_by_user_id = user.id
+        device.device_token = device_token
+        device.token_created_at = datetime.utcnow()
+        if data.confidence_threshold is not None:
+            device.confidence_threshold = data.confidence_threshold
+        if data.presence_timeout_minutes is not None:
+            device.presence_timeout_minutes = data.presence_timeout_minutes
+        if data.detection_cooldown_seconds is not None:
+            device.detection_cooldown_seconds = data.detection_cooldown_seconds
+        device.processing_mode = data.processing_mode or 'server'
+        await session.commit()
 
     # Invalidate cache for this device
     invalidate_device_cache(device_id)
@@ -3470,7 +3494,33 @@ async def update_device(
     if data.processing_mode is not None:
         device.processing_mode = data.processing_mode
 
-    await session.commit()
+    # Commit with retry on concurrency error
+    try:
+        await session.commit()
+    except Exception as e:
+        # If concurrent modification (heartbeat updated last_seen), retry
+        await session.rollback()
+        await session.refresh(device)
+        # Reapply all changes
+        if data.device_name is not None:
+            device.device_name = data.device_name
+        if data.location_id is not None:
+            device.location_id = data.location_id
+        if data.device_type is not None:
+            device.device_type = data.device_type
+        if data.codeproject_endpoint is not None:
+            device.codeproject_endpoint = data.codeproject_endpoint
+        elif data.device_type == 'location_dashboard':
+            device.codeproject_endpoint = None
+        if data.confidence_threshold is not None:
+            device.confidence_threshold = data.confidence_threshold
+        if data.presence_timeout_minutes is not None:
+            device.presence_timeout_minutes = data.presence_timeout_minutes
+        if data.detection_cooldown_seconds is not None:
+            device.detection_cooldown_seconds = data.detection_cooldown_seconds
+        if data.processing_mode is not None:
+            device.processing_mode = data.processing_mode
+        await session.commit()
 
     # Invalidate cache for this device since settings changed
     invalidate_device_cache(device_id)
