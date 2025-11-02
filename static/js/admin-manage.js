@@ -282,6 +282,11 @@ async function loadTabData(tabName) {
 // Load pending devices
 async function loadPendingDevices() {
     try {
+        // Refresh overview stats first to get latest counts
+        await loadOverview();
+        buildStatsCards();
+        buildTabs();
+
         // Note: Pending devices are NOT filtered by location since they
         // haven't been assigned to a location yet (assigned during approval)
         const response = await fetch('/api/devices/pending', {
