@@ -2309,12 +2309,24 @@ async function showAssignTagsModal(personName, locationId) {
 
     document.getElementById('assign-tags-person-name').textContent = personName;
 
+    // Load categories if not already loaded
+    if (allCategories.length === 0) {
+        await loadCategories();
+    }
+
     // Load current tags for person
     const personTags = await loadPersonTags(personName, locationId);
     const personTagIds = personTags.map(t => t.tag_id);
 
     // Build UI with categories and checkboxes
     const container = document.getElementById('assign-tags-container');
+
+    if (allCategories.length === 0) {
+        container.innerHTML = '<p style="color: #999; padding: 20px; text-align: center;">No categories available. Please create categories and tags first in the Categories & Tags tab.</p>';
+        openModal('assign-tags-modal');
+        return;
+    }
+
     container.innerHTML = allCategories.map(category => {
         const tags = categoryTagsMap[category.id] || [];
         if (tags.length === 0) return '';
