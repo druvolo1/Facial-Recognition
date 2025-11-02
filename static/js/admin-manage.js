@@ -282,13 +282,9 @@ async function loadTabData(tabName) {
 // Load pending devices
 async function loadPendingDevices() {
     try {
-        // Build URL with location filter
-        let url = '/api/devices/pending';
-        if (managedLocationFilter) {
-            url += `?location_id=${managedLocationFilter}`;
-        }
-
-        const response = await fetch(url, {
+        // Note: Pending devices are NOT filtered by location since they
+        // haven't been assigned to a location yet (assigned during approval)
+        const response = await fetch('/api/devices/pending', {
             credentials: 'include'
         });
 

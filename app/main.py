@@ -863,12 +863,9 @@ async def get_admin_overview(
             )
             stats["total_devices"] = device_count.scalar()
 
-            # Count pending devices in this location
+            # Count ALL pending devices (not filtered - pending devices have no location yet)
             pending_count = await session.execute(
-                select(func.count(Device.id)).where(
-                    Device.is_approved == False,
-                    Device.location_id == location_id
-                )
+                select(func.count(Device.id)).where(Device.is_approved == False)
             )
             stats["pending_devices"] = pending_count.scalar()
 
@@ -959,12 +956,9 @@ async def get_admin_overview(
             )
             stats["total_devices"] = device_count.scalar()
 
-            # Count pending devices in managed/filtered locations
+            # Count ALL pending devices (not filtered - pending devices have no location yet)
             pending_count = await session.execute(
-                select(func.count(Device.id)).where(
-                    Device.is_approved == False,
-                    Device.location_id.in_(location_ids)
-                )
+                select(func.count(Device.id)).where(Device.is_approved == False)
             )
             stats["pending_devices"] = pending_count.scalar()
 
@@ -2575,9 +2569,12 @@ async def list_pending_devices(
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session)
 ):
-    """List pending device approvals (for superadmins and location admins)"""
+    """List pending device approvals (for superadmins and location admins)
+
+    Note: Pending devices don't have a location_id yet (assigned during approval),
+    so location filtering is not applied to pending devices - they're always shown.
+    """
     # Only superadmins and location admins can see pending devices
-    admin_location_ids = []
     if not user.is_superuser:
         # Check if they're a location admin
         result = await session.execute(
@@ -2591,20 +2588,9 @@ async def list_pending_devices(
         if not admin_locations:
             raise HTTPException(status_code=403, detail="Access denied")
 
-        admin_location_ids = [loc.location_id for loc in admin_locations]
-
-    # Build query based on filter and permissions
+    # Pending devices always shown regardless of location filter
+    # (they haven't been assigned to a location yet - that happens during approval)
     query = select(Device).where(Device.is_approved == False)
-
-    if location_id:
-        # Specific location filter
-        if not user.is_superuser and location_id not in admin_location_ids:
-            raise HTTPException(status_code=403, detail="Access denied to this location")
-        query = query.where(Device.location_id == location_id)
-    elif not user.is_superuser:
-        # Location admin without filter - show only their locations
-        if admin_location_ids:
-            query = query.where(Device.location_id.in_(admin_location_ids))
 
     result = await session.execute(query)
     pending_devices = result.scalars().all()
