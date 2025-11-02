@@ -1705,5 +1705,222 @@ async function deleteArea(areaId, areaName) {
     }
 }
 
+// Register Face Modal
+let registerCameraStream = null;
+let registerCapturedPhotos = [];
+let registerCurrentPositionIndex = 0;
+let registerCapturing = false;
+let registerPersonName = '';
+let registerLocationId = null;
+
+const registerPositions = [
+    { name: 'Center', instruction: 'Look straight ahead' },
+    { name: 'Left', instruction: 'Turn your head slightly left' },
+    { name: 'Right', instruction: 'Turn your head slightly right' },
+    { name: 'Up', instruction: 'Tilt your head slightly up' },
+    { name: 'Down', instruction: 'Tilt your head slightly down' }
+];
+
+function showRegisterFaceModal() {
+    // Reset state
+    registerCapturedPhotos = [];
+    registerCurrentPositionIndex = 0;
+    registerCapturing = false;
+    registerPersonName = '';
+    registerLocationId = null;
+
+    // Reset form
+    document.getElementById('register-person-name').value = '';
+    document.getElementById('register-location-select').value = '';
+    document.getElementById('register-photo-count').textContent = '0';
+    document.getElementById('register-progress-fill').style.width = '0%';
+    document.getElementById('register-begin-btn').disabled = false;
+    document.getElementById('register-submit-btn').disabled = true;
+    document.getElementById('register-guidance-indicator').textContent = '';
+
+    // Show step 1
+    document.querySelectorAll('.register-step').forEach(step => step.classList.remove('active'));
+    document.getElementById('register-step-name').classList.add('active');
+
+    // Populate location dropdown
+    const locationSelect = document.getElementById('register-location-select');
+    locationSelect.innerHTML = '<option value="">Select a location...</option>' +
+        allLocations.map(loc => `<option value="${loc.id}">${escapeHtml(loc.name)}</option>`).join('');
+
+    // Auto-select if location filter is active
+    if (managedLocationFilter) {
+        locationSelect.value = managedLocationFilter;
+    }
+
+    openModal('register-face-modal');
+}
+
+function closeRegisterFaceModal() {
+    stopRegisterCamera();
+    closeModal('register-face-modal');
+}
+
+document.getElementById('register-name-continue').addEventListener('click', () => {
+    registerPersonName = document.getElementById('register-person-name').value.trim();
+    registerLocationId = parseInt(document.getElementById('register-location-select').value);
+
+    if (!registerPersonName) {
+        showAlert('Please enter a name', 'error');
+        return;
+    }
+
+    if (!registerLocationId) {
+        showAlert('Please select a location', 'error');
+        return;
+    }
+
+    // Go to camera step
+    document.querySelectorAll('.register-step').forEach(step => step.classList.remove('active'));
+    document.getElementById('register-step-camera').classList.add('active');
+    startRegisterCamera();
+});
+
+async function startRegisterCamera() {
+    try {
+        registerCameraStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user', width: 640, height: 480 }
+        });
+        const camera = document.getElementById('register-camera');
+        camera.srcObject = registerCameraStream;
+        await camera.play();
+    } catch (error) {
+        console.error('[REGISTER] Error starting camera:', error);
+        showRegisterAlert('Unable to access camera. Please check permissions.', 'error');
+    }
+}
+
+function stopRegisterCamera() {
+    if (registerCameraStream) {
+        registerCameraStream.getTracks().forEach(track => track.stop());
+        registerCameraStream = null;
+    }
+}
+
+function showRegisterAlert(message, type = 'info') {
+    const container = document.getElementById('register-alert-container');
+    const alertClass = type === 'error' ? 'alert-error' : type === 'success' ? 'alert-success' : 'alert-info';
+    container.innerHTML = `<div class="alert ${alertClass}" style="margin-bottom: 15px;">${message}</div>`;
+    setTimeout(() => {
+        container.innerHTML = '';
+    }, 3000);
+}
+
+document.getElementById('register-begin-btn').addEventListener('click', async () => {
+    document.getElementById('register-begin-btn').disabled = true;
+    await startRegisterCapture();
+});
+
+async function startRegisterCapture() {
+    registerCapturedPhotos = [];
+    registerCurrentPositionIndex = 0;
+    registerCapturing = true;
+
+    await captureNextRegisterPhoto();
+}
+
+async function captureNextRegisterPhoto() {
+    if (registerCurrentPositionIndex >= registerPositions.length) {
+        finishRegisterCapture();
+        return;
+    }
+
+    const position = registerPositions[registerCurrentPositionIndex];
+    const guidanceIndicator = document.getElementById('register-guidance-indicator');
+
+    // Show instruction
+    guidanceIndicator.textContent = position.instruction;
+    speak(position.instruction);
+
+    // Wait 2 seconds then capture
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Capture photo
+    const photoData = captureRegisterPhoto();
+    registerCapturedPhotos.push({
+        position: position.name,
+        image: photoData
+    });
+
+    // Update progress
+    registerCurrentPositionIndex++;
+    document.getElementById('register-photo-count').textContent = registerCurrentPositionIndex;
+    document.getElementById('register-progress-fill').style.width = `${(registerCurrentPositionIndex / registerPositions.length) * 100}%`;
+
+    // Next photo
+    await new Promise(resolve => setTimeout(resolve, 500));
+    await captureNextRegisterPhoto();
+}
+
+function captureRegisterPhoto() {
+    const camera = document.getElementById('register-camera');
+    const canvas = document.getElementById('register-canvas');
+    canvas.width = camera.videoWidth;
+    canvas.height = camera.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(camera, 0, 0);
+    return canvas.toDataURL('image/jpeg', 0.9);
+}
+
+function finishRegisterCapture() {
+    registerCapturing = false;
+    document.getElementById('register-guidance-indicator').textContent = '✓ Complete';
+    document.getElementById('register-submit-btn').disabled = false;
+    speak('Capture complete. Please press submit.');
+}
+
+document.getElementById('register-submit-btn').addEventListener('click', async () => {
+    document.getElementById('register-submit-btn').disabled = true;
+    await submitRegisterRegistration();
+});
+
+async function submitRegisterRegistration() {
+    try {
+        showRegisterAlert('Submitting registration...', 'info');
+
+        const response = await fetch('/api/admin/register-face', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                person_name: registerPersonName,
+                location_id: registerLocationId,
+                photos: registerCapturedPhotos
+            })
+        });
+
+        if (response.ok) {
+            stopRegisterCamera();
+            document.getElementById('register-success-name').textContent = registerPersonName;
+            document.querySelectorAll('.register-step').forEach(step => step.classList.remove('active'));
+            document.getElementById('register-step-success').classList.add('active');
+
+            // Reload faces list
+            await loadRegisteredFaces();
+        } else {
+            const error = await response.json();
+            showRegisterAlert(error.detail || 'Registration failed', 'error');
+            document.getElementById('register-submit-btn').disabled = false;
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showRegisterAlert('Error submitting registration', 'error');
+        document.getElementById('register-submit-btn').disabled = false;
+    }
+}
+
+function speak(text) {
+    if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 0.9;
+        utterance.pitch = 1;
+        speechSynthesis.speak(utterance);
+    }
+}
+
 // Initialize on page load
 init();

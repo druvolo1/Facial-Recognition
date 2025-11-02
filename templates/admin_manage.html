@@ -640,6 +640,7 @@
             <div id="faces-tab" class="tab-content">
                 <div class="section-header">
                     <h2>👥 Registered Faces</h2>
+                    <button class="btn btn-primary" onclick="showRegisterFaceModal()">+ Register New Face</button>
                 </div>
                 <div id="faces-container">
                     <div class="loading">
@@ -1047,6 +1048,86 @@
             </div>
         </div>
     </div>
+
+    <!-- Register Face Modal -->
+    <div id="register-face-modal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2>Register New Face</h2>
+                <button class="close-modal" onclick="closeRegisterFaceModal()">&times;</button>
+            </div>
+
+            <!-- Step 1: Enter Name -->
+            <div id="register-step-name" class="register-step active">
+                <div style="padding: 20px;">
+                    <h3 style="margin-bottom: 20px;">Enter Person's Name</h3>
+                    <div class="form-group">
+                        <label for="register-person-name">Full Name *</label>
+                        <input type="text" id="register-person-name" placeholder="e.g., John Doe" autofocus>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-location-select">Location *</label>
+                        <select id="register-location-select" required>
+                            <option value="">Select a location...</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" id="register-name-continue" style="width: 100%;">Continue to Camera</button>
+                </div>
+            </div>
+
+            <!-- Step 2: Camera & Capture -->
+            <div id="register-step-camera" class="register-step">
+                <div style="padding: 20px; background: #2a2a2a; border-radius: 8px;">
+                    <h3 style="color: #667eea; margin-bottom: 10px;">Face Registration</h3>
+                    <p style="color: #ccc; margin-bottom: 20px;">Press Begin and follow the voice prompts</p>
+
+                    <div id="register-alert-container"></div>
+
+                    <div style="position: relative; margin: 20px auto; background: #000; border-radius: 12px; overflow: hidden; max-width: 640px;">
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2;">
+                            <div id="register-guidance-indicator" style="width: 200px; height: 200px; border: 3px solid rgba(102, 126, 234, 0.5); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #667eea; background: rgba(0,0,0,0.3); transition: all 0.3s;"></div>
+                        </div>
+                        <video id="register-camera" autoplay playsinline style="width: 100%; max-width: 640px; display: block;"></video>
+                        <canvas id="register-canvas" style="display: none;"></canvas>
+                    </div>
+
+                    <div style="margin: 20px 0;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                            <span style="color: #ccc;">Progress:</span>
+                            <span style="color: #ccc;"><span id="register-photo-count">0</span>/5 Photos</span>
+                        </div>
+                        <div style="height: 8px; background: #444; border-radius: 4px; overflow: hidden;">
+                            <div id="register-progress-fill" style="height: 100%; width: 0%; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); transition: width 0.3s;"></div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-primary" id="register-begin-btn" style="flex: 1;">Begin Capture</button>
+                        <button class="btn btn-success" id="register-submit-btn" disabled style="flex: 1;">Submit Registration</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Success -->
+            <div id="register-step-success" class="register-step">
+                <div style="padding: 40px; text-align: center;">
+                    <div style="font-size: 72px; margin-bottom: 20px;">✅</div>
+                    <h3 style="color: #667eea; margin-bottom: 15px;">Registration Complete!</h3>
+                    <p style="color: #666; margin-bottom: 30px;"><span id="register-success-name"></span> has been successfully registered.</p>
+                    <button class="btn btn-primary" onclick="closeRegisterFaceModal()" style="padding: 15px 40px;">Done</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .register-step {
+            display: none;
+        }
+        .register-step.active {
+            display: block;
+        }
+    </style>
 
     <script src="/static/js/admin-manage.js"></script>
 </body>

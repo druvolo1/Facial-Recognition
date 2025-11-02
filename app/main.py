@@ -472,6 +472,12 @@ class RegisterRequest(BaseModel):
     photos: List[str]
 
 
+class AdminRegisterRequest(BaseModel):
+    person_name: str
+    location_id: int
+    photos: List[dict]  # List of {position: str, image: str}
+
+
 class RecognizeRequest(BaseModel):
     image: str
 
@@ -4427,6 +4433,152 @@ async def register_face(
 
     except Exception as e:
         print(f"[REGISTER] ✗ EXCEPTION: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/admin/register-face")
+async def admin_register_face(
+    data: AdminRegisterRequest,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Admin endpoint to register face images with specified location"""
+    try:
+        print(f"\n{'='*60}")
+        print(f"[ADMIN-REGISTER] New registration request")
+        print(f"[ADMIN-REGISTER] Person: {data.person_name}")
+        print(f"[ADMIN-REGISTER] Location ID: {data.location_id}")
+        print(f"[ADMIN-REGISTER] Photos: {len(data.photos)}")
+
+        # Verify user has access to this location
+        if not user.is_superuser:
+            result = await session.execute(
+                select(UserLocationRole).where(
+                    UserLocationRole.user_id == user.id,
+                    UserLocationRole.location_id == data.location_id
+                )
+            )
+            if not result.scalar_one_or_none():
+                raise HTTPException(status_code=403, detail="Access denied to this location")
+
+        # Get location's CodeProject endpoint
+        location_result = await session.execute(
+            select(Location).where(Location.id == data.location_id)
+        )
+        location = location_result.scalar_one_or_none()
+        if not location:
+            raise HTTPException(status_code=404, detail="Location not found")
+
+        # Get a server for this location (use first available)
+        server_result = await session.execute(select(CodeProjectServer).limit(1))
+        server = server_result.scalar_one_or_none()
+        if not server:
+            raise HTTPException(status_code=500, detail="No CodeProject.AI server configured")
+
+        codeproject_endpoint = server.endpoint_url
+
+        successful_registrations = 0
+        errors = []
+        profile_photo_path = None
+
+        for idx, photo_obj in enumerate(data.photos):
+            try:
+                photo_data = photo_obj.get('image', '')
+                position = photo_obj.get('position', '')
+
+                print(f"[ADMIN-REGISTER] Processing photo {idx+1}/{len(data.photos)} ({position})")
+
+                # Extract base64 data from data URL
+                if ',' in photo_data:
+                    photo_data = photo_data.split(',')[1]
+
+                # Decode base64 image
+                image_bytes = base64.b64decode(photo_data)
+                image_size_kb = len(image_bytes) / 1024
+                print(f"[ADMIN-REGISTER]   Image size: {image_size_kb:.2f} KB")
+
+                # Save locally for backup
+                timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+                filename = f"{data.person_name.replace(' ', '_')}_{timestamp}_{idx}.jpg"
+                filepath = os.path.join(UPLOAD_FOLDER, filename)
+                with open(filepath, 'wb') as f:
+                    f.write(image_bytes)
+                print(f"[ADMIN-REGISTER]   Saved locally: {filename}")
+
+                # Use first photo (Center) as profile photo
+                if idx == 0:
+                    profile_photo_path = filepath
+
+                # Register with CodeProject.AI
+                files = {
+                    'image': (filename, BytesIO(image_bytes), 'image/jpeg')
+                }
+                params = {
+                    'userid': data.person_name
+                }
+
+                print(f"[ADMIN-REGISTER]   Sending to CodeProject.AI...")
+
+                response = requests.post(
+                    f"{codeproject_endpoint}/vision/face/register",
+                    files=files,
+                    data=params,
+                    timeout=60
+                )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    if result.get('success'):
+                        successful_registrations += 1
+                        print(f"[ADMIN-REGISTER]   ✓ Photo {idx+1} registered successfully")
+
+                        # Save to database
+                        registered_face = RegisteredFace(
+                            person_name=data.person_name,
+                            codeproject_user_id=data.person_name,
+                            file_path=filepath,
+                            codeproject_endpoint=codeproject_endpoint,
+                            location_id=data.location_id,
+                            registered_by_user_id=user.id,
+                            profile_photo=profile_photo_path if idx == 0 else None
+                        )
+                        session.add(registered_face)
+                        await session.commit()
+                        print(f"[ADMIN-REGISTER]   ✓ Saved to database")
+                    else:
+                        error_msg = result.get('error', 'Unknown error')
+                        errors.append(f"Photo {idx+1}: {error_msg}")
+                        print(f"[ADMIN-REGISTER]   ✗ Photo {idx+1} failed: {error_msg}")
+                else:
+                    errors.append(f"Photo {idx+1}: HTTP {response.status_code}")
+                    print(f"[ADMIN-REGISTER]   ✗ Photo {idx+1} failed with status {response.status_code}")
+
+            except Exception as e:
+                errors.append(f"Photo {idx+1}: {str(e)}")
+                print(f"[ADMIN-REGISTER]   ✗ Photo {idx+1} exception: {e}")
+
+        print(f"[ADMIN-REGISTER] Registration complete: {successful_registrations}/{len(data.photos)} successful")
+        print(f"{'='*60}\n")
+
+        if successful_registrations > 0:
+            return {
+                "success": True,
+                "message": f"Successfully registered {successful_registrations} out of {len(data.photos)} photos for {data.person_name}",
+                "registered_count": successful_registrations,
+                "total_count": len(data.photos),
+                "errors": errors if errors else None
+            }
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail={"success": False, "error": "Failed to register any photos", "details": errors}
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ADMIN-REGISTER] ✗ EXCEPTION: {e}")
+        await session.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 
