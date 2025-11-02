@@ -676,6 +676,23 @@ async def dashboard(
         # Check if user is admin of any location
         is_location_admin = any(loc.role == 'location_admin' for loc in user_locations)
 
+        # Auto-select first location if none selected
+        if user_locations:
+            prefs = {}
+            if user.dashboard_preferences:
+                try:
+                    prefs = json.loads(user.dashboard_preferences)
+                except:
+                    pass
+
+            if not prefs.get('selected_location_id'):
+                # Auto-select first location
+                first_location_id = user_locations[0].location_id
+                prefs['selected_location_id'] = first_location_id
+                user.dashboard_preferences = json.dumps(prefs)
+                await session.commit()
+                print(f"[DASHBOARD] Auto-selected location {first_location_id} for user {user.email}")
+
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
         "user": user,
@@ -3111,21 +3128,33 @@ async def get_registered_faces(
             faces_dict[face_record.person_name].append(photo_url)
 
         # Convert to list format with one sample photo per person
-        # Also get the codeproject_user_id for each person
+        # Also get the codeproject_user_id and location info for each person
         registered_faces = []
         for name, photos in sorted(faces_dict.items()):
-            # Get the codeproject_user_id from the first record for this person
+            # Get the codeproject_user_id and location_id from the first record for this person
             result = await session.execute(
                 select(RegisteredFace).where(RegisteredFace.person_name == name).limit(1)
             )
             face_record = result.scalar_one_or_none()
 
+            # Get location name if available
+            location_name = None
+            if face_record and face_record.location_id:
+                loc_result = await session.execute(
+                    select(Location).where(Location.id == face_record.location_id)
+                )
+                location = loc_result.scalar_one_or_none()
+                if location:
+                    location_name = location.name
+
             registered_faces.append({
-                "name": name,
+                "person_name": name,  # Changed from "name" to match JavaScript expectation
                 "photo": photos[0] if photos else None,  # Use first photo as profile picture
                 "photo_count": len(photos),
                 "all_photos": photos,
-                "codeproject_user_id": face_record.codeproject_user_id if face_record else name
+                "codeproject_user_id": face_record.codeproject_user_id if face_record else name,
+                "location_id": face_record.location_id if face_record else None,
+                "location_name": location_name
             })
 
         print(f"[GET-REGISTERED-FACES] Returning {len(registered_faces)} unique people")

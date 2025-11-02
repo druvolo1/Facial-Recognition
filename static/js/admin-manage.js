@@ -368,7 +368,18 @@ async function loadRegisteredFaces() {
         const container = document.getElementById('faces-container');
 
         if (faces.length === 0) {
-            container.innerHTML = '<div class="empty-state"><div class="icon">👥</div><p>No registered faces</p></div>';
+            // Check if it's because no location is selected
+            if (data.message && data.message.includes('select a location')) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📍</div>
+                        <p>${data.message}</p>
+                        <p style="margin-top: 10px; color: #999;">Please select a location from the main dashboard first.</p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = '<div class="empty-state"><div class="icon">👥</div><p>No registered faces</p></div>';
+            }
             return;
         }
 
