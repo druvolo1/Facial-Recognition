@@ -3873,15 +3873,17 @@ async def device_recognize_face(
                     "count": len(faces)
                 }
             else:
+                # CodeProject.AI returned success=false (e.g., "No face found in image")
+                # This is a valid response, not an error - return empty faces array
                 error = result.get('error', 'Unknown error')
-                print(f"[DEVICE-RECOGNIZE] CodeProject.AI error: {error}")
-                return JSONResponse(
-                    status_code=500,
-                    content={
-                        "success": False,
-                        "error": error
-                    }
-                )
+                print(f"[DEVICE-RECOGNIZE] No faces found: {error}")
+                print(f"{'='*60}\n")
+
+                return {
+                    "success": True,
+                    "faces": [],
+                    "count": 0
+                }
         else:
             print(f"[DEVICE-RECOGNIZE] HTTP error: {response.status_code}")
             return JSONResponse(
