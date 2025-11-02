@@ -61,6 +61,7 @@ async function loadOverview() {
         // Populate location filter dropdown
         const select = document.getElementById('managedLocationSelect');
         const locationContext = document.getElementById('locationContext');
+        const currentSelection = managedLocationFilter; // Preserve current selection
 
         if (overviewStats.is_superuser) {
             // Superadmin: Show "All Locations" + all locations
@@ -84,6 +85,11 @@ async function loadOverview() {
                 option.textContent = loc.name;
                 select.appendChild(option);
             });
+        }
+
+        // Restore the selected value
+        if (currentSelection) {
+            select.value = currentSelection;
         }
 
         locationContext.style.display = 'block';
@@ -467,7 +473,13 @@ async function loadRegisteredFaces() {
 // Load users (superadmin only)
 async function loadUsers() {
     try {
-        const response = await fetch('/api/admin/users', {
+        // Build URL with location filter
+        let url = '/api/admin/users';
+        if (managedLocationFilter) {
+            url += `?location_id=${managedLocationFilter}`;
+        }
+
+        const response = await fetch(url, {
             credentials: 'include'
         });
 

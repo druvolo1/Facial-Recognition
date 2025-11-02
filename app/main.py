@@ -983,12 +983,43 @@ async def get_admin_overview(
 
 @app.get("/api/admin/users")
 async def list_all_users(
+    location_id: Optional[int] = None,
     user: User = Depends(current_superuser),
     session: AsyncSession = Depends(get_async_session)
 ):
-    """List all users (admin only)"""
-    result = await session.execute(select(User))
-    users = result.scalars().all()
+    """List all users (admin only), optionally filtered by location"""
+
+    if location_id:
+        # Get users assigned to this location
+        users_at_location = await session.execute(
+            select(User).join(UserLocationRole).where(
+                UserLocationRole.location_id == location_id
+            ).distinct()
+        )
+        location_users = users_at_location.scalars().all()
+        location_user_ids = {u.id for u in location_users}
+
+        # Get users with no location assignments (pending)
+        all_users_result = await session.execute(select(User))
+        all_users = all_users_result.scalars().all()
+
+        users = []
+        for u in all_users:
+            # Check if user has any location assignments
+            has_locations = await session.execute(
+                select(func.count(UserLocationRole.id)).where(
+                    UserLocationRole.user_id == u.id
+                )
+            )
+            location_count = has_locations.scalar()
+
+            # Include if user is at selected location OR has no locations (pending)
+            if u.id in location_user_ids or location_count == 0:
+                users.append(u)
+    else:
+        # No filter - show all users
+        result = await session.execute(select(User))
+        users = result.scalars().all()
 
     # Get location assignments for all users
     user_locations = {}
