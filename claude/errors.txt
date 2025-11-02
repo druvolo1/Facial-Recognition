@@ -1,4 +1,6 @@
-locations:1117  POST https://nrf.ruvolo.loseyourip.com/api/devices/undefined/approve 404 (Not Found)
-(anonymous) @ locations:1117
-locations:1117  POST https://nrf.ruvolo.loseyourip.com/api/devices/1/approve 404 (Not Found)
-(anonymous) @ locations:1117
+kiosk.html:1 Access to fetch at 'https://nrf.ruvolo.loseyourip.com/api/register' from origin 'null' has been blocked by CORS policy: The value of the 'Access-Control-Allow-Origin' header in the response must not be the wildcard '*' when the request's credentials mode is 'include'.
+kiosk.html:623  POST https://nrf.ruvolo.loseyourip.com/api/register net::ERR_FAILED 401 (Unauthorized)
+(anonymous) @ kiosk.html:623
+kiosk.html:647 Error: TypeError: Failed to fetch
+    at HTMLButtonElement.<anonymous> (kiosk.html:623:40)
+(anonymous) @ kiosk.html:647

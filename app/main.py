@@ -186,6 +186,54 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
+# Device authentication dependency
+async def get_current_device(
+    request: Request,
+    session: AsyncSession = Depends(get_async_session)
+) -> Device:
+    """Authenticate device by device_id from request body or header"""
+    # Try to get device_id from header first
+    device_id = request.headers.get("X-Device-ID")
+
+    # If not in header, try to get from body
+    if not device_id:
+        try:
+            body = await request.json()
+            device_id = body.get("device_id")
+        except:
+            pass
+
+    if not device_id:
+        raise HTTPException(
+            status_code=401,
+            detail="Device ID required"
+        )
+
+    # Get device from database
+    result = await session.execute(
+        select(Device).where(Device.device_id == device_id)
+    )
+    device = result.scalar_one_or_none()
+
+    if not device:
+        raise HTTPException(
+            status_code=401,
+            detail="Device not found"
+        )
+
+    if not device.is_approved:
+        raise HTTPException(
+            status_code=403,
+            detail="Device not approved"
+        )
+
+    # Update last_seen
+    device.last_seen = datetime.utcnow()
+    await session.commit()
+
+    return device
+
+
 async def get_user_db(session: AsyncSession = Depends(get_async_session)):
     yield SQLAlchemyUserDatabase(session, User)
 
@@ -218,6 +266,18 @@ class RegisterRequest(BaseModel):
 
 
 class RecognizeRequest(BaseModel):
+    image: str
+
+
+# Device-specific request models
+class DeviceRegisterRequest(BaseModel):
+    device_id: str
+    name: str
+    photos: List[str]
+
+
+class DeviceRecognizeRequest(BaseModel):
+    device_id: str
     image: str
 
 
@@ -1887,6 +1947,238 @@ async def delete_device(
         "success": True,
         "message": "Device deleted successfully"
     }
+
+
+# ============================================================================
+# DEVICE-AUTHENTICATED FACIAL RECOGNITION ROUTES
+# ============================================================================
+
+@app.post("/api/devices/register-face")
+async def device_register_face(
+    data: DeviceRegisterRequest,
+    device: Device = Depends(get_current_device),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Register face images to CodeProject.AI (device-authenticated)"""
+    try:
+        print(f"\n{'='*60}")
+        print(f"[DEVICE-REGISTER] Device: {device.device_name} ({device.device_id[:8]}...)")
+        print(f"[DEVICE-REGISTER] Location: {device.location_id}")
+        print(f"[DEVICE-REGISTER] Person: {data.name}")
+        print(f"[DEVICE-REGISTER] Photos: {len(data.photos)}")
+
+        # Get the device's CodeProject endpoint
+        codeproject_url = device.codeproject_endpoint
+        if not codeproject_url:
+            raise HTTPException(
+                status_code=400,
+                detail="Device has no CodeProject endpoint configured"
+            )
+
+        successful_registrations = 0
+        errors = []
+
+        for idx, photo_data in enumerate(data.photos):
+            try:
+                print(f"[DEVICE-REGISTER] Processing photo {idx+1}/{len(data.photos)}")
+
+                # Extract base64 data from data URL
+                if ',' in photo_data:
+                    photo_data = photo_data.split(',')[1]
+
+                # Decode base64 image
+                image_bytes = base64.b64decode(photo_data)
+                image_size_kb = len(image_bytes) / 1024
+                print(f"[DEVICE-REGISTER]   Image size: {image_size_kb:.2f} KB")
+
+                # Save locally for backup
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"{data.name.replace(' ', '_')}_{timestamp}_{idx}.jpg"
+                filepath = os.path.join(UPLOAD_FOLDER, filename)
+                with open(filepath, 'wb') as f:
+                    f.write(image_bytes)
+                print(f"[DEVICE-REGISTER]   Saved locally: {filename}")
+
+                # Register with CodeProject.AI
+                files = {
+                    'image': (filename, BytesIO(image_bytes), 'image/jpeg')
+                }
+                params = {
+                    'userid': data.name
+                }
+
+                print(f"[DEVICE-REGISTER]   Sending to CodeProject.AI at {codeproject_url}...")
+
+                response = requests.post(
+                    f"{codeproject_url}/vision/face/register",
+                    files=files,
+                    data=params,
+                    timeout=60
+                )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    if result.get('success'):
+                        successful_registrations += 1
+                        print(f"[DEVICE-REGISTER]   ✓ Photo {idx+1} registered successfully")
+
+                        # Save to database (no user_id for device registrations)
+                        registered_face = RegisteredFace(
+                            person_name=data.name,
+                            codeproject_user_id=data.name,
+                            file_path=filepath,
+                            registered_by_user_id=None  # Device registration
+                        )
+                        session.add(registered_face)
+                        await session.commit()
+                        print(f"[DEVICE-REGISTER]   ✓ Saved to database")
+                    else:
+                        error_msg = result.get('error', 'Unknown error')
+                        errors.append(f"Photo {idx+1}: {error_msg}")
+                        print(f"[DEVICE-REGISTER]   ✗ Photo {idx+1} failed: {error_msg}")
+                else:
+                    errors.append(f"Photo {idx+1}: HTTP {response.status_code}")
+                    print(f"[DEVICE-REGISTER]   ✗ Photo {idx+1} failed with status {response.status_code}")
+
+            except Exception as e:
+                errors.append(f"Photo {idx+1}: {str(e)}")
+                print(f"[DEVICE-REGISTER]   ✗ Error on photo {idx+1}: {str(e)}")
+
+        print(f"[DEVICE-REGISTER] Registration complete: {successful_registrations}/{len(data.photos)} successful")
+        print(f"{'='*60}\n")
+
+        if successful_registrations == 0:
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "success": False,
+                    "error": "Failed to register any images",
+                    "details": errors
+                }
+            )
+
+        return {
+            "success": True,
+            "message": f"Successfully registered {successful_registrations} of {len(data.photos)} images to CodeProject.AI",
+            "registered_count": successful_registrations,
+            "total_count": len(data.photos),
+            "errors": errors if errors else None
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[DEVICE-REGISTER] Error: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "error": str(e)
+            }
+        )
+
+
+@app.post("/api/devices/recognize-face")
+async def device_recognize_face(
+    data: DeviceRecognizeRequest,
+    device: Device = Depends(get_current_device)
+):
+    """Recognize face in image using CodeProject.AI (device-authenticated)"""
+    try:
+        print(f"\n{'='*60}")
+        print(f"[DEVICE-RECOGNIZE] Device: {device.device_name} ({device.device_id[:8]}...)")
+        print(f"[DEVICE-RECOGNIZE] Location: {device.location_id}")
+
+        # Get the device's CodeProject endpoint
+        codeproject_url = device.codeproject_endpoint
+        if not codeproject_url:
+            raise HTTPException(
+                status_code=400,
+                detail="Device has no CodeProject endpoint configured"
+            )
+
+        # Extract base64 data from data URL
+        image_data = data.image
+        if ',' in image_data:
+            image_data = image_data.split(',')[1]
+
+        # Decode base64 image
+        image_bytes = base64.b64decode(image_data)
+        image_size_kb = len(image_bytes) / 1024
+        print(f"[DEVICE-RECOGNIZE] Image size: {image_size_kb:.2f} KB")
+
+        # Send to CodeProject.AI for recognition
+        files = {
+            'image': ('frame.jpg', BytesIO(image_bytes), 'image/jpeg')
+        }
+
+        print(f"[DEVICE-RECOGNIZE] Sending to CodeProject.AI at {codeproject_url}...")
+
+        response = requests.post(
+            f"{codeproject_url}/vision/face/recognize",
+            files=files,
+            data={'min_confidence': 0.4},
+            timeout=30
+        )
+
+        if response.status_code == 200:
+            result = response.json()
+
+            if result.get('success'):
+                predictions = result.get('predictions', [])
+                print(f"[DEVICE-RECOGNIZE] Faces detected: {len(predictions)}")
+
+                faces = []
+                for pred in predictions:
+                    face_data = {
+                        'userid': pred.get('userid', 'unknown'),
+                        'confidence': pred.get('confidence', 0),
+                        'x_min': pred.get('x_min', 0),
+                        'y_min': pred.get('y_min', 0),
+                        'x_max': pred.get('x_max', 0),
+                        'y_max': pred.get('y_max', 0)
+                    }
+                    faces.append(face_data)
+                    print(f"[DEVICE-RECOGNIZE]   - {face_data['userid']}: {face_data['confidence']:.2f}")
+
+                print(f"{'='*60}\n")
+
+                return {
+                    "success": True,
+                    "faces": faces,
+                    "count": len(faces)
+                }
+            else:
+                error = result.get('error', 'Unknown error')
+                print(f"[DEVICE-RECOGNIZE] CodeProject.AI error: {error}")
+                return JSONResponse(
+                    status_code=500,
+                    content={
+                        "success": False,
+                        "error": error
+                    }
+                )
+        else:
+            print(f"[DEVICE-RECOGNIZE] HTTP error: {response.status_code}")
+            return JSONResponse(
+                status_code=response.status_code,
+                content={
+                    "success": False,
+                    "error": f"CodeProject.AI returned status {response.status_code}"
+                }
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[DEVICE-RECOGNIZE] Error: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "error": str(e)
+            }
+        )
 
 
 # ============================================================================
