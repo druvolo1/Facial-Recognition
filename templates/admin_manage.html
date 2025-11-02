@@ -438,7 +438,7 @@
             <div>
                 <h1>Management Console</h1>
                 <div class="user-info">
-                    Logged in as: <strong id="user-email">Loading...</strong>
+                    Logged in as: <strong>{{ user.email }}</strong>
                 </div>
             </div>
             <div>
@@ -751,7 +751,10 @@
     </div>
 
     <script>
-        let currentUser = null;
+        let currentUser = {
+            email: "{{ user.email }}",
+            is_superuser: {{ 'true' if user.is_superuser else 'false' }}
+        };
         let allLocations = [];
         let allServers = [];
         let currentEditDeviceOldEndpoint = null;
@@ -759,22 +762,6 @@
         // Initialize
         async function init() {
             try {
-                // Get current user
-                const response = await fetch('/api/users/me');
-                if (!response.ok) {
-                    window.location.href = '/login';
-                    return;
-                }
-                currentUser = await response.json();
-                document.getElementById('user-email').textContent = currentUser.email;
-
-                // Check if superuser
-                if (!currentUser.is_superuser) {
-                    showAlert('Access denied: Admin privileges required', 'error');
-                    setTimeout(() => window.location.href = '/dashboard', 2000);
-                    return;
-                }
-
                 // Load initial tab data
                 loadUsers();
                 loadLocations();

@@ -1,4 +1,12 @@
-  GET https://nrf.ruvolo.loseyourip.com/auth/login 404 (Not Found)
-init @ /admin/manage:765
-await in init
-(anonymous) @ /admin/manage:1549
+18dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:37886 - "GET /registered-faces HTTP/1.1" 200 OK
+INFO:     172.16.1.150:37894 - "GET /api/registered-faces HTTP/1.1" 200 OK
+INFO:     172.16.1.150:49210 - "GET /admin/manage HTTP/1.1" 200 OK
+INFO:     172.16.1.150:49226 - "GET /api/users/me HTTP/1.1" 404 Not Found
+INFO:     172.16.1.150:49242 - "GET /login HTTP/1.1" 200 OK
+INFO:     172.16.1.150:49250 - "POST /auth/jwt/login HTTP/1.1" 200 OK
+INFO:     172.16.1.150:49264 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     172.16.1.150:49268 - "GET /admin/manage HTTP/1.1" 200 OK
+INFO:     172.16.1.150:49274 - "GET /api/users/me HTTP/1.1" 404 Not Found
+INFO:     172.16.1.150:49282 - "GET /login HTTP/1.1" 200 OK
+INFO:     172.16.1.150:51236 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
