@@ -847,8 +847,8 @@ async def get_admin_overview(
         )
         stats["pending_devices"] = pending_count.scalar()
 
-        # Count registered faces
-        face_count = await session.execute(select(func.count(RegisteredFace.id)))
+        # Count unique registered people (not total photos)
+        face_count = await session.execute(select(func.count(func.distinct(RegisteredFace.person_name))))
         stats["total_registered_faces"] = face_count.scalar()
 
         # Get all locations for managed_locations
@@ -905,9 +905,9 @@ async def get_admin_overview(
             )
             stats["pending_devices"] = pending_count.scalar()
 
-            # Count registered faces in managed locations
+            # Count unique registered people in managed locations (not total photos)
             face_count = await session.execute(
-                select(func.count(RegisteredFace.id)).where(
+                select(func.count(func.distinct(RegisteredFace.person_name))).where(
                     RegisteredFace.location_id.in_(location_ids)
                 )
             )

@@ -523,17 +523,25 @@
             padding: 15px;
             text-align: center;
             transition: all 0.3s;
+            overflow: hidden;
         }
 
         .face-card:hover {
             border-color: #667eea;
             box-shadow: 0 4px 10px rgba(102, 126, 234, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .face-card img {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
 
         .face-card h4 {
             color: #333;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
+            margin-top: 5px;
             font-size: 16px;
+            font-weight: 600;
         }
 
         .face-card p {

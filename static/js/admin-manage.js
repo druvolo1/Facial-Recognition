@@ -387,6 +387,18 @@ async function loadRegisteredFaces() {
             <div class="face-grid">
                 ${faces.map(face => `
                     <div class="face-card">
+                        ${face.photo ? `
+                            <div style="width: 100%; height: 150px; overflow: hidden; border-radius: 8px; margin-bottom: 10px; background: #f0f0f0; display: flex; align-items: center; justify-content: center;">
+                                <img src="${escapeHtml(face.photo)}"
+                                     alt="${escapeHtml(face.person_name)}"
+                                     style="width: 100%; height: 100%; object-fit: cover; object-position: center 25%;"
+                                     onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'padding: 20px; color: #999;\\'>📷</div>';">
+                            </div>
+                        ` : `
+                            <div style="width: 100%; height: 150px; border-radius: 8px; margin-bottom: 10px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 48px;">
+                                👤
+                            </div>
+                        `}
                         <h4>${escapeHtml(face.person_name)}</h4>
                         <p>Photos: ${face.photo_count}</p>
                         ${face.location_name ? `<p><span class="badge badge-info">${escapeHtml(face.location_name)}</span></p>` : ''}
