@@ -326,9 +326,16 @@ async def get_current_device(
         # Token was rotated - include in response header for client to update
         request.state.new_device_token = new_token
 
-    # Update last_seen
-    device.last_seen = datetime.utcnow()
-    await session.commit()
+    # Update last_seen (ignore concurrency errors since this is not critical)
+    try:
+        device.last_seen = datetime.utcnow()
+        await session.commit()
+    except Exception as e:
+        # If update fails due to concurrent modification, that's okay
+        # Another request already updated it
+        await session.rollback()
+        # Re-fetch the device to get the latest state
+        await session.refresh(device)
 
     return device
 

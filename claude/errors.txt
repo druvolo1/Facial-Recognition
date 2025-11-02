@@ -25,7 +25,7 @@ Press Ctrl+C to stop
 
 INFO:     Will watch for changes in these directories: ['/home/dave/Facial-Recognition/app']
 INFO:     Uvicorn running on http://0.0.0.0:5000 (Press CTRL+C to quit)
-INFO:     Started reloader process [570513] using StatReload
+INFO:     Started reloader process [570724] using StatReload
 [CONFIG] Database URL: mariadb+aiomysql://app_user:testpass123@172.16.1.150:3306/facial_recognition
 [CONFIG] Base directory: /home/dave/Facial-Recognition
 [CONFIG] Upload folder: /home/dave/Facial-Recognition/uploads
@@ -34,7 +34,7 @@ INFO:     Started reloader process [570513] using StatReload
 [CONFIG] Base directory: /home/dave/Facial-Recognition
 [CONFIG] Upload folder: /home/dave/Facial-Recognition/uploads
 [CONFIG] CodeProject.AI: http://172.16.1.150:32168/v1
-INFO:     Started server process [570518]
+INFO:     Started server process [570730]
 INFO:     Waiting for application startup.
 
 ============================================================
@@ -56,73 +56,258 @@ INFO:     Waiting for application startup.
 ============================================================
 
 INFO:     Application startup complete.
-INFO:     172.16.1.150:47272 - "OPTIONS /api/devices/recognize-face HTTP/1.1" 200 OK
+INFO:     172.16.1.150:55284 - "OPTIONS /api/devices/heartbeat HTTP/1.1" 200 OK
+[WEBSOCKET] Connection attempt for location 2
+[WEBSOCKET] Headers: Headers({'upgrade': 'websocket', 'connection': 'Upgrade', 'host': 'nrf.ruvolo.loseyourip.com', 'x-forwarded-scheme': 'https', 'x-forwarded-proto': 'https', 'x-forwarded-for': '172.16.1.1', 'x-real-ip': '172.16.1.1', 'pragma': 'no-cache', 'cache-control': 'no-cache', 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'origin': 'null', 'sec-websocket-version': '13', 'accept-encoding': 'gzip, deflate, br, zstd', 'accept-language': 'en-US,en;q=0.9', 'sec-websocket-key': 'nKDIQRtuzvvB53YZv8jc9Q==', 'sec-websocket-extensions': 'permessage-deflate; client_max_window_bits'})
+INFO:     ('172.16.1.150', 55280) - "WebSocket /ws/dashboard/2" [accepted]
+[WEBSOCKET] New connection for location 2. Total: 1
+[WEBSOCKET] Connected successfully for location 2
+INFO:     connection open
+INFO:     172.16.1.150:55294 - "POST /api/devices/heartbeat HTTP/1.1" 200 OK
+INFO:     172.16.1.150:55308 - "OPTIONS /api/devices/recognize-face HTTP/1.1" 200 OK
 
 ============================================================
 [DEVICE-RECOGNIZE] Device: Scanner (2be4c33f...)
 [DEVICE-RECOGNIZE] Location: 2
-[DEVICE-RECOGNIZE] Image size: 68.92 KB
+[DEVICE-RECOGNIZE] Image size: 68.81 KB
 [DEVICE-RECOGNIZE] Sending to CodeProject.AI at http://172.16.1.150:32168/v1...
 [DEVICE-RECOGNIZE] Faces detected: 1
-[DEVICE-RECOGNIZE]   - dave: 0.54
+[DEVICE-RECOGNIZE]   - dave: 0.52
 ============================================================
 
-INFO:     172.16.1.150:47276 - "POST /api/devices/recognize-face HTTP/1.1" 200 OK
-INFO:     172.16.1.150:46428 - "OPTIONS /api/devices/heartbeat HTTP/1.1" 200 OK
-INFO:     172.16.1.150:46440 - "POST /api/devices/heartbeat HTTP/1.1" 200 OK
-INFO:     172.16.1.150:46442 - "OPTIONS /api/devices/recognize-face HTTP/1.1" 200 OK
+INFO:     172.16.1.150:55314 - "POST /api/devices/recognize-face HTTP/1.1" 200 OK
+INFO:     172.16.1.150:55322 - "OPTIONS /api/devices/recognize-face HTTP/1.1" 200 OK
 
 ============================================================
 [DEVICE-RECOGNIZE] Device: Scanner (2be4c33f...)
 [DEVICE-RECOGNIZE] Location: 2
-[DEVICE-RECOGNIZE] Image size: 68.31 KB
+[DEVICE-RECOGNIZE] Image size: 69.03 KB
+[DEVICE-RECOGNIZE] Sending to CodeProject.AI at http://172.16.1.150:32168/v1...
+[DEVICE-RECOGNIZE] Faces detected: 1
+[DEVICE-RECOGNIZE]   - dave: 0.51
+============================================================
+
+INFO:     172.16.1.150:55326 - "POST /api/devices/recognize-face HTTP/1.1" 200 OK
+INFO:     172.16.1.150:55342 - "OPTIONS /api/devices/recognize-face HTTP/1.1" 200 OK
+
+============================================================
+[DEVICE-RECOGNIZE] Device: Scanner (2be4c33f...)
+[DEVICE-RECOGNIZE] Location: 2
+[DEVICE-RECOGNIZE] Image size: 69.00 KB
+[DEVICE-RECOGNIZE] Sending to CodeProject.AI at http://172.16.1.150:32168/v1...
+[DEVICE-RECOGNIZE] Faces detected: 1
+[DEVICE-RECOGNIZE]   - dave: 0.53
+============================================================
+
+INFO:     172.16.1.150:55346 - "POST /api/devices/recognize-face HTTP/1.1" 200 OK
+INFO:     172.16.1.150:55348 - "OPTIONS /api/devices/recognize-face HTTP/1.1" 200 OK
+INFO:     172.16.1.150:55354 - "OPTIONS /api/devices/heartbeat HTTP/1.1" 200 OK
+INFO:     172.16.1.150:55368 - "POST /api/devices/recognize-face HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 95, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 104, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 239, in execute
+    await self._query(query)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 457, in _query
+    await conn.query(q)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 469, in query
+    await self._read_query_result(unbuffered=unbuffered)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+    await result.read()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 1164, in read
+    first_packet = await self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 652, in _read_packet
+    packet.raise_for_error()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.OperationalError: (1020, "Record has changed since last read in table 'device'")
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/uvicorn/protocols/http/h11_impl.py", line 406, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/fastapi/applications.py", line 1054, in __call__
+    await super().__call__(scope, receive, send)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/applications.py", line 113, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/middleware/errors.py", line 187, in __call__
+    raise exc
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/middleware/errors.py", line 165, in __call__
+    await self.app(scope, receive, _send)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/middleware/cors.py", line 93, in __call__
+    await self.simple_response(scope, receive, send, request_headers=headers)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/middleware/cors.py", line 144, in simple_response
+    await self.app(scope, receive, send)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
+    raise exc
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/routing.py", line 715, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/routing.py", line 735, in app
+    await route.handle(scope, receive, send)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/routing.py", line 288, in handle
+    await self.app(scope, receive, send)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/routing.py", line 76, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
+    raise exc
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/routing.py", line 73, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/fastapi/routing.py", line 291, in app
+    solved_result = await solve_dependencies(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/fastapi/dependencies/utils.py", line 628, in solve_dependencies
+    solved = await call(**solved_result.values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/app/main.py", line 331, in get_current_device
+    await session.commit()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/session.py", line 1009, in commit
+    await greenlet_spawn(self.sync_session.commit)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 203, in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2028, in commit
+    trans.commit(_to_root=True)
+  File "<string>", line 2, in commit
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/state_changes.py", line 139, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 1313, in commit
+    self._prepare_impl()
+  File "<string>", line 2, in _prepare_impl
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/state_changes.py", line 139, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 1288, in _prepare_impl
+    self.session.flush()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 4352, in flush
+    self._flush(objects)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 4487, in _flush
+    with util.safe_reraise():
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 4448, in _flush
+    flush_context.execute()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/unitofwork.py", line 466, in execute
+    rec.execute(self)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/unitofwork.py", line 642, in execute
+    util.preloaded.orm_persistence.save_obj(
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/persistence.py", line 85, in save_obj
+    _emit_update_statements(
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/persistence.py", line 912, in _emit_update_statements
+    c = connection.execute(
+        ^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1418, in execute
+    return meth(
+           ^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 515, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1640, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2355, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 95, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 104, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 239, in execute
+    await self._query(query)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 457, in _query
+    await conn.query(q)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 469, in query
+    await self._read_query_result(unbuffered=unbuffered)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+    await result.read()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 1164, in read
+    first_packet = await self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 652, in _read_packet
+    packet.raise_for_error()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+sqlalchemy.exc.OperationalError: (pymysql.err.OperationalError) (1020, "Record has changed since last read in table 'device'")
+[SQL: UPDATE device SET last_seen=%s WHERE device.id = %s]
+[parameters: (datetime.datetime(2025, 11, 2, 17, 23, 47, 140701), 35)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+INFO:     172.16.1.150:55358 - "POST /api/devices/heartbeat HTTP/1.1" 200 OK
+INFO:     172.16.1.150:55382 - "OPTIONS /api/devices/recognize-face HTTP/1.1" 200 OK
+
+============================================================
+[DEVICE-RECOGNIZE] Device: Scanner (2be4c33f...)
+[DEVICE-RECOGNIZE] Location: 2
+[DEVICE-RECOGNIZE] Image size: 69.72 KB
 [DEVICE-RECOGNIZE] Sending to CodeProject.AI at http://172.16.1.150:32168/v1...
 [DEVICE-RECOGNIZE] Faces detected: 1
 [DEVICE-RECOGNIZE]   - dave: 0.50
 ============================================================
 
-INFO:     172.16.1.150:46444 - "POST /api/devices/recognize-face HTTP/1.1" 200 OK
-INFO:     172.16.1.150:46450 - "OPTIONS /api/devices/recognize-face HTTP/1.1" 200 OK
+INFO:     172.16.1.150:55386 - "POST /api/devices/recognize-face HTTP/1.1" 200 OK
+INFO:     172.16.1.150:36288 - "OPTIONS /api/devices/recognize-face HTTP/1.1" 200 OK
 
 ============================================================
 [DEVICE-RECOGNIZE] Device: Scanner (2be4c33f...)
 [DEVICE-RECOGNIZE] Location: 2
-[DEVICE-RECOGNIZE] Image size: 68.23 KB
+[DEVICE-RECOGNIZE] Image size: 69.42 KB
 [DEVICE-RECOGNIZE] Sending to CodeProject.AI at http://172.16.1.150:32168/v1...
 [DEVICE-RECOGNIZE] Faces detected: 1
-[DEVICE-RECOGNIZE]   - dave: 0.51
+[DEVICE-RECOGNIZE]   - dave: 0.52
 ============================================================
 
-INFO:     172.16.1.150:46466 - "POST /api/devices/recognize-face HTTP/1.1" 200 OK
-WARNING:  Unsupported upgrade request.
-WARNING:  No supported WebSocket library detected. Please use "pip install 'uvicorn[standard]'", or install 'websockets' or 'wsproto' manually.
-INFO:     172.16.1.150:46482 - "GET /ws/dashboard/2 HTTP/1.1" 404 Not Found
-INFO:     172.16.1.150:46496 - "OPTIONS /api/devices/recognize-face HTTP/1.1" 200 OK
-
-============================================================
-[DEVICE-RECOGNIZE] Device: Scanner (2be4c33f...)
-[DEVICE-RECOGNIZE] Location: 2
-[DEVICE-RECOGNIZE] Image size: 68.16 KB
-[DEVICE-RECOGNIZE] Sending to CodeProject.AI at http://172.16.1.150:32168/v1...
-[DEVICE-RECOGNIZE] Faces detected: 1
-[DEVICE-RECOGNIZE]   - dave: 0.51
-============================================================
-
-INFO:     172.16.1.150:46502 - "POST /api/devices/recognize-face HTTP/1.1" 200 OK
-INFO:     172.16.1.150:46506 - "OPTIONS /api/devices/recognize-face HTTP/1.1" 200 OK
-
-============================================================
-[DEVICE-RECOGNIZE] Device: Scanner (2be4c33f...)
-[DEVICE-RECOGNIZE] Location: 2
-[DEVICE-RECOGNIZE] Image size: 66.12 KB
-[DEVICE-RECOGNIZE] Sending to CodeProject.AI at http://172.16.1.150:32168/v1...
-[DEVICE-RECOGNIZE] Faces detected: 1
-[DEVICE-RECOGNIZE]   - dave: 0.54
-============================================================
-
-INFO:     172.16.1.150:46516 - "POST /api/devices/recognize-face HTTP/1.1" 200 OK
+INFO:     172.16.1.150:36296 - "POST /api/devices/recognize-face HTTP/1.1" 200 OK
 ^CINFO:     Shutting down
+[WEBSOCKET] Connection closed for location 2. Remaining: 0
+INFO:     connection closed
 INFO:     Waiting for application shutdown.
 INFO:     Application shutdown complete.
-INFO:     Finished server process [570518]
-INFO:     Stopping reloader process [570513]
+INFO:     Finished server process [570730]
+INFO:     Stopping reloader process [570724]
