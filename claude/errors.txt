@@ -1,52 +1,22 @@
 manage:1 [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) <input type=​"password" id=​"user-password" required minlength=​"6">​
-manage:842 Error loading users: TypeError: users.map is not a function
-    at loadUsers (manage:822:37)
-loadUsers @ manage:842
-await in loadUsers
-init @ manage:766
-(anonymous) @ manage:1536
-manage:968 Error loading locations: TypeError: allLocations.map is not a function
-    at manage:982:34
-    at Array.forEach (<anonymous>)
-    at updateLocationDropdowns (manage:979:21)
-    at loadLocations (manage:931:17)
-loadLocations @ manage:968
-await in loadLocations
-init @ manage:767
-(anonymous) @ manage:1536
-manage:1126 Error loading pending devices: TypeError: devices.map is not a function
-    at loadPendingDevices (manage:1112:39)
-loadPendingDevices @ manage:1126
-await in loadPendingDevices
-switchTab @ manage:793
-onclick @ manage:457
-manage:968 Error loading locations: TypeError: allLocations.map is not a function
-    at manage:982:34
-    at Array.forEach (<anonymous>)
-    at updateLocationDropdowns (manage:979:21)
-    at loadLocations (manage:931:17)
-loadLocations @ manage:968
-await in loadLocations
-switchTab @ manage:792
-onclick @ manage:457
-manage:1126 Error loading pending devices: TypeError: devices.map is not a function
-    at loadPendingDevices (manage:1112:39)
-loadPendingDevices @ manage:1126
-await in loadPendingDevices
-switchTab @ manage:793
-onclick @ manage:457
-manage:968 Error loading locations: TypeError: allLocations.map is not a function
-    at manage:982:34
-    at Array.forEach (<anonymous>)
-    at updateLocationDropdowns (manage:979:21)
-    at loadLocations (manage:931:17)
-loadLocations @ manage:968
-await in loadLocations
-switchTab @ manage:792
-onclick @ manage:457
-manage:842 Error loading users: TypeError: users.map is not a function
-    at loadUsers (manage:822:37)
-loadUsers @ manage:842
-await in loadUsers
-switchTab @ manage:790
-onclick @ manage:456
+manage:884  PATCH https://nrf.ruvolo.loseyourip.com/api/admin/users/5 405 (Method Not Allowed)
+toggleUserStatus @ manage:884
+onclick @ manage:1
+
+
+
+     172.16.1.150:33786 - "GET /admin/manage HTTP/1.1" 200 OK
+INFO:     172.16.1.150:33790 - "GET /api/admin/users HTTP/1.1" 200 OK
+INFO:     172.16.1.150:33800 - "GET /api/locations HTTP/1.1" 200 OK
+INFO:     172.16.1.150:33804 - "GET /api/codeproject-servers HTTP/1.1" 200 OK
+INFO:     172.16.1.150:33822 - "GET /api/codeproject-servers/2/test HTTP/1.1" 200 OK
+INFO:     172.16.1.150:33820 - "GET /api/codeproject-servers/1/test HTTP/1.1" 200 OK
+INFO:     172.16.1.150:53234 - "PATCH /api/admin/users/5 HTTP/1.1" 405 Method Not Allowed
+INFO:     172.16.1.150:53236 - "GET /admin/manage HTTP/1.1" 200 OK
+INFO:     172.16.1.150:53258 - "GET /api/locations HTTP/1.1" 200 OK
+INFO:     172.16.1.150:53242 - "GET /api/admin/users HTTP/1.1" 200 OK
+INFO:     172.16.1.150:53274 - "GET /api/codeproject-servers HTTP/1.1" 200 OK
+INFO:     172.16.1.150:53310 - "PATCH /api/admin/users/5 HTTP/1.1" 405 Method Not Allowed
+INFO:     172.16.1.150:53288 - "GET /api/codeproject-servers/2/test HTTP/1.1" 200 OK
+INFO:     172.16.1.150:53290 - "GET /api/codeproject-servers/1/test HTTP/1.1" 200 OK
+INFO:     172.16.1.150:59218 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK

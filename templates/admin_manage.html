@@ -850,26 +850,47 @@
                                 <th>Name</th>
                                 <th>Role</th>
                                 <th>Status</th>
+                                <th>Locations</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${users.map(user => `
-                                <tr>
-                                    <td>${escapeHtml(user.email)}</td>
-                                    <td>${escapeHtml(user.first_name || '')} ${escapeHtml(user.last_name || '')}</td>
-                                    <td>${user.is_superuser ? '<span class="badge badge-danger">Admin</span>' : '<span class="badge badge-info">User</span>'}</td>
-                                    <td>${user.is_active ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-warning">Inactive</span>'}</td>
-                                    <td>
-                                        ${user.id !== currentUser.id ? `
-                                            <button class="btn btn-warning btn-sm" onclick="toggleUserStatus(${user.id}, ${user.is_active})">
-                                                ${user.is_active ? 'Deactivate' : 'Activate'}
-                                            </button>
-                                            <button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id}, '${escapeHtml(user.email)}')">Delete</button>
-                                        ` : '<span style="color: #999;">Current User</span>'}
-                                    </td>
-                                </tr>
-                            `).join('')}
+                            ${users.map(user => {
+                                let statusBadge = '';
+                                if (user.is_suspended) {
+                                    statusBadge = '<span class="badge badge-danger">Suspended</span>';
+                                } else if (!user.is_active) {
+                                    statusBadge = '<span class="badge badge-warning">Pending Approval</span>';
+                                } else {
+                                    statusBadge = '<span class="badge badge-success">Approved</span>';
+                                }
+
+                                const locationList = user.locations && user.locations.length > 0
+                                    ? user.locations.map(loc => `${escapeHtml(loc.location_name)} (${loc.role})`).join('<br>')
+                                    : '<span style="color: #999;">None</span>';
+
+                                return `
+                                    <tr>
+                                        <td>${escapeHtml(user.email)}</td>
+                                        <td>${escapeHtml(user.first_name || '')} ${escapeHtml(user.last_name || '')}</td>
+                                        <td>${user.is_superuser ? '<span class="badge badge-danger">Admin</span>' : '<span class="badge badge-info">User</span>'}</td>
+                                        <td>${statusBadge}</td>
+                                        <td>${locationList}</td>
+                                        <td>
+                                            ${user.id !== currentUser.id ? `
+                                                ${!user.is_active && !user.is_suspended ?
+                                                    `<button class="btn btn-success btn-sm" onclick="approveUser(${user.id}, '${escapeHtml(user.email)}')">Approve</button>` : ''}
+                                                ${user.is_active && !user.is_suspended ?
+                                                    `<button class="btn btn-warning btn-sm" onclick="suspendUser(${user.id}, '${escapeHtml(user.email)}')">Suspend</button>` : ''}
+                                                ${user.is_suspended ?
+                                                    `<button class="btn btn-success btn-sm" onclick="unsuspendUser(${user.id}, '${escapeHtml(user.email)}')">Unsuspend</button>` : ''}
+                                                <button class="btn btn-secondary btn-sm" onclick="manageUserLocations(${user.id}, '${escapeHtml(user.email)}')">Locations</button>
+                                                <button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id}, '${escapeHtml(user.email)}')">Delete</button>
+                                            ` : '<span style="color: #999;">Current User</span>'}
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
                         </tbody>
                     </table>
                 `;
@@ -879,24 +900,75 @@
             }
         }
 
-        async function toggleUserStatus(userId, currentStatus) {
+        async function approveUser(userId, email) {
+            if (!confirm(`Approve user ${email}?`)) return;
+
             try {
-                const response = await fetch(`/api/admin/users/${userId}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ is_active: !currentStatus })
+                const response = await fetch(`/api/admin/users/${userId}/approve`, {
+                    method: 'POST',
+                    credentials: 'include'
                 });
 
                 if (response.ok) {
-                    showAlert('User status updated', 'success');
+                    showAlert('User approved successfully', 'success');
                     loadUsers();
                 } else {
-                    showAlert('Failed to update user status', 'error');
+                    const error = await response.json();
+                    showAlert(error.detail || 'Failed to approve user', 'error');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                showAlert('Error updating user status', 'error');
+                showAlert('Error approving user', 'error');
             }
+        }
+
+        async function suspendUser(userId, email) {
+            if (!confirm(`Suspend user ${email}?`)) return;
+
+            try {
+                const response = await fetch(`/api/admin/users/${userId}/suspend`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    showAlert('User suspended successfully', 'success');
+                    loadUsers();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.detail || 'Failed to suspend user', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('Error suspending user', 'error');
+            }
+        }
+
+        async function unsuspendUser(userId, email) {
+            if (!confirm(`Unsuspend user ${email}?`)) return;
+
+            try {
+                const response = await fetch(`/api/admin/users/${userId}/unsuspend`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    showAlert('User unsuspended successfully', 'success');
+                    loadUsers();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.detail || 'Failed to unsuspend user', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('Error unsuspending user', 'error');
+            }
+        }
+
+        async function manageUserLocations(userId, email) {
+            // For now, show alert - TODO: add modal for managing location assignments
+            showAlert('Location assignment coming soon. For now, approve the user and they can be assigned to locations.', 'success');
         }
 
         async function deleteUser(userId, email) {
