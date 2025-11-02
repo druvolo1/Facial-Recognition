@@ -384,6 +384,27 @@
             background: #cbd5e0;
             color: #718096;
         }
+
+        .location-selector {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+            min-width: 200px;
+        }
+
+        .location-selector:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .location-selector option {
+            background: #667eea;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -400,6 +421,9 @@
                 {% endif %}
             </div>
             <div style="display: flex; gap: 15px; align-items: center;">
+                <select id="locationSelector" class="location-selector" onchange="changeLocation()" style="display: none;">
+                    <option value="">Select Location...</option>
+                </select>
                 <span style="color: white;">{{ user.email }}</span>
                 {% if user.is_superuser %}
                 <span style="background: #ffc107; color: #333; padding: 4px 12px; border-radius: 15px; font-size: 12px; font-weight: 600;">ADMIN</span>
@@ -476,6 +500,76 @@
     <button id="audioToggle" class="audio-toggle" title="Toggle audio prompts">🔊</button>
 
     <script>
+        // Location selection
+        let userLocations = [];
+        let selectedLocationId = null;
+
+        async function loadLocations() {
+            try {
+                const locationsResponse = await fetch('/api/users/me/locations');
+                const locationsData = await locationsResponse.json();
+                userLocations = locationsData.locations || [];
+
+                const selectedResponse = await fetch('/api/users/me/selected-location');
+                const selectedData = await selectedResponse.json();
+                selectedLocationId = selectedData.selected_location_id;
+
+                const selector = document.getElementById('locationSelector');
+                if (userLocations.length > 1) {
+                    selector.innerHTML = '<option value="">Select Location...</option>';
+                    userLocations.forEach(loc => {
+                        const option = document.createElement('option');
+                        option.value = loc.location_id;
+                        option.textContent = loc.location_name;
+                        if (loc.location_id === selectedLocationId) {
+                            option.selected = true;
+                        }
+                        selector.appendChild(option);
+                    });
+                    selector.style.display = 'block';
+
+                    if (!selectedLocationId && userLocations.length > 0) {
+                        await setSelectedLocation(userLocations[0].location_id);
+                    }
+                } else if (userLocations.length === 1) {
+                    if (selectedLocationId !== userLocations[0].location_id) {
+                        await setSelectedLocation(userLocations[0].location_id);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading locations:', error);
+            }
+        }
+
+        async function changeLocation() {
+            const selector = document.getElementById('locationSelector');
+            const locationId = parseInt(selector.value);
+            if (locationId) {
+                await setSelectedLocation(locationId);
+            }
+        }
+
+        async function setSelectedLocation(locationId) {
+            try {
+                const response = await fetch('/api/users/me/selected-location', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ location_id: locationId })
+                });
+                if (response.ok) {
+                    selectedLocationId = locationId;
+                    console.log('Location changed to:', locationId);
+                    window.location.reload();
+                }
+            } catch (error) {
+                console.error('Error setting location:', error);
+            }
+        }
+
+        // Load locations on page load
+        loadLocations();
+
+        // Page elements
         const video = document.getElementById('videoElement');
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
