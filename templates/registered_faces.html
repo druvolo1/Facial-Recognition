@@ -502,7 +502,13 @@
         // Load registered faces
         async function loadFaces() {
             try {
-                const response = await fetch('/api/registered-faces');
+                // Build URL with location filter if selected
+                let url = '/api/registered-faces';
+                if (selectedLocationId) {
+                    url += `?location_id=${selectedLocationId}`;
+                }
+
+                const response = await fetch(url);
                 const data = await response.json();
 
                 if (data.success) {
@@ -645,8 +651,10 @@
         }
 
         // Load locations and faces on page load
-        loadLocations();
-        loadFaces();
+        (async () => {
+            await loadLocations();
+            await loadFaces();
+        })();
     </script>
 </body>
 </html>
