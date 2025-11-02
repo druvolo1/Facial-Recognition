@@ -2914,8 +2914,11 @@ async def get_registered_faces(
     try:
         from collections import defaultdict
 
+        print(f"[GET-REGISTERED-FACES] User: {user.email} (ID: {user.id})")
+
         # Get user's selected location and role
         location_context = await get_user_selected_location_and_role(user, session)
+        print(f"[GET-REGISTERED-FACES] Location context: {location_context}")
 
         # Build query based on permissions
         if not location_context:
@@ -2934,10 +2937,18 @@ async def get_registered_faces(
         if is_superuser and not location_id:
             # Superuser with no location selected - show all faces
             result = await session.execute(select(RegisteredFace))
-        else:
-            # Filter by selected location
+        elif location_id:
+            # Filter by selected location (including faces with NULL location_id for backwards compatibility)
             result = await session.execute(
-                select(RegisteredFace).where(RegisteredFace.location_id == location_id)
+                select(RegisteredFace).where(
+                    (RegisteredFace.location_id == location_id) |
+                    (RegisteredFace.location_id == None)
+                )
+            )
+        else:
+            # No location selected and not superuser - show faces with no location
+            result = await session.execute(
+                select(RegisteredFace).where(RegisteredFace.location_id == None)
             )
 
         all_face_records = result.scalars().all()
@@ -2976,7 +2987,9 @@ async def get_registered_faces(
         }
 
     except Exception as e:
-        print(f"[REGISTERED-FACES] Error: {e}")
+        print(f"[REGISTERED-FACES] ERROR: {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 

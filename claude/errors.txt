@@ -1,62 +1,15 @@
-172.16.1.150:51974 - "GET /api/users/me/selected-location HTTP/1.1" 200 OK
-INFO:     172.16.1.150:59296 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
-INFO:     172.16.1.150:36286 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
-INFO:     172.16.1.150:36296 - "GET /api/codeproject-servers HTTP/1.1" 401 Unauthorized
-INFO:     172.16.1.150:36308 - "GET /api/codeproject-servers/2/faces HTTP/1.1" 401 Unauthorized
-INFO:     172.16.1.150:33066 - "GET /api/locations HTTP/1.1" 401 Unauthorized
-INFO:     172.16.1.150:33074 - "GET /api/devices/pending HTTP/1.1" 401 Unauthorized
-INFO:     172.16.1.150:33126 - "GET /api/locations/1 HTTP/1.1" 401 Unauthorized
-INFO:     172.16.1.150:33130 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+---location admin---
+registered-faces:501  GET https://nrf.ruvolo.loseyourip.com/api/registered-faces 500 (Internal Server Error)
+loadFaces @ registered-faces:501
+(anonymous) @ registered-faces:645
 
 
-
-
+----super admin user----
 manage:1 [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) <input type=​"password" id=​"user-password" required minlength=​"6">​
-manage:1 [Violation] 'click' handler took 1208ms
-manage:1 [Violation] 'click' handler took 880ms
-manage:1595  GET https://nrf.ruvolo.loseyourip.com/api/codeproject-servers 401 (Unauthorized)
-loadServers @ manage:1595
-switchTab @ manage:855
-onclick @ manage:458
-manage:1660 Error loading servers: Error: HTTP 401: Unauthorized
-    at loadServers (manage:1600:27)
-loadServers @ manage:1660
-await in loadServers
-switchTab @ manage:855
-onclick @ manage:458
-manage:1861  GET https://nrf.ruvolo.loseyourip.com/api/codeproject-servers/2/faces 401 (Unauthorized)
+manage:1861  GET https://nrf.ruvolo.loseyourip.com/api/codeproject-servers/1/faces 500 (Internal Server Error)
 viewServerFaces @ manage:1861
 onclick @ manage:1
-manage:1885 Error: TypeError: Cannot read properties of undefined (reading 'length')
-    at viewServerFaces (manage:1866:32)
+manage:1885 Error: SyntaxError: Unexpected token 'I', "Internal S"... is not valid JSON
 viewServerFaces @ manage:1885
 await in viewServerFaces
-onclick @ manage:1
-manage:1206  GET https://nrf.ruvolo.loseyourip.com/api/locations 401 (Unauthorized)
-loadLocations @ manage:1206
-switchTab @ manage:851
-onclick @ manage:457
-manage:1255 Error loading locations: Error: HTTP 401: Unauthorized
-    at loadLocations (manage:1211:27)
-loadLocations @ manage:1255
-await in loadLocations
-switchTab @ manage:851
-onclick @ manage:457
-manage:1398  GET https://nrf.ruvolo.loseyourip.com/api/devices/pending 401 (Unauthorized)
-loadPendingDevices @ manage:1398
-switchTab @ manage:852
-onclick @ manage:457
-manage:1439 Error loading pending devices: Error: HTTP 401: Unauthorized
-    at loadPendingDevices (manage:1403:27)
-loadPendingDevices @ manage:1439
-await in loadPendingDevices
-switchTab @ manage:852
-onclick @ manage:457
-manage:1288  GET https://nrf.ruvolo.loseyourip.com/api/locations/1 401 (Unauthorized)
-viewLocationDevices @ manage:1288
-onclick @ manage:1
-manage:1332 Error: Error: HTTP 401: Unauthorized
-    at viewLocationDevices (manage:1293:27)
-viewLocationDevices @ manage:1332
-await in viewLocationDevices
 onclick @ manage:1
