@@ -1308,22 +1308,29 @@
                                 <tr>
                                     <th>Name</th>
                                     <th>Type</th>
+                                    <th>CodeProject Server</th>
                                     <th>Last Seen</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                ${devices.map(device => `
+                                ${devices.map(device => {
+                                    // Find the server name from allServers
+                                    const server = allServers.find(s => s.endpoint_url === device.codeproject_endpoint);
+                                    const serverName = server ? server.friendly_name : 'Unknown';
+
+                                    return `
                                     <tr>
                                         <td>${escapeHtml(device.device_name)}</td>
                                         <td><span class="badge badge-info">${escapeHtml(device.device_type)}</span></td>
+                                        <td><span class="badge badge-secondary">${escapeHtml(serverName)}</span></td>
                                         <td>${device.last_seen ? new Date(device.last_seen).toLocaleString() : 'Never'}</td>
                                         <td>
                                             <button class="btn btn-warning btn-sm" onclick="editDevice('${device.device_id}', '${escapeHtml(device.device_name)}', '${device.device_type}', '${escapeHtml(device.codeproject_endpoint)}', ${device.location_id}); closeModal('view-devices-modal');">Edit</button>
                                             <button class="btn btn-danger btn-sm" onclick="removeDevice('${device.device_id}', '${escapeHtml(device.device_name)}'); closeModal('view-devices-modal');">Remove</button>
                                         </td>
                                     </tr>
-                                `).join('')}
+                                `}).join('')}
                             </tbody>
                         </table>
                     `;

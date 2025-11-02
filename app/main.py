@@ -2938,20 +2938,22 @@ async def get_registered_faces(
             # Superuser with no location selected - show all faces
             result = await session.execute(select(RegisteredFace))
         elif location_id:
-            # Filter by selected location (including faces with NULL location_id for backwards compatibility)
+            # Filter by selected location ONLY
+            print(f"[GET-REGISTERED-FACES] Filtering by location_id: {location_id}")
             result = await session.execute(
-                select(RegisteredFace).where(
-                    (RegisteredFace.location_id == location_id) |
-                    (RegisteredFace.location_id == None)
-                )
+                select(RegisteredFace).where(RegisteredFace.location_id == location_id)
             )
         else:
-            # No location selected and not superuser - show faces with no location
-            result = await session.execute(
-                select(RegisteredFace).where(RegisteredFace.location_id == None)
-            )
+            # No location selected and not superuser - show empty
+            return {
+                "success": True,
+                "faces": [],
+                "total": 0,
+                "message": "Please select a location to view registered faces"
+            }
 
         all_face_records = result.scalars().all()
+        print(f"[GET-REGISTERED-FACES] Found {len(all_face_records)} face records")
 
         # Group by person name
         faces_dict = defaultdict(list)
@@ -2960,6 +2962,7 @@ async def get_registered_faces(
             # Convert absolute path to relative URL path
             filename = os.path.basename(face_record.file_path)
             photo_url = f"/uploads/{filename}"
+            print(f"[GET-REGISTERED-FACES] Face: {face_record.person_name}, location_id: {face_record.location_id}")
             faces_dict[face_record.person_name].append(photo_url)
 
         # Convert to list format with one sample photo per person
@@ -2979,6 +2982,8 @@ async def get_registered_faces(
                 "all_photos": photos,
                 "codeproject_user_id": face_record.codeproject_user_id if face_record else name
             })
+
+        print(f"[GET-REGISTERED-FACES] Returning {len(registered_faces)} unique people")
 
         return {
             "success": True,

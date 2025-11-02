@@ -1,15 +1,735 @@
----location admin---
-registered-faces:501  GET https://nrf.ruvolo.loseyourip.com/api/registered-faces 500 (Internal Server Error)
-loadFaces @ registered-faces:501
-(anonymous) @ registered-faces:645
+(venv) dave@Garden1:~/Facial-Recognition/app $ python main.py
+[CONFIG] Database URL: mariadb+aiomysql://app_user:testpass123@172.16.1.150:3306/facial_recognition
+[CONFIG] Base directory: /home/dave/Facial-Recognition
+[CONFIG] Upload folder: /home/dave/Facial-Recognition/uploads
+[CONFIG] CodeProject.AI: http://172.16.1.150:32168/v1
+/home/dave/Facial-Recognition/app/main.py:470: DeprecationWarning:
+        on_event is deprecated, use lifespan event handlers instead.
 
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
 
-----super admin user----
-manage:1 [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) <input type=​"password" id=​"user-password" required minlength=​"6">​
-manage:1861  GET https://nrf.ruvolo.loseyourip.com/api/codeproject-servers/1/faces 500 (Internal Server Error)
-viewServerFaces @ manage:1861
-onclick @ manage:1
-manage:1885 Error: SyntaxError: Unexpected token 'I', "Internal S"... is not valid JSON
-viewServerFaces @ manage:1885
-await in viewServerFaces
-onclick @ manage:1
+  @app.on_event("startup")
+
+************************************************************
+*                                                          *
+*  Facial Recognition App with Authentication              *
+*                                                          *
+************************************************************
+
+Server will start at: http://localhost:5000
+Login page: http://localhost:5000/login
+Dashboard: http://localhost:5000/dashboard
+
+Press Ctrl+C to stop
+
+INFO:     Will watch for changes in these directories: ['/home/dave/Facial-Recognition/app']
+INFO:     Uvicorn running on http://0.0.0.0:5000 (Press CTRL+C to quit)
+INFO:     Started reloader process [525225] using StatReload
+[CONFIG] Database URL: mariadb+aiomysql://app_user:testpass123@172.16.1.150:3306/facial_recognition
+[CONFIG] Base directory: /home/dave/Facial-Recognition
+[CONFIG] Upload folder: /home/dave/Facial-Recognition/uploads
+[CONFIG] CodeProject.AI: http://172.16.1.150:32168/v1
+[CONFIG] Database URL: mariadb+aiomysql://app_user:testpass123@172.16.1.150:3306/facial_recognition
+[CONFIG] Base directory: /home/dave/Facial-Recognition
+[CONFIG] Upload folder: /home/dave/Facial-Recognition/uploads
+[CONFIG] CodeProject.AI: http://172.16.1.150:32168/v1
+INFO:     Started server process [525231]
+INFO:     Waiting for application startup.
+
+============================================================
+[STARTUP] Facial Recognition App starting...
+[DB-INIT] Looking for .env file at: /home/dave/Facial-Recognition/.env
+[DB-INIT] .env file exists: True
+[DB-INIT] Connecting to MariaDB server at 172.16.1.150:3306
+[DB-INIT] User: app_user
+[DB-INIT] Target database: facial_recognition
+
+============================================================
+[DATABASE] Initializing database: facial_recognition
+[DATABASE] Host: 172.16.1.150:3306
+[DATABASE] User: app_user
+[DATABASE] ✓ Database 'facial_recognition' already exists and is accessible
+[STARTUP] ✓ Database tables created/verified
+[STARTUP] ✓ Admin user already exists: admin@example.com
+[STARTUP] ✓ Startup complete
+============================================================
+
+INFO:     Application startup complete.
+INFO:     172.16.1.150:42772 - "GET /registered-faces HTTP/1.1" 200 OK
+[GET-LOCATIONS] User: linda@example.com (ID: 5, Superuser: False)
+[GET-LOCATIONS] Regular user - querying UserLocationRole
+[GET-LOCATIONS] Found 2 location assignments
+[GET-LOCATIONS] Returning: {'user_id': 5, 'is_superuser': False, 'locations': [{'location_id': 1, 'location_name': "Mike's House", 'role': 'location_admin'}, {'location_id': 2, 'location_name': "Dave's house", 'role': 'location_user'}]}
+INFO:     172.16.1.150:42788 - "GET /api/my-locations HTTP/1.1" 200 OK
+[GET-REGISTERED-FACES] User: linda@example.com (ID: 5)
+[GET-REGISTERED-FACES] Location context: {'location_id': 1, 'role': 'location_admin', 'is_superuser': False}
+[REGISTERED-FACES] ERROR: OperationalError: (pymysql.err.OperationalError) (1054, "Unknown column 'registered_face.location_id' in 'SELECT'")
+[SQL: SELECT registered_face.id, registered_face.person_name, registered_face.codeproject_user_id, registered_face.file_path, registered_face.codeproject_endpoint, registered_face.location_id, registered_face.registered_at, registered_face.registered_by_user_id
+FROM registered_face
+WHERE registered_face.location_id = %s OR registered_face.location_id IS NULL]
+[parameters: (1,)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Traceback (most recent call last):
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 95, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 104, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 239, in execute
+    await self._query(query)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 457, in _query
+    await conn.query(q)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 469, in query
+    await self._read_query_result(unbuffered=unbuffered)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+    await result.read()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 1164, in read
+    first_packet = await self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 652, in _read_packet
+    packet.raise_for_error()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.OperationalError: (1054, "Unknown column 'registered_face.location_id' in 'SELECT'")
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/dave/Facial-Recognition/app/main.py", line 2942, in get_registered_faces
+    result = await session.execute(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/session.py", line 461, in execute
+    result = await greenlet_spawn(
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 201, in greenlet_spawn
+    result = context.throw(*sys.exc_info())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2362, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2247, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/context.py", line 305, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1418, in execute
+    return meth(
+           ^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 515, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1640, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2355, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 95, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 104, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 239, in execute
+    await self._query(query)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 457, in _query
+    await conn.query(q)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 469, in query
+    await self._read_query_result(unbuffered=unbuffered)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+    await result.read()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 1164, in read
+    first_packet = await self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 652, in _read_packet
+    packet.raise_for_error()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+sqlalchemy.exc.OperationalError: (pymysql.err.OperationalError) (1054, "Unknown column 'registered_face.location_id' in 'SELECT'")
+[SQL: SELECT registered_face.id, registered_face.person_name, registered_face.codeproject_user_id, registered_face.file_path, registered_face.codeproject_endpoint, registered_face.location_id, registered_face.registered_at, registered_face.registered_by_user_id
+FROM registered_face
+WHERE registered_face.location_id = %s OR registered_face.location_id IS NULL]
+[parameters: (1,)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+INFO:     172.16.1.150:42794 - "GET /api/registered-faces HTTP/1.1" 500 Internal Server Error
+INFO:     172.16.1.150:42804 - "GET /api/users/me/selected-location HTTP/1.1" 200 OK
+INFO:     172.16.1.150:42820 - "POST /auth/logout HTTP/1.1" 302 Found
+INFO:     172.16.1.150:42824 - "GET /login HTTP/1.1" 200 OK
+INFO:     172.16.1.150:42836 - "GET /login HTTP/1.1" 200 OK
+INFO:     172.16.1.150:42852 - "GET / HTTP/1.1" 302 Found
+INFO:     172.16.1.150:49722 - "POST /auth/jwt/login HTTP/1.1" 200 OK
+INFO:     172.16.1.150:49736 - "GET /dashboard HTTP/1.1" 200 OK
+[GET-LOCATIONS] User: linda@example.com (ID: 5, Superuser: False)
+[GET-LOCATIONS] Regular user - querying UserLocationRole
+[GET-LOCATIONS] Found 2 location assignments
+[GET-LOCATIONS] Returning: {'user_id': 5, 'is_superuser': False, 'locations': [{'location_id': 1, 'location_name': "Mike's House", 'role': 'location_admin'}, {'location_id': 2, 'location_name': "Dave's house", 'role': 'location_user'}]}
+INFO:     172.16.1.150:49750 - "GET /api/my-locations HTTP/1.1" 200 OK
+INFO:     172.16.1.150:49756 - "GET /api/users/me/selected-location HTTP/1.1" 200 OK
+INFO:     172.16.1.150:49770 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:49776 - "GET /registered-faces HTTP/1.1" 200 OK
+[GET-LOCATIONS] User: linda@example.com (ID: 5, Superuser: False)
+[GET-LOCATIONS] Regular user - querying UserLocationRole
+[GET-LOCATIONS] Found 2 location assignments
+[GET-LOCATIONS] Returning: {'user_id': 5, 'is_superuser': False, 'locations': [{'location_id': 1, 'location_name': "Mike's House", 'role': 'location_admin'}, {'location_id': 2, 'location_name': "Dave's house", 'role': 'location_user'}]}
+INFO:     172.16.1.150:49778 - "GET /api/my-locations HTTP/1.1" 200 OK
+[GET-REGISTERED-FACES] User: linda@example.com (ID: 5)
+[GET-REGISTERED-FACES] Location context: {'location_id': 1, 'role': 'location_admin', 'is_superuser': False}
+[REGISTERED-FACES] ERROR: OperationalError: (pymysql.err.OperationalError) (1054, "Unknown column 'registered_face.location_id' in 'SELECT'")
+[SQL: SELECT registered_face.id, registered_face.person_name, registered_face.codeproject_user_id, registered_face.file_path, registered_face.codeproject_endpoint, registered_face.location_id, registered_face.registered_at, registered_face.registered_by_user_id
+FROM registered_face
+WHERE registered_face.location_id = %s OR registered_face.location_id IS NULL]
+[parameters: (1,)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Traceback (most recent call last):
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 95, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 104, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 239, in execute
+    await self._query(query)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 457, in _query
+    await conn.query(q)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 469, in query
+    await self._read_query_result(unbuffered=unbuffered)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+    await result.read()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 1164, in read
+    first_packet = await self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 652, in _read_packet
+    packet.raise_for_error()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.OperationalError: (1054, "Unknown column 'registered_face.location_id' in 'SELECT'")
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/dave/Facial-Recognition/app/main.py", line 2942, in get_registered_faces
+    result = await session.execute(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/session.py", line 461, in execute
+    result = await greenlet_spawn(
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 201, in greenlet_spawn
+    result = context.throw(*sys.exc_info())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2362, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2247, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/orm/context.py", line 305, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1418, in execute
+    return meth(
+           ^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 515, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1640, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2355, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 95, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 104, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 239, in execute
+    await self._query(query)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/cursors.py", line 457, in _query
+    await conn.query(q)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 469, in query
+    await self._read_query_result(unbuffered=unbuffered)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+    await result.read()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 1164, in read
+    first_packet = await self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/aiomysql/connection.py", line 652, in _read_packet
+    packet.raise_for_error()
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/pymysql/err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+sqlalchemy.exc.OperationalError: (pymysql.err.OperationalError) (1054, "Unknown column 'registered_face.location_id' in 'SELECT'")
+[SQL: SELECT registered_face.id, registered_face.person_name, registered_face.codeproject_user_id, registered_face.file_path, registered_face.codeproject_endpoint, registered_face.location_id, registered_face.registered_at, registered_face.registered_by_user_id
+FROM registered_face
+WHERE registered_face.location_id = %s OR registered_face.location_id IS NULL]
+[parameters: (1,)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+INFO:     172.16.1.150:49794 - "GET /api/registered-faces HTTP/1.1" 500 Internal Server Error
+INFO:     172.16.1.150:49800 - "GET /api/users/me/selected-location HTTP/1.1" 200 OK
+^CINFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [525231]
+INFO:     Stopping reloader process [525225]
+(venv) dave@Garden1:~/Facial-Recognition/app $ python main.py
+[CONFIG] Database URL: mariadb+aiomysql://app_user:testpass123@172.16.1.150:3306/facial_recognition
+[CONFIG] Base directory: /home/dave/Facial-Recognition
+[CONFIG] Upload folder: /home/dave/Facial-Recognition/uploads
+[CONFIG] CodeProject.AI: http://172.16.1.150:32168/v1
+/home/dave/Facial-Recognition/app/main.py:470: DeprecationWarning:
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+  @app.on_event("startup")
+
+************************************************************
+*                                                          *
+*  Facial Recognition App with Authentication              *
+*                                                          *
+************************************************************
+
+Server will start at: http://localhost:5000
+Login page: http://localhost:5000/login
+Dashboard: http://localhost:5000/dashboard
+
+Press Ctrl+C to stop
+
+INFO:     Will watch for changes in these directories: ['/home/dave/Facial-Recognition/app']
+INFO:     Uvicorn running on http://0.0.0.0:5000 (Press CTRL+C to quit)
+INFO:     Started reloader process [525378] using StatReload
+[CONFIG] Database URL: mariadb+aiomysql://app_user:testpass123@172.16.1.150:3306/facial_recognition
+[CONFIG] Base directory: /home/dave/Facial-Recognition
+[CONFIG] Upload folder: /home/dave/Facial-Recognition/uploads
+[CONFIG] CodeProject.AI: http://172.16.1.150:32168/v1
+[CONFIG] Database URL: mariadb+aiomysql://app_user:testpass123@172.16.1.150:3306/facial_recognition
+[CONFIG] Base directory: /home/dave/Facial-Recognition
+[CONFIG] Upload folder: /home/dave/Facial-Recognition/uploads
+[CONFIG] CodeProject.AI: http://172.16.1.150:32168/v1
+INFO:     Started server process [525384]
+INFO:     Waiting for application startup.
+
+============================================================
+[STARTUP] Facial Recognition App starting...
+[DB-INIT] Looking for .env file at: /home/dave/Facial-Recognition/.env
+[DB-INIT] .env file exists: True
+[DB-INIT] Connecting to MariaDB server at 172.16.1.150:3306
+[DB-INIT] User: app_user
+[DB-INIT] Target database: facial_recognition
+
+============================================================
+[DATABASE] Initializing database: facial_recognition
+[DATABASE] Host: 172.16.1.150:3306
+[DATABASE] User: app_user
+[DATABASE] ✓ Database 'facial_recognition' already exists and is accessible
+[STARTUP] ✓ Database tables created/verified
+[STARTUP] ✓ Admin user already exists: admin@example.com
+[STARTUP] ✓ Startup complete
+============================================================
+
+INFO:     Application startup complete.
+INFO:     172.16.1.150:49582 - "GET /registered-faces HTTP/1.1" 200 OK
+[GET-LOCATIONS] User: linda@example.com (ID: 5, Superuser: False)
+[GET-LOCATIONS] Regular user - querying UserLocationRole
+[GET-LOCATIONS] Found 2 location assignments
+[GET-LOCATIONS] Returning: {'user_id': 5, 'is_superuser': False, 'locations': [{'location_id': 1, 'location_name': "Mike's House", 'role': 'location_admin'}, {'location_id': 2, 'location_name': "Dave's house", 'role': 'location_user'}]}
+INFO:     172.16.1.150:49588 - "GET /api/my-locations HTTP/1.1" 200 OK
+[GET-REGISTERED-FACES] User: linda@example.com (ID: 5)
+[GET-REGISTERED-FACES] Location context: {'location_id': 1, 'role': 'location_admin', 'is_superuser': False}
+INFO:     172.16.1.150:49592 - "GET /api/registered-faces HTTP/1.1" 200 OK
+INFO:     172.16.1.150:49608 - "GET /api/users/me/selected-location HTTP/1.1" 200 OK
+INFO:     172.16.1.150:49612 - "GET /uploads/dave3_20251101_212900_0.jpg HTTP/1.1" 304 Not Modified
+INFO:     172.16.1.150:47812 - "POST /api/users/me/selected-location HTTP/1.1" 200 OK
+INFO:     172.16.1.150:47818 - "GET /registered-faces HTTP/1.1" 200 OK
+[GET-LOCATIONS] User: linda@example.com (ID: 5, Superuser: False)
+[GET-LOCATIONS] Regular user - querying UserLocationRole
+[GET-LOCATIONS] Found 2 location assignments
+[GET-LOCATIONS] Returning: {'user_id': 5, 'is_superuser': False, 'locations': [{'location_id': 1, 'location_name': "Mike's House", 'role': 'location_admin'}, {'location_id': 2, 'location_name': "Dave's house", 'role': 'location_user'}]}
+[GET-REGISTERED-FACES] User: linda@example.com (ID: 5)
+[GET-REGISTERED-FACES] Location context: {'location_id': 2, 'role': 'location_user', 'is_superuser': False}
+INFO:     172.16.1.150:47826 - "GET /api/my-locations HTTP/1.1" 200 OK
+INFO:     172.16.1.150:47838 - "GET /api/registered-faces HTTP/1.1" 200 OK
+INFO:     172.16.1.150:47840 - "GET /api/users/me/selected-location HTTP/1.1" 200 OK
+INFO:     172.16.1.150:47848 - "GET /registered-faces HTTP/1.1" 200 OK
+[GET-LOCATIONS] User: linda@example.com (ID: 5, Superuser: False)
+[GET-LOCATIONS] Regular user - querying UserLocationRole
+[GET-REGISTERED-FACES] User: linda@example.com (ID: 5)
+[GET-LOCATIONS] Found 2 location assignments
+[GET-LOCATIONS] Returning: {'user_id': 5, 'is_superuser': False, 'locations': [{'location_id': 1, 'location_name': "Mike's House", 'role': 'location_admin'}, {'location_id': 2, 'location_name': "Dave's house", 'role': 'location_user'}]}
+[GET-REGISTERED-FACES] Location context: {'location_id': 2, 'role': 'location_user', 'is_superuser': False}
+INFO:     172.16.1.150:47862 - "GET /api/my-locations HTTP/1.1" 200 OK
+INFO:     172.16.1.150:47872 - "GET /api/registered-faces HTTP/1.1" 200 OK
+INFO:     172.16.1.150:47880 - "GET /api/users/me/selected-location HTTP/1.1" 200 OK
+INFO:     172.16.1.150:47888 - "GET /admin/manage HTTP/1.1" 200 OK
+INFO:     172.16.1.150:47904 - "GET /api/locations HTTP/1.1" 200 OK
+INFO:     172.16.1.150:47892 - "GET /api/admin/users HTTP/1.1" 200 OK
+INFO:     172.16.1.150:47914 - "GET /api/codeproject-servers HTTP/1.1" 200 OK
+INFO:     172.16.1.150:47920 - "GET /api/codeproject-servers/1/test HTTP/1.1" 200 OK
+INFO:     172.16.1.150:47936 - "GET /api/codeproject-servers/2/test HTTP/1.1" 200 OK
+INFO:     172.16.1.150:47942 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:39218 - "GET /api/devices/pending HTTP/1.1" 200 OK
+INFO:     172.16.1.150:39220 - "GET /api/locations HTTP/1.1" 200 OK
+INFO:     172.16.1.150:39242 - "GET /api/codeproject-servers HTTP/1.1" 200 OK
+INFO:     172.16.1.150:39246 - "GET /api/codeproject-servers/1/test HTTP/1.1" 200 OK
+INFO:     172.16.1.150:39258 - "GET /api/codeproject-servers/2/test HTTP/1.1" 200 OK
+INFO:     172.16.1.150:34522 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:35700 - "GET /api/codeproject-servers/1/test HTTP/1.1" 200 OK
+INFO:     172.16.1.150:35708 - "GET /api/codeproject-servers/2/test HTTP/1.1" 200 OK
+INFO:     172.16.1.150:35716 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:60782 - "GET /api/devices/pending HTTP/1.1" 200 OK
+INFO:     172.16.1.150:60778 - "GET /api/locations HTTP/1.1" 200 OK
+INFO:     172.16.1.150:43900 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:36566 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:34384 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:43994 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:41982 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:39936 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:58164 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:54144 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:54350 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:35042 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:47258 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:47268 - "GET /api/locations/1 HTTP/1.1" 200 OK
+INFO:     172.16.1.150:46692 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:37764 - "GET /api/locations/1 HTTP/1.1" 200 OK
+INFO:     172.16.1.150:35792 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:35794 - "GET /registered-faces HTTP/1.1" 200 OK
+[GET-LOCATIONS] User: linda@example.com (ID: 5, Superuser: False)
+[GET-LOCATIONS] Regular user - querying UserLocationRole
+[GET-LOCATIONS] Found 2 location assignments
+[GET-LOCATIONS] Returning: {'user_id': 5, 'is_superuser': False, 'locations': [{'location_id': 1, 'location_name': "Mike's House", 'role': 'location_admin'}, {'location_id': 2, 'location_name': "Dave's house", 'role': 'location_user'}]}
+INFO:     172.16.1.150:35806 - "GET /api/my-locations HTTP/1.1" 200 OK
+[GET-REGISTERED-FACES] User: linda@example.com (ID: 5)
+[GET-REGISTERED-FACES] Location context: {'location_id': 2, 'role': 'location_user', 'is_superuser': False}
+INFO:     172.16.1.150:35812 - "GET /api/registered-faces HTTP/1.1" 200 OK
+INFO:     172.16.1.150:35816 - "GET /api/users/me/selected-location HTTP/1.1" 200 OK
+INFO:     172.16.1.150:53448 - "POST /api/users/me/selected-location HTTP/1.1" 200 OK
+INFO:     172.16.1.150:53450 - "GET /registered-faces HTTP/1.1" 200 OK
+[GET-LOCATIONS] User: linda@example.com (ID: 5, Superuser: False)
+[GET-LOCATIONS] Regular user - querying UserLocationRole
+[GET-REGISTERED-FACES] User: linda@example.com (ID: 5)
+[GET-LOCATIONS] Found 2 location assignments
+[GET-LOCATIONS] Returning: {'user_id': 5, 'is_superuser': False, 'locations': [{'location_id': 1, 'location_name': "Mike's House", 'role': 'location_admin'}, {'location_id': 2, 'location_name': "Dave's house", 'role': 'location_user'}]}
+[GET-REGISTERED-FACES] Location context: {'location_id': 1, 'role': 'location_admin', 'is_superuser': False}
+INFO:     172.16.1.150:53458 - "GET /api/my-locations HTTP/1.1" 200 OK
+INFO:     172.16.1.150:53474 - "GET /api/registered-faces HTTP/1.1" 200 OK
+INFO:     172.16.1.150:53482 - "GET /api/users/me/selected-location HTTP/1.1" 200 OK
+INFO:     172.16.1.150:53488 - "GET /registered-faces HTTP/1.1" 200 OK
+[GET-LOCATIONS] User: linda@example.com (ID: 5, Superuser: False)
+[GET-LOCATIONS] Regular user - querying UserLocationRole
+[GET-LOCATIONS] Found 2 location assignments
+[GET-LOCATIONS] Returning: {'user_id': 5, 'is_superuser': False, 'locations': [{'location_id': 1, 'location_name': "Mike's House", 'role': 'location_admin'}, {'location_id': 2, 'location_name': "Dave's house", 'role': 'location_user'}]}
+[GET-REGISTERED-FACES] User: linda@example.com (ID: 5)
+[GET-REGISTERED-FACES] Location context: {'location_id': 1, 'role': 'location_admin', 'is_superuser': False}
+INFO:     172.16.1.150:53502 - "GET /api/my-locations HTTP/1.1" 200 OK
+INFO:     172.16.1.150:53510 - "GET /api/registered-faces HTTP/1.1" 200 OK
+INFO:     172.16.1.150:53518 - "GET /api/users/me/selected-location HTTP/1.1" 200 OK
+INFO:     172.16.1.150:53522 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+^CINFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [525384]
+INFO:     Stopping reloader process [525378]
+(venv) dave@Garden1:~/Facial-Recognition/app $ python main.py
+[CONFIG] Database URL: mariadb+aiomysql://app_user:testpass123@172.16.1.150:3306/facial_recognition
+[CONFIG] Base directory: /home/dave/Facial-Recognition
+[CONFIG] Upload folder: /home/dave/Facial-Recognition/uploads
+[CONFIG] CodeProject.AI: http://172.16.1.150:32168/v1
+/home/dave/Facial-Recognition/app/main.py:470: DeprecationWarning:
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+  @app.on_event("startup")
+
+************************************************************
+*                                                          *
+*  Facial Recognition App with Authentication              *
+*                                                          *
+************************************************************
+
+Server will start at: http://localhost:5000
+Login page: http://localhost:5000/login
+Dashboard: http://localhost:5000/dashboard
+
+Press Ctrl+C to stop
+
+INFO:     Will watch for changes in these directories: ['/home/dave/Facial-Recognition/app']
+INFO:     Uvicorn running on http://0.0.0.0:5000 (Press CTRL+C to quit)
+INFO:     Started reloader process [525660] using StatReload
+[CONFIG] Database URL: mariadb+aiomysql://app_user:testpass123@172.16.1.150:3306/facial_recognition
+[CONFIG] Base directory: /home/dave/Facial-Recognition
+[CONFIG] Upload folder: /home/dave/Facial-Recognition/uploads
+[CONFIG] CodeProject.AI: http://172.16.1.150:32168/v1
+[CONFIG] Database URL: mariadb+aiomysql://app_user:testpass123@172.16.1.150:3306/facial_recognition
+[CONFIG] Base directory: /home/dave/Facial-Recognition
+[CONFIG] Upload folder: /home/dave/Facial-Recognition/uploads
+[CONFIG] CodeProject.AI: http://172.16.1.150:32168/v1
+INFO:     Started server process [525665]
+INFO:     Waiting for application startup.
+
+============================================================
+[STARTUP] Facial Recognition App starting...
+[DB-INIT] Looking for .env file at: /home/dave/Facial-Recognition/.env
+[DB-INIT] .env file exists: True
+[DB-INIT] Connecting to MariaDB server at 172.16.1.150:3306
+[DB-INIT] User: app_user
+[DB-INIT] Target database: facial_recognition
+
+============================================================
+[DATABASE] Initializing database: facial_recognition
+[DATABASE] Host: 172.16.1.150:3306
+[DATABASE] User: app_user
+[DATABASE] ✓ Database 'facial_recognition' already exists and is accessible
+[STARTUP] ✓ Database tables created/verified
+[STARTUP] ✓ Admin user already exists: admin@example.com
+[STARTUP] ✓ Startup complete
+============================================================
+
+INFO:     Application startup complete.
+INFO:     172.16.1.150:41294 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:41298 - "GET /admin/manage HTTP/1.1" 200 OK
+INFO:     172.16.1.150:41310 - "GET /api/admin/users HTTP/1.1" 200 OK
+INFO:     172.16.1.150:41314 - "GET /api/locations HTTP/1.1" 200 OK
+INFO:     172.16.1.150:41320 - "GET /api/codeproject-servers HTTP/1.1" 200 OK
+INFO:     172.16.1.150:41336 - "GET /api/codeproject-servers/1/test HTTP/1.1" 200 OK
+INFO:     172.16.1.150:41352 - "GET /api/codeproject-servers/2/test HTTP/1.1" 200 OK
+INFO:     172.16.1.150:47888 - "GET /api/devices/pending HTTP/1.1" 200 OK
+INFO:     172.16.1.150:47872 - "GET /api/locations HTTP/1.1" 200 OK
+INFO:     172.16.1.150:47894 - "GET /api/locations/1 HTTP/1.1" 200 OK
+INFO:     172.16.1.150:47896 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:53552 - "GET /dashboard HTTP/1.1" 200 OK
+[GET-LOCATIONS] User: admin@example.com (ID: 1, Superuser: True)
+[GET-LOCATIONS] Superuser - returning 2 locations
+INFO:     172.16.1.150:53566 - "GET /api/my-locations HTTP/1.1" 200 OK
+INFO:     172.16.1.150:53576 - "GET /api/users/me/selected-location HTTP/1.1" 200 OK
+INFO:     172.16.1.150:53590 - "GET /admin/manage HTTP/1.1" 200 OK
+INFO:     172.16.1.150:53604 - "GET /api/admin/users HTTP/1.1" 200 OK
+INFO:     172.16.1.150:53608 - "GET /api/locations HTTP/1.1" 200 OK
+INFO:     172.16.1.150:53612 - "GET /api/codeproject-servers HTTP/1.1" 200 OK
+INFO:     172.16.1.150:53616 - "GET /api/codeproject-servers/1/test HTTP/1.1" 200 OK
+INFO:     172.16.1.150:53632 - "GET /api/codeproject-servers/2/test HTTP/1.1" 200 OK
+INFO:     172.16.1.150:53648 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:37300 - "GET /api/devices/pending HTTP/1.1" 200 OK
+INFO:     172.16.1.150:37288 - "GET /api/locations HTTP/1.1" 200 OK
+INFO:     172.16.1.150:45396 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:45402 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:39076 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:39084 - "GET /dashboard HTTP/1.1" 200 OK
+[GET-LOCATIONS] User: admin@example.com (ID: 1, Superuser: True)
+[GET-LOCATIONS] Superuser - returning 2 locations
+INFO:     172.16.1.150:39094 - "GET /api/my-locations HTTP/1.1" 200 OK
+INFO:     172.16.1.150:39102 - "GET /api/users/me/selected-location HTTP/1.1" 200 OK
+INFO:     172.16.1.150:42516 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:42522 - "GET /registered-faces HTTP/1.1" 200 OK
+[GET-LOCATIONS] User: admin@example.com (ID: 1, Superuser: True)
+[GET-LOCATIONS] Superuser - returning 2 locations
+[GET-REGISTERED-FACES] User: admin@example.com (ID: 1)
+[GET-REGISTERED-FACES] Location context: {'location_id': 2, 'role': 'superadmin', 'is_superuser': True}
+INFO:     172.16.1.150:42538 - "GET /api/my-locations HTTP/1.1" 200 OK
+INFO:     172.16.1.150:42550 - "GET /api/registered-faces HTTP/1.1" 200 OK
+INFO:     172.16.1.150:42552 - "GET /uploads/dave3_20251101_212900_0.jpg HTTP/1.1" 304 Not Modified
+INFO:     172.16.1.150:42556 - "GET /api/users/me/selected-location HTTP/1.1" 200 OK
+
+============================================================
+[DELETE] Deleting registered face: dave3
+[DELETE] Found 6 file(s) to delete
+[DELETE] Removing from 1 CodeProject.AI server(s)...
+[DELETE]   Deleting from http://172.16.1.150:32168/v1...
+[DELETE]     ✓ Removed from http://172.16.1.150:32168/v1 (6 record(s))
+[DELETE]   ✓ Deleted file: dave3_20251101_212900_0.jpg
+[DELETE]   ✓ Deleted file: dave3_20251101_212901_1.jpg
+[DELETE]   ✓ Deleted file: dave3_20251101_212901_2.jpg
+[DELETE]   ✓ Deleted file: dave3_20251101_212901_3.jpg
+[DELETE]   ✓ Deleted file: dave3_20251101_212901_4.jpg
+[DELETE]   ✓ Deleted file: dave3_20251101_212902_5.jpg
+[DELETE]   ✓ Removed 6 record(s) from database
+[DELETE] Deletion complete for dave3
+============================================================
+
+INFO:     172.16.1.150:42566 - "DELETE /api/registered-faces/dave3 HTTP/1.1" 200 OK
+[GET-REGISTERED-FACES] User: admin@example.com (ID: 1)
+[GET-REGISTERED-FACES] Location context: {'location_id': 2, 'role': 'superadmin', 'is_superuser': True}
+INFO:     172.16.1.150:42582 - "GET /api/registered-faces HTTP/1.1" 200 OK
+INFO:     172.16.1.150:42586 - "POST /api/users/me/selected-location HTTP/1.1" 200 OK
+INFO:     172.16.1.150:42592 - "GET /registered-faces HTTP/1.1" 200 OK
+[GET-LOCATIONS] User: admin@example.com (ID: 1, Superuser: True)
+[GET-LOCATIONS] Superuser - returning 2 locations
+[GET-REGISTERED-FACES] User: admin@example.com (ID: 1)
+[GET-REGISTERED-FACES] Location context: {'location_id': 1, 'role': 'superadmin', 'is_superuser': True}
+INFO:     172.16.1.150:42608 - "GET /api/my-locations HTTP/1.1" 200 OK
+INFO:     172.16.1.150:42620 - "GET /api/registered-faces HTTP/1.1" 200 OK
+INFO:     172.16.1.150:42622 - "GET /api/users/me/selected-location HTTP/1.1" 200 OK
+INFO:     172.16.1.150:39090 - "GET /admin/manage HTTP/1.1" 200 OK
+INFO:     172.16.1.150:39096 - "GET /api/admin/users HTTP/1.1" 200 OK
+INFO:     172.16.1.150:39100 - "GET /api/locations HTTP/1.1" 200 OK
+INFO:     172.16.1.150:39104 - "GET /api/codeproject-servers HTTP/1.1" 200 OK
+INFO:     172.16.1.150:39112 - "GET /api/codeproject-servers/1/test HTTP/1.1" 200 OK
+INFO:     172.16.1.150:39128 - "GET /api/codeproject-servers/2/test HTTP/1.1" 200 OK
+INFO:     172.16.1.150:39140 - "GET /api/devices/pending HTTP/1.1" 200 OK
+INFO:     172.16.1.150:39136 - "GET /api/locations HTTP/1.1" 200 OK
+INFO:     172.16.1.150:39152 - "GET /api/locations/1 HTTP/1.1" 200 OK
+INFO:     172.16.1.150:54286 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:47662 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:35846 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:37542 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:36952 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:50492 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:44718 - "GET /api/locations/1 HTTP/1.1" 200 OK
+INFO:     172.16.1.150:39666 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:39674 - "GET /api/locations/1 HTTP/1.1" 200 OK
+INFO:     172.16.1.150:53164 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:60162 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:58372 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:58378 - "OPTIONS /api/devices/register-face HTTP/1.1" 200 OK
+
+============================================================
+[DEVICE-REGISTER] Device: dave c3 (42f88ee8...)
+[DEVICE-REGISTER] Location: 1
+[DEVICE-REGISTER] Person: d6
+[DEVICE-REGISTER] Photos: 6
+[DEVICE-REGISTER] Processing photo 1/6
+[DEVICE-REGISTER]   Image size: 103.65 KB
+[DEVICE-REGISTER]   Saved locally: d6_20251101_223317_0.jpg
+[DEVICE-REGISTER]   Sending to CodeProject.AI at http://172.16.1.150:32168/v1...
+[DEVICE-REGISTER]   ✓ Photo 1 registered successfully
+[DEVICE-REGISTER]   ✓ Saved to database
+[DEVICE-REGISTER] Processing photo 2/6
+[DEVICE-REGISTER]   Image size: 103.46 KB
+[DEVICE-REGISTER]   Saved locally: d6_20251101_223317_1.jpg
+[DEVICE-REGISTER]   Sending to CodeProject.AI at http://172.16.1.150:32168/v1...
+[DEVICE-REGISTER]   ✓ Photo 2 registered successfully
+[DEVICE-REGISTER]   ✓ Saved to database
+[DEVICE-REGISTER] Processing photo 3/6
+[DEVICE-REGISTER]   Image size: 103.64 KB
+[DEVICE-REGISTER]   Saved locally: d6_20251101_223317_2.jpg
+[DEVICE-REGISTER]   Sending to CodeProject.AI at http://172.16.1.150:32168/v1...
+[DEVICE-REGISTER]   ✓ Photo 3 registered successfully
+[DEVICE-REGISTER]   ✓ Saved to database
+[DEVICE-REGISTER] Processing photo 4/6
+[DEVICE-REGISTER]   Image size: 104.22 KB
+[DEVICE-REGISTER]   Saved locally: d6_20251101_223317_3.jpg
+[DEVICE-REGISTER]   Sending to CodeProject.AI at http://172.16.1.150:32168/v1...
+[DEVICE-REGISTER]   ✓ Photo 4 registered successfully
+[DEVICE-REGISTER]   ✓ Saved to database
+[DEVICE-REGISTER] Processing photo 5/6
+[DEVICE-REGISTER]   Image size: 103.33 KB
+[DEVICE-REGISTER]   Saved locally: d6_20251101_223317_4.jpg
+[DEVICE-REGISTER]   Sending to CodeProject.AI at http://172.16.1.150:32168/v1...
+[DEVICE-REGISTER]   ✓ Photo 5 registered successfully
+[DEVICE-REGISTER]   ✓ Saved to database
+[DEVICE-REGISTER] Processing photo 6/6
+[DEVICE-REGISTER]   Image size: 104.20 KB
+[DEVICE-REGISTER]   Saved locally: d6_20251101_223317_5.jpg
+[DEVICE-REGISTER]   Sending to CodeProject.AI at http://172.16.1.150:32168/v1...
+[DEVICE-REGISTER]   ✓ Photo 6 registered successfully
+[DEVICE-REGISTER]   ✓ Saved to database
+[DEVICE-REGISTER] Registration complete: 6/6 successful
+============================================================
+
+INFO:     172.16.1.150:58386 - "POST /api/devices/register-face HTTP/1.1" 200 OK
+INFO:     172.16.1.150:36302 - "POST /api/users/me/selected-location HTTP/1.1" 200 OK
+INFO:     172.16.1.150:36308 - "GET /registered-faces HTTP/1.1" 200 OK
+[GET-LOCATIONS] User: linda@example.com (ID: 5, Superuser: False)
+[GET-LOCATIONS] Regular user - querying UserLocationRole
+[GET-LOCATIONS] Found 2 location assignments
+[GET-LOCATIONS] Returning: {'user_id': 5, 'is_superuser': False, 'locations': [{'location_id': 1, 'location_name': "Mike's House", 'role': 'location_admin'}, {'location_id': 2, 'location_name': "Dave's house", 'role': 'location_user'}]}
+INFO:     172.16.1.150:36314 - "GET /api/my-locations HTTP/1.1" 200 OK
+[GET-REGISTERED-FACES] User: linda@example.com (ID: 5)
+[GET-REGISTERED-FACES] Location context: {'location_id': 2, 'role': 'location_user', 'is_superuser': False}
+INFO:     172.16.1.150:36328 - "GET /api/registered-faces HTTP/1.1" 200 OK
+INFO:     172.16.1.150:36330 - "GET /api/users/me/selected-location HTTP/1.1" 200 OK
+INFO:     172.16.1.150:36346 - "GET /uploads/d6_20251101_223317_0.jpg HTTP/1.1" 200 OK
+INFO:     172.16.1.150:36348 - "POST /api/users/me/selected-location HTTP/1.1" 200 OK
+INFO:     172.16.1.150:36364 - "GET /registered-faces HTTP/1.1" 200 OK
+[GET-LOCATIONS] User: linda@example.com (ID: 5, Superuser: False)
+[GET-LOCATIONS] Regular user - querying UserLocationRole
+[GET-REGISTERED-FACES] User: linda@example.com (ID: 5)
+[GET-LOCATIONS] Found 2 location assignments
+[GET-LOCATIONS] Returning: {'user_id': 5, 'is_superuser': False, 'locations': [{'location_id': 1, 'location_name': "Mike's House", 'role': 'location_admin'}, {'location_id': 2, 'location_name': "Dave's house", 'role': 'location_user'}]}
+[GET-REGISTERED-FACES] Location context: {'location_id': 1, 'role': 'location_admin', 'is_superuser': False}
+INFO:     172.16.1.150:36368 - "GET /api/my-locations HTTP/1.1" 200 OK
+INFO:     172.16.1.150:36372 - "GET /api/registered-faces HTTP/1.1" 200 OK
+INFO:     172.16.1.150:36390 - "GET /uploads/d6_20251101_223317_0.jpg HTTP/1.1" 304 Not Modified
+INFO:     172.16.1.150:36374 - "GET /api/users/me/selected-location HTTP/1.1" 200 OK
+INFO:     172.16.1.150:57342 - "GET /api/admin/users HTTP/1.1" 200 OK
+INFO:     172.16.1.150:57356 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:57364 - "GET /api/locations HTTP/1.1" 200 OK
+INFO:     172.16.1.150:57380 - "GET /api/devices/pending HTTP/1.1" 200 OK
+INFO:     172.16.1.150:45064 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:45072 - "GET /api/codeproject-servers HTTP/1.1" 200 OK
+INFO:     172.16.1.150:45078 - "GET /api/codeproject-servers/1/test HTTP/1.1" 200 OK
+INFO:     172.16.1.150:45092 - "GET /api/codeproject-servers/2/test HTTP/1.1" 200 OK
+INFO:     172.16.1.150:45094 - "GET /api/codeproject-servers/1/faces HTTP/1.1" 200 OK
+
+============================================================
+[DELETE-FACE] Deleting paco from Dave
+[DELETE-FACE]   ✓ Removed from CodeProject.AI
+[DELETE-FACE]   ⚠ No database records found for paco
+[DELETE-FACE] Deletion complete
+============================================================
+
+INFO:     172.16.1.150:51106 - "DELETE /api/codeproject-servers/1/faces/paco HTTP/1.1" 200 OK
+INFO:     172.16.1.150:51112 - "GET /api/codeproject-servers/1/faces HTTP/1.1" 200 OK
+INFO:     172.16.1.150:56984 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
