@@ -725,18 +725,33 @@ async function showApproveDeviceModal(deviceId, code) {
     openModal('approve-device-modal');
 }
 
+// Handle device type change to show/hide CodeProject server selection
+document.getElementById('approve-device-type').addEventListener('change', (e) => {
+    const serverGroup = document.getElementById('approve-device-server-group');
+    const serverSelect = document.getElementById('approve-device-server');
+
+    if (e.target.value === 'location_dashboard') {
+        serverGroup.style.display = 'none';
+        serverSelect.removeAttribute('required');
+    } else {
+        serverGroup.style.display = 'block';
+        serverSelect.setAttribute('required', 'required');
+    }
+});
+
 document.getElementById('approve-device-form').addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const deviceId = document.getElementById('approve-device-id').value;
+    const deviceType = document.getElementById('approve-device-type').value;
     const serverId = document.getElementById('approve-device-server').value;
     const server = allServers.find(s => s.id == serverId);
 
     const data = {
         device_name: document.getElementById('approve-device-name').value,
         location_id: parseInt(document.getElementById('approve-device-location').value),
-        device_type: document.getElementById('approve-device-type').value,
-        codeproject_endpoint: server ? server.endpoint_url : ''
+        device_type: deviceType,
+        codeproject_endpoint: deviceType === 'location_dashboard' ? null : (server ? server.endpoint_url : '')
     };
 
     try {
@@ -810,21 +825,47 @@ async function editDeviceById(deviceId) {
         document.getElementById('edit-device-server').value = server.id;
     }
 
+    // Show/hide server dropdown based on device type
+    const serverGroup = document.getElementById('edit-device-server-group');
+    const serverSelect = document.getElementById('edit-device-server');
+    if (device.device_type === 'location_dashboard') {
+        serverGroup.style.display = 'none';
+        serverSelect.removeAttribute('required');
+    } else {
+        serverGroup.style.display = 'block';
+        serverSelect.setAttribute('required', 'required');
+    }
+
     openModal('edit-device-modal');
 }
+
+// Handle edit device type change to show/hide CodeProject server selection
+document.getElementById('edit-device-type').addEventListener('change', (e) => {
+    const serverGroup = document.getElementById('edit-device-server-group');
+    const serverSelect = document.getElementById('edit-device-server');
+
+    if (e.target.value === 'location_dashboard') {
+        serverGroup.style.display = 'none';
+        serverSelect.removeAttribute('required');
+    } else {
+        serverGroup.style.display = 'block';
+        serverSelect.setAttribute('required', 'required');
+    }
+});
 
 document.getElementById('edit-device-form').addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const deviceId = document.getElementById('edit-device-id').value;
+    const deviceType = document.getElementById('edit-device-type').value;
     const serverId = document.getElementById('edit-device-server').value;
     const server = allServers.find(s => s.id == serverId);
 
     const data = {
         device_name: document.getElementById('edit-device-name').value,
         location_id: parseInt(document.getElementById('edit-device-location').value),
-        device_type: document.getElementById('edit-device-type').value,
-        codeproject_endpoint: server ? server.endpoint_url : ''
+        device_type: deviceType,
+        codeproject_endpoint: deviceType === 'location_dashboard' ? null : (server ? server.endpoint_url : '')
     };
 
     try {
