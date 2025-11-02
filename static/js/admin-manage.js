@@ -394,6 +394,8 @@ async function loadDevices() {
                         const tokenAge = device.token_age_days !== null && device.token_age_days !== undefined ? `${device.token_age_days}d` : '';
                         const tokenBadgeClass = tokenStatus === 'active' ? 'badge-success' : 'badge-secondary';
                         const tokenDisplay = tokenStatus === 'active' ? `Active ${tokenAge ? `(${tokenAge})` : ''}` : 'No Token';
+                        // Escape single quotes for JavaScript onclick handlers
+                        const jsEscapedName = device.device_name.replace(/'/g, "\\'");
 
                         return `
                         <tr>
@@ -405,8 +407,8 @@ async function loadDevices() {
                             <td><span class="badge ${tokenBadgeClass}">${tokenDisplay}</span></td>
                             <td>
                                 <button class="btn btn-warning btn-sm" onclick="editDeviceById('${device.device_id}')">Edit</button>
-                                ${tokenStatus === 'active' ? `<button class="btn btn-secondary btn-sm" onclick="revokeDeviceToken('${device.device_id}', '${escapeHtml(device.device_name)}')">Revoke Token</button>` : ''}
-                                <button class="btn btn-danger btn-sm" onclick="deleteDevice('${device.device_id}', '${escapeHtml(device.device_name)}')">Delete</button>
+                                ${tokenStatus === 'active' ? `<button class="btn btn-secondary btn-sm" onclick="revokeDeviceToken('${device.device_id}', '${jsEscapedName}')">Revoke Token</button>` : ''}
+                                <button class="btn btn-danger btn-sm" onclick="deleteDevice('${device.device_id}', '${jsEscapedName}')">Delete</button>
                             </td>
                         </tr>
                         `;
@@ -605,17 +607,21 @@ async function loadLocations() {
                     </tr>
                 </thead>
                 <tbody>
-                    ${allLocations.map(location => `
+                    ${allLocations.map(location => {
+                        // Escape single quotes for JavaScript onclick handlers
+                        const jsEscapedName = location.name.replace(/'/g, "\\'");
+                        return `
                         <tr>
                             <td><strong>${escapeHtml(location.name)}</strong></td>
                             <td>${escapeHtml(location.address || 'N/A')}</td>
                             <td>${escapeHtml(location.description || 'N/A')}</td>
                             <td>
-                                <button class="btn btn-primary btn-sm" onclick="manageAreas(${location.id}, '${escapeHtml(location.name)}')">Areas</button>
-                                <button class="btn btn-danger btn-sm" onclick="deleteLocation(${location.id}, '${escapeHtml(location.name)}')">Delete</button>
+                                <button class="btn btn-primary btn-sm" onclick="manageAreas(${location.id}, '${jsEscapedName}')">Areas</button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteLocation(${location.id}, '${jsEscapedName}')">Delete</button>
                             </td>
                         </tr>
-                    `).join('')}
+                        `;
+                    }).join('')}
                 </tbody>
             </table>
         `;
@@ -1614,15 +1620,19 @@ async function loadAreas() {
                     </tr>
                 </thead>
                 <tbody>
-                    ${areas.map(area => `
+                    ${areas.map(area => {
+                        // Escape single quotes for JavaScript onclick handlers
+                        const jsEscapedName = area.area_name.replace(/'/g, "\\'");
+                        return `
                         <tr>
                             <td><strong>${escapeHtml(area.area_name)}</strong></td>
                             <td>${escapeHtml(area.description || 'N/A')}</td>
                             <td>
-                                <button class="btn btn-danger btn-sm" onclick="deleteArea(${area.id}, '${escapeHtml(area.area_name)}')">Delete</button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteArea(${area.id}, '${jsEscapedName}')">Delete</button>
                             </td>
                         </tr>
-                    `).join('')}
+                        `;
+                    }).join('')}
                 </tbody>
             </table>
         `;
