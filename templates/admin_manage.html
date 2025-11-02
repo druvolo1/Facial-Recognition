@@ -1003,8 +1003,16 @@
 
         async function viewLocationDevices(locationId) {
             try {
-                const response = await fetch(`/api/locations/${locationId}`);
-                const location = await response.json();
+                const response = await fetch(`/api/locations/${locationId}`, {
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                const location = data.location;
 
                 const devices = location.approved_devices || [];
                 let html = `<h3>Devices at ${escapeHtml(location.name)}</h3>`;

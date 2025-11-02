@@ -1292,6 +1292,15 @@ async def get_location(
         if not user_role:
             raise HTTPException(status_code=403, detail="Access denied to this location")
 
+    # Get approved devices for this location
+    devices_result = await session.execute(
+        select(Device).where(
+            Device.location_id == location_id,
+            Device.is_approved == True
+        )
+    )
+    devices = devices_result.scalars().all()
+
     return {
         "success": True,
         "location": {
@@ -1301,7 +1310,18 @@ async def get_location(
             "description": location.description,
             "timezone": location.timezone,
             "contact_info": location.contact_info,
-            "created_at": location.created_at.isoformat()
+            "created_at": location.created_at.isoformat(),
+            "approved_devices": [
+                {
+                    "device_id": d.device_id,
+                    "device_name": d.device_name,
+                    "device_type": d.device_type,
+                    "codeproject_endpoint": d.codeproject_endpoint,
+                    "location_id": d.location_id,
+                    "last_seen": d.last_seen.isoformat() if d.last_seen else None
+                }
+                for d in devices
+            ]
         }
     }
 
