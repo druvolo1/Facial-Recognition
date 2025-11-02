@@ -990,28 +990,27 @@ async def list_all_users(
     """List all users (admin only), optionally filtered by location"""
 
     if location_id:
-        # Get users assigned to this location
-        users_at_location = await session.execute(
-            select(User).join(UserLocationRole).where(
+        # Get user IDs assigned to this location
+        location_assignments = await session.execute(
+            select(UserLocationRole.user_id).where(
                 UserLocationRole.location_id == location_id
             ).distinct()
         )
-        location_users = users_at_location.scalars().all()
-        location_user_ids = {u.id for u in location_users}
+        location_user_ids = {user_id for (user_id,) in location_assignments.all()}
 
-        # Get users with no location assignments (pending)
+        # Get all users
         all_users_result = await session.execute(select(User))
         all_users = all_users_result.scalars().all()
 
         users = []
         for u in all_users:
             # Check if user has any location assignments
-            has_locations = await session.execute(
+            has_locations_result = await session.execute(
                 select(func.count(UserLocationRole.id)).where(
                     UserLocationRole.user_id == u.id
                 )
             )
-            location_count = has_locations.scalar()
+            location_count = has_locations_result.scalar()
 
             # Include if user is at selected location OR has no locations (pending)
             if u.id in location_user_ids or location_count == 0:

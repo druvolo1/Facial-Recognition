@@ -1,2 +1,39 @@
 manage:1 [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) <input type=​"password" id=​"user-password" required minlength=​"6">​
-manage:1 Uncaught SyntaxError: missing ) after argument list (at manage:1:30)
+admin-manage.js:1192 Location filter changed to: 1
+admin-manage.js:482  GET https://nrf.ruvolo.loseyourip.com/api/admin/users?location_id=1 500 (Internal Server Error)
+loadUsers @ admin-manage.js:482
+loadTabData @ admin-manage.js:272
+changeManagementLocation @ admin-manage.js:1203
+await in changeManagementLocation
+onchange @ manage:585
+handleMouseUp_ @ unknown
+admin-manage.js:553 Error loading users: Error: HTTP 500
+    at loadUsers (admin-manage.js:486:33)
+    at async loadTabData (admin-manage.js:272:17)
+    at async changeManagementLocation (admin-manage.js:1203:9)
+loadUsers @ admin-manage.js:553
+await in loadUsers
+loadTabData @ admin-manage.js:272
+changeManagementLocation @ admin-manage.js:1203
+await in changeManagementLocation
+onchange @ manage:585
+handleMouseUp_ @ unknown
+admin-manage.js:1192 Location filter changed to: 2
+admin-manage.js:482  GET https://nrf.ruvolo.loseyourip.com/api/admin/users?location_id=2 500 (Internal Server Error)
+loadUsers @ admin-manage.js:482
+loadTabData @ admin-manage.js:272
+changeManagementLocation @ admin-manage.js:1203
+await in changeManagementLocation
+onchange @ manage:585
+handleMouseUp_ @ unknown
+admin-manage.js:553 Error loading users: Error: HTTP 500
+    at loadUsers (admin-manage.js:486:33)
+    at async loadTabData (admin-manage.js:272:17)
+    at async changeManagementLocation (admin-manage.js:1203:9)
+loadUsers @ admin-manage.js:553
+await in loadUsers
+loadTabData @ admin-manage.js:272
+changeManagementLocation @ admin-manage.js:1203
+await in changeManagementLocation
+onchange @ manage:585
+handleMouseUp_ @ unknown
