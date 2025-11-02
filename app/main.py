@@ -2690,6 +2690,47 @@ async def get_device_status(
     return response_data
 
 
+
+@app.post("/api/devices/heartbeat")
+async def device_heartbeat(
+    request: Request,
+    device: Device = Depends(get_current_device),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """
+    Device heartbeat endpoint - validates token and returns current configuration.
+
+    Devices should call this every 10-15 seconds to:
+    - Validate their token is still active
+    - Update last_seen timestamp
+    - Detect configuration changes (device_type, device_name, etc.)
+    - Get notified if they need to reload/change modes
+    """
+    # Device is already authenticated by get_current_device dependency
+    # last_seen is already updated by get_current_device
+
+    # Check if a new token was rotated (set by get_current_device)
+    new_token = getattr(request.state, 'new_device_token', None)
+
+    # Return current device configuration
+    response_data = {
+        "status": "ok",
+        "device_id": device.device_id,
+        "device_name": device.device_name,
+        "device_type": device.device_type,
+        "location_id": device.location_id,
+        "codeproject_endpoint": device.codeproject_endpoint,
+        "is_approved": device.is_approved
+    }
+
+    # If token was rotated, send the new token
+    if new_token:
+        response_data["new_token"] = new_token
+        print(f"[HEARTBEAT] Sending rotated token to device {device.device_name or device.device_id[:8]}")
+
+    return response_data
+
+
 @app.get("/api/devices/pending")
 async def list_pending_devices(
     location_id: Optional[int] = None,
