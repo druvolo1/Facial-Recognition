@@ -678,25 +678,6 @@ async def current_active_user_with_redirect(
     return user
 
 
-# Exception handler to redirect browser requests to login
-@app.exception_handler(HTTPException)
-async def custom_http_exception_handler(request: Request, exc: HTTPException):
-    """Custom exception handler that redirects to login for 401 errors from browsers"""
-    # Check if this is a 401 Unauthorized error
-    if exc.status_code == 401:
-        # Check if this is a browser request (looks for text/html in Accept header)
-        accept_header = request.headers.get("accept", "")
-        if "text/html" in accept_header:
-            # Browser request - redirect to login
-            return RedirectResponse(url="/login", status_code=302)
-
-    # For all other cases, return the default JSON response
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"detail": exc.detail},
-    )
-
-
 # ============================================================================
 # WEBSOCKET CONNECTION MANAGER
 # ============================================================================
@@ -766,6 +747,25 @@ templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 app.mount("/uploads", StaticFiles(directory=UPLOAD_FOLDER), name="uploads")
 app.mount("/audio", StaticFiles(directory=AUDIO_FOLDER), name="audio")
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+
+
+# Exception handler to redirect browser requests to login
+@app.exception_handler(HTTPException)
+async def custom_http_exception_handler(request: Request, exc: HTTPException):
+    """Custom exception handler that redirects to login for 401 errors from browsers"""
+    # Check if this is a 401 Unauthorized error
+    if exc.status_code == 401:
+        # Check if this is a browser request (looks for text/html in Accept header)
+        accept_header = request.headers.get("accept", "")
+        if "text/html" in accept_header:
+            # Browser request - redirect to login
+            return RedirectResponse(url="/login", status_code=302)
+
+    # For all other cases, return the default JSON response
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+    )
 
 
 # ============================================================================
