@@ -409,7 +409,14 @@ async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db
 # AUTHENTICATION SETUP
 # ============================================================================
 
-cookie_transport = CookieTransport(cookie_name="auth_cookie", cookie_max_age=3600)
+cookie_transport = CookieTransport(
+    cookie_name="auth_cookie",
+    cookie_max_age=3600,
+    cookie_path="/",
+    cookie_secure=False,
+    cookie_httponly=True,
+    cookie_samesite="lax"
+)
 
 
 def get_jwt_strategy() -> JWTStrategy:
@@ -708,6 +715,7 @@ async def custom_login(
             value=token,
             httponly=True,
             max_age=3600,
+            path="/",
             samesite="lax",
             secure=False  # Set to True if using HTTPS
         )
@@ -832,6 +840,21 @@ async def get_user_locations(
             }
             for assignment, loc in assignments
         ]
+    }
+
+
+@app.get("/api/test-auth")
+async def test_auth(
+    request: Request,
+    user: User = Depends(current_active_user)
+):
+    """Test endpoint to verify authentication is working"""
+    cookies = request.cookies
+    return {
+        "authenticated": True,
+        "user_id": user.id,
+        "user_email": user.email,
+        "cookies_present": list(cookies.keys())
     }
 
 
