@@ -1343,10 +1343,10 @@
                             </div>
                         </div>
                         <div class="action-buttons">
-                            <button class="btn btn-secondary btn-small" onclick="editDevice(${device.id})">
+                            <button class="btn btn-secondary btn-small" onclick="editDevice('${device.device_id}', '${escapeHtml(device.device_name)}', '${device.device_type}', '${escapeHtml(device.codeproject_endpoint)}')">
                                 Edit
                             </button>
-                            <button class="btn btn-danger btn-small" onclick="removeDevice(${device.id}, '${escapeHtml(device.device_name)}')">
+                            <button class="btn btn-danger btn-small" onclick="removeDevice('${device.device_id}', '${escapeHtml(device.device_name)}')">
                                 Remove
                             </button>
                         </div>
@@ -1378,8 +1378,33 @@
             document.getElementById('approve-device-modal').classList.add('active');
         }
 
-        async function editDevice(deviceId) {
-            alert('Edit device functionality - to be implemented');
+        let currentEditDeviceId = null;
+        let currentEditDeviceOldEndpoint = null;
+
+        async function editDevice(deviceId, deviceName, deviceType, endpoint) {
+            currentEditDeviceId = deviceId;
+            currentEditDeviceOldEndpoint = endpoint;
+
+            // Set form values
+            document.getElementById('edit-device-id').value = deviceId;
+            document.getElementById('edit-device-name').value = deviceName;
+            document.getElementById('edit-device-type').value = deviceType;
+            document.getElementById('edit-device-endpoint').value = endpoint;
+
+            // Load locations for dropdown
+            const locationSelect = document.getElementById('edit-device-location');
+            locationSelect.innerHTML = '<option value="">-- Select a location --</option>' +
+                locations.map(loc => `<option value="${loc.id}" ${loc.id === currentManagedLocationId ? 'selected' : ''}>${loc.name}</option>`).join('');
+
+            // Show modal
+            document.getElementById('edit-device-modal').classList.add('active');
+        }
+
+        function closeEditDeviceModal() {
+            document.getElementById('edit-device-modal').classList.remove('active');
+            document.getElementById('edit-device-form').reset();
+            currentEditDeviceId = null;
+            currentEditDeviceOldEndpoint = null;
         }
 
         async function removeDevice(deviceId, deviceName) {
@@ -1485,6 +1510,60 @@
                 alertContainer.innerHTML = '';
             }, 5000);
         }
+
+        // Handle edit device form submission
+        window.addEventListener('DOMContentLoaded', () => {
+            const editDeviceForm = document.getElementById('edit-device-form');
+            if (editDeviceForm) {
+                editDeviceForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+
+                    const deviceName = document.getElementById('edit-device-name').value;
+                    const locationId = parseInt(document.getElementById('edit-device-location').value);
+                    const deviceType = document.getElementById('edit-device-type').value;
+                    const endpoint = document.getElementById('edit-device-endpoint').value;
+
+                    if (!deviceName || !locationId || !deviceType || !endpoint) {
+                        showManageAlert('All fields are required', 'error');
+                        return;
+                    }
+
+                    // Check if endpoint changed
+                    const endpointChanged = endpoint !== currentEditDeviceOldEndpoint;
+
+                    try {
+                        const response = await fetch(`/api/devices/${currentEditDeviceId}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                device_name: deviceName,
+                                location_id: locationId,
+                                device_type: deviceType,
+                                codeproject_endpoint: endpoint
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.detail || 'Failed to update device');
+                        }
+
+                        if (endpointChanged) {
+                            showManageAlert(`Device updated successfully! CodeProject endpoint changed - device will use new URL on next request.`, 'success');
+                        } else {
+                            showManageAlert('Device updated successfully!', 'success');
+                        }
+
+                        closeEditDeviceModal();
+                        await loadManageActiveDevices();
+                    } catch (error) {
+                        showManageAlert(error.message, 'error');
+                    }
+                });
+            }
+        });
     </script>
 
     <!-- Approve Device Modal -->
@@ -1541,6 +1620,51 @@
                 </div>
 
                 <button type="submit" class="btn btn-primary" style="width: 100%;">Approve Device</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Device Modal -->
+    <div id="edit-device-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Device</h2>
+                <button class="close" onclick="closeEditDeviceModal()">&times;</button>
+            </div>
+
+            <form id="edit-device-form">
+                <input type="hidden" id="edit-device-id">
+
+                <div class="form-group">
+                    <label for="edit-device-name">Device Name *</label>
+                    <input type="text" id="edit-device-name" required placeholder="e.g., Front Desk Kiosk">
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-device-location">Location *</label>
+                    <select id="edit-device-location" required>
+                        <option value="">-- Select a location --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-device-type">Device Type *</label>
+                    <select id="edit-device-type" required>
+                        <option value="">-- Select type --</option>
+                        <option value="registration_kiosk">Registration Kiosk (for registering new faces)</option>
+                        <option value="people_scanner">People Scanner (for recognizing faces)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-device-endpoint">CodeProject.AI Endpoint *</label>
+                    <input type="url" id="edit-device-endpoint" required placeholder="http://server:port/v1">
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        URL to the CodeProject.AI server this device will use for facial recognition
+                    </small>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Save Changes</button>
             </form>
         </div>
     </div>
