@@ -456,6 +456,13 @@
             <input type="text" id="userName" placeholder="Enter your full name" required>
         </div>
 
+        <div class="form-group">
+            <label for="registrationLocationSelector">Register to Location:</label>
+            <select id="registrationLocationSelector" required style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px;">
+                <option value="">Select a location...</option>
+            </select>
+        </div>
+
         <div class="camera-section">
             <div class="video-overlay">
                 <div class="guidance-indicator" id="guidanceIndicator"></div>
@@ -518,6 +525,7 @@
                 const selectedData = await selectedResponse.json();
                 selectedLocationId = selectedData.selected_location_id;
 
+                // Populate navbar location selector
                 const selector = document.getElementById('locationSelector');
                 if (userLocations.length > 1) {
                     selector.innerHTML = '<option value="">Select Location...</option>';
@@ -540,6 +548,20 @@
                         await setSelectedLocation(userLocations[0].location_id);
                     }
                 }
+
+                // Populate registration location dropdown
+                const regSelector = document.getElementById('registrationLocationSelector');
+                regSelector.innerHTML = '<option value="">Select a location...</option>';
+                userLocations.forEach(loc => {
+                    const option = document.createElement('option');
+                    option.value = loc.location_id;
+                    option.textContent = loc.location_name;
+                    // Auto-select if user has only one location
+                    if (userLocations.length === 1) {
+                        option.selected = true;
+                    }
+                    regSelector.appendChild(option);
+                });
             } catch (error) {
                 console.error('Error loading locations:', error);
             }
@@ -811,9 +833,15 @@
         // Submit registration to Flask backend
         submitRegistrationBtn.addEventListener('click', async () => {
             const userName = userNameInput.value.trim();
+            const locationId = parseInt(document.getElementById('registrationLocationSelector').value);
 
             if (!userName) {
                 showError('Please enter your name.');
+                return;
+            }
+
+            if (!locationId) {
+                showError('Please select a location.');
                 return;
             }
 
@@ -828,15 +856,20 @@
             hideMessages();
 
             try {
-                // Send photos to Flask backend
-                const response = await fetch('/api/register', {
+                // Send photos to Flask backend with location
+                const response = await fetch('/api/admin/register-face', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'include',
                     body: JSON.stringify({
-                        name: userName,
-                        photos: capturedPhotos.map(p => p.data)
+                        person_name: userName,
+                        location_id: locationId,
+                        photos: capturedPhotos.map((p, idx) => ({
+                            position: p.label || `Position ${idx}`,
+                            image: p.data
+                        }))
                     })
                 });
 
@@ -850,8 +883,13 @@
                     // Stop camera and reset after successful registration
                     setTimeout(() => {
                         stopCamera();
-                        // Optionally redirect to recognition page
-                        // window.location.href = '/recognize';
+                        capturedPhotos = [];
+                        photoGrid.innerHTML = '';
+                        userNameInput.value = '';
+                        submitRegistrationBtn.disabled = true;
+                        progressFill.style.width = '0%';
+                        // Optionally redirect to registered faces page
+                        // window.location.href = '/registered_faces';
                     }, 2000);
                 } else {
                     showError(result.error + (result.details ? '\n' + result.details.join('\n') : ''));
