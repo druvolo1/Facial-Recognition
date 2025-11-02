@@ -153,6 +153,18 @@ class Location(Base):
     created_by_user_id: Mapped[int] = mapped_column(Integer, ForeignKey("user.id"), nullable=False)
 
 
+class Area(Base):
+    """Areas within a location (e.g., Lobby, Kitchen, Bedroom)"""
+    __tablename__ = "area"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    location_id: Mapped[int] = mapped_column(Integer, ForeignKey("location.id", ondelete="CASCADE"), nullable=False)
+    area_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class UserLocationRole(Base):
     """Many-to-many relationship between users and locations with roles"""
     __tablename__ = "user_location_role"
@@ -198,6 +210,7 @@ class Device(Base):
     registration_code: Mapped[str] = mapped_column(String(6), unique=True, nullable=False)  # 6-digit code
     device_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     location_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("location.id"), nullable=True)
+    area_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("area.id", ondelete="SET NULL"), nullable=True)
     # Device type: 'registration_kiosk' or 'people_scanner'
     device_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     codeproject_endpoint: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
@@ -488,6 +501,7 @@ class RegisterDeviceRequest(BaseModel):
 class ApproveDeviceRequest(BaseModel):
     device_name: str
     location_id: int
+    area_id: Optional[int] = None
     device_type: str  # 'registration_kiosk', 'people_scanner', or 'location_dashboard'
     codeproject_endpoint: Optional[str] = None  # Not required for location_dashboard
     # Processing mode: 'direct' (device -> CodeProject.AI) or 'server' (device -> flask -> CodeProject.AI)
@@ -503,6 +517,7 @@ class ApproveDeviceRequest(BaseModel):
 class UpdateDeviceRequest(BaseModel):
     device_name: Optional[str] = None
     location_id: Optional[int] = None
+    area_id: Optional[int] = None
     device_type: Optional[str] = None
     codeproject_endpoint: Optional[str] = None
     # Processing mode: 'direct' or 'server'
@@ -529,6 +544,17 @@ class UpdateLocationRequest(BaseModel):
     description: Optional[str] = None
     timezone: Optional[str] = None
     contact_info: Optional[str] = None
+
+
+class CreateAreaRequest(BaseModel):
+    location_id: int
+    area_name: str
+    description: Optional[str] = None
+
+
+class UpdateAreaRequest(BaseModel):
+    area_name: Optional[str] = None
+    description: Optional[str] = None
 
 
 class AssignUserToLocationRequest(BaseModel):
@@ -2352,6 +2378,214 @@ async def list_location_users(
 # ============================================================================
 # SERVER SETTINGS API ROUTES
 # ============================================================================
+# AREA MANAGEMENT ENDPOINTS
+# ============================================================================
+
+@app.post("/api/areas")
+async def create_area(
+    data: CreateAreaRequest,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Create a new area for a location"""
+    try:
+        # Check if user has access to this location
+        if not user.is_superuser:
+            result = await session.execute(
+                select(UserLocationRole).where(
+                    UserLocationRole.user_id == user.id,
+                    UserLocationRole.location_id == data.location_id,
+                    UserLocationRole.role == 'location_admin'
+                )
+            )
+            if not result.scalar_one_or_none():
+                raise HTTPException(status_code=403, detail="Access denied to this location")
+
+        # Check if area name already exists for this location
+        result = await session.execute(
+            select(Area).where(
+                Area.location_id == data.location_id,
+                Area.area_name == data.area_name
+            )
+        )
+        if result.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Area name already exists for this location")
+
+        # Create area
+        area = Area(
+            location_id=data.location_id,
+            area_name=data.area_name,
+            description=data.description
+        )
+        session.add(area)
+        await session.commit()
+        await session.refresh(area)
+
+        return {
+            "success": True,
+            "area": {
+                "id": area.id,
+                "location_id": area.location_id,
+                "area_name": area.area_name,
+                "description": area.description,
+                "created_at": area.created_at.isoformat()
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/locations/{location_id}/areas")
+async def get_areas_for_location(
+    location_id: int,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Get all areas for a location"""
+    try:
+        # Check if user has access to this location
+        if not user.is_superuser:
+            result = await session.execute(
+                select(UserLocationRole).where(
+                    UserLocationRole.user_id == user.id,
+                    UserLocationRole.location_id == location_id
+                )
+            )
+            if not result.scalar_one_or_none():
+                raise HTTPException(status_code=403, detail="Access denied to this location")
+
+        # Get areas
+        result = await session.execute(
+            select(Area).where(Area.location_id == location_id).order_by(Area.area_name)
+        )
+        areas = result.scalars().all()
+
+        return {
+            "success": True,
+            "areas": [
+                {
+                    "id": area.id,
+                    "location_id": area.location_id,
+                    "area_name": area.area_name,
+                    "description": area.description,
+                    "created_at": area.created_at.isoformat(),
+                    "updated_at": area.updated_at.isoformat()
+                }
+                for area in areas
+            ]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/areas/{area_id}")
+async def update_area(
+    area_id: int,
+    data: UpdateAreaRequest,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Update an area"""
+    try:
+        # Get area
+        result = await session.execute(select(Area).where(Area.id == area_id))
+        area = result.scalar_one_or_none()
+        if not area:
+            raise HTTPException(status_code=404, detail="Area not found")
+
+        # Check if user has access to this location
+        if not user.is_superuser:
+            result = await session.execute(
+                select(UserLocationRole).where(
+                    UserLocationRole.user_id == user.id,
+                    UserLocationRole.location_id == area.location_id,
+                    UserLocationRole.role == 'location_admin'
+                )
+            )
+            if not result.scalar_one_or_none():
+                raise HTTPException(status_code=403, detail="Access denied to this location")
+
+        # Check if new name conflicts
+        if data.area_name:
+            result = await session.execute(
+                select(Area).where(
+                    Area.location_id == area.location_id,
+                    Area.area_name == data.area_name,
+                    Area.id != area_id
+                )
+            )
+            if result.scalar_one_or_none():
+                raise HTTPException(status_code=400, detail="Area name already exists for this location")
+
+            area.area_name = data.area_name
+
+        if data.description is not None:
+            area.description = data.description
+
+        await session.commit()
+        await session.refresh(area)
+
+        return {
+            "success": True,
+            "area": {
+                "id": area.id,
+                "location_id": area.location_id,
+                "area_name": area.area_name,
+                "description": area.description,
+                "updated_at": area.updated_at.isoformat()
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/areas/{area_id}")
+async def delete_area(
+    area_id: int,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Delete an area"""
+    try:
+        # Get area
+        result = await session.execute(select(Area).where(Area.id == area_id))
+        area = result.scalar_one_or_none()
+        if not area:
+            raise HTTPException(status_code=404, detail="Area not found")
+
+        # Check if user has access to this location
+        if not user.is_superuser:
+            result = await session.execute(
+                select(UserLocationRole).where(
+                    UserLocationRole.user_id == user.id,
+                    UserLocationRole.location_id == area.location_id,
+                    UserLocationRole.role == 'location_admin'
+                )
+            )
+            if not result.scalar_one_or_none():
+                raise HTTPException(status_code=403, detail="Access denied to this location")
+
+        # Delete area (devices will have area_id set to NULL due to ON DELETE SET NULL)
+        await session.delete(area)
+        await session.commit()
+
+        return {"success": True, "message": "Area deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
 
 @app.get("/api/settings")
 async def get_all_settings(
@@ -2895,6 +3129,14 @@ async def device_heartbeat(
     # Check if a new token was rotated (set by get_current_device)
     new_token = getattr(request.state, 'new_device_token', None)
 
+    # Get area information if device has an area assigned
+    area_name = None
+    if device.area_id:
+        area_result = await session.execute(select(Area).where(Area.id == device.area_id))
+        area = area_result.scalar_one_or_none()
+        if area:
+            area_name = area.area_name
+
     # Return current device configuration
     response_data = {
         "status": "ok",
@@ -2902,6 +3144,8 @@ async def device_heartbeat(
         "device_name": device.device_name,
         "device_type": device.device_type,
         "location_id": device.location_id,
+        "area_id": device.area_id,
+        "area_name": area_name,
         "codeproject_endpoint": device.codeproject_endpoint,
         "is_approved": device.is_approved,
         # Processing mode (default to 'server' if not set)
@@ -3226,6 +3470,7 @@ async def approve_device(
     device.is_approved = True
     device.device_name = data.device_name
     device.location_id = data.location_id
+    device.area_id = data.area_id
     device.device_type = data.device_type
     device.codeproject_endpoint = data.codeproject_endpoint
     device.approved_at = datetime.utcnow()
@@ -3258,6 +3503,7 @@ async def approve_device(
         # Reapply all changes
         device.device_name = data.device_name
         device.location_id = data.location_id
+        device.area_id = data.area_id
         device.device_type = data.device_type
         device.codeproject_endpoint = data.codeproject_endpoint
         device.is_approved = True
@@ -3381,7 +3627,7 @@ async def list_devices(
         result = await session.execute(query)
         devices = result.scalars().all()
 
-    # Get location names
+    # Get location and area names
     device_list = []
     for device in devices:
         location_name = None
@@ -3392,6 +3638,15 @@ async def list_devices(
             location = loc_result.scalar_one_or_none()
             if location:
                 location_name = location.name
+
+        area_name = None
+        if device.area_id:
+            area_result = await session.execute(
+                select(Area).where(Area.id == device.area_id)
+            )
+            area = area_result.scalar_one_or_none()
+            if area:
+                area_name = area.area_name
 
         # Calculate token status
         has_token = device.device_token is not None
@@ -3408,6 +3663,8 @@ async def list_devices(
             "device_type": device.device_type,
             "location_id": device.location_id,
             "location_name": location_name,
+            "area_id": device.area_id,
+            "area_name": area_name,
             "codeproject_endpoint": device.codeproject_endpoint,
             "processing_mode": device.processing_mode or 'server',
             "registered_at": device.registered_at.isoformat(),
@@ -3491,6 +3748,8 @@ async def update_device(
         device.device_name = data.device_name
     if data.location_id is not None:
         device.location_id = data.location_id
+    if data.area_id is not None:
+        device.area_id = data.area_id
     if data.device_type is not None:
         device.device_type = data.device_type
     if data.codeproject_endpoint is not None:

@@ -718,6 +718,13 @@
                     </select>
                 </div>
                 <div class="form-group">
+                    <label for="approve-device-area">Area</label>
+                    <select id="approve-device-area">
+                        <option value="">No area assigned</option>
+                    </select>
+                    <p style="font-size: 11px; color: #888; margin-top: 4px;">Optional: Assign device to a specific area within the location</p>
+                </div>
+                <div class="form-group">
                     <label for="approve-device-type">Device Type *</label>
                     <select id="approve-device-type" required>
                         <option value="">Select a type...</option>
@@ -799,6 +806,13 @@
                     <select id="edit-device-location" required>
                         <option value="">Select a location...</option>
                     </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit-device-area">Area</label>
+                    <select id="edit-device-area">
+                        <option value="">No area assigned</option>
+                    </select>
+                    <p style="font-size: 11px; color: #888; margin-top: 4px;">Optional: Assign device to a specific area within the location</p>
                 </div>
                 <div class="form-group">
                     <label for="edit-device-type">Device Type *</label>
@@ -996,6 +1010,40 @@
                     </div>
                     <button type="submit" class="btn btn-primary">Assign</button>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manage Areas Modal -->
+    <div id="manage-areas-modal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2 id="manage-areas-title">Manage Areas</h2>
+                <button class="close-modal" onclick="closeModal('manage-areas-modal')">&times;</button>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <button class="btn btn-primary" onclick="showCreateAreaForm()">+ Add Area</button>
+            </div>
+            <div id="create-area-form" style="display: none; padding: 15px; background: #f8f9fa; border-radius: 8px; margin-bottom: 20px;">
+                <h3 style="margin-bottom: 10px;">Create New Area</h3>
+                <form id="area-create-form" style="display: flex; gap: 10px; align-items: flex-end;">
+                    <div class="form-group" style="flex: 2; margin: 0;">
+                        <label for="create-area-name">Area Name *</label>
+                        <input type="text" id="create-area-name" required placeholder="e.g., Lobby, Kitchen, Office">
+                    </div>
+                    <div class="form-group" style="flex: 3; margin: 0;">
+                        <label for="create-area-description">Description</label>
+                        <input type="text" id="create-area-description" placeholder="Optional description">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create</button>
+                    <button type="button" class="btn btn-secondary" onclick="hideCreateAreaForm()">Cancel</button>
+                </form>
+            </div>
+            <div id="areas-container">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading areas...
+                </div>
             </div>
         </div>
     </div>

@@ -382,6 +382,7 @@ async function loadDevices() {
                         <th>Device Name</th>
                         <th>Type</th>
                         <th>Location</th>
+                        <th>Area</th>
                         <th>Last Seen</th>
                         <th>Token Status</th>
                         <th>Actions</th>
@@ -399,6 +400,7 @@ async function loadDevices() {
                             <td><strong>${escapeHtml(device.device_name)}</strong></td>
                             <td><span class="badge badge-info">${escapeHtml(device.device_type)}</span></td>
                             <td>${escapeHtml(device.location_name || 'Unknown')}</td>
+                            <td>${device.area_name ? escapeHtml(device.area_name) : '<span style="color: #999;">N/A</span>'}</td>
                             <td>${device.last_seen ? new Date(device.last_seen).toLocaleString() : 'Never'}</td>
                             <td><span class="badge ${tokenBadgeClass}">${tokenDisplay}</span></td>
                             <td>
@@ -609,6 +611,7 @@ async function loadLocations() {
                             <td>${escapeHtml(location.address || 'N/A')}</td>
                             <td>${escapeHtml(location.description || 'N/A')}</td>
                             <td>
+                                <button class="btn btn-primary btn-sm" onclick="manageAreas(${location.id}, '${escapeHtml(location.name)}')">Areas</button>
                                 <button class="btn btn-danger btn-sm" onclick="deleteLocation(${location.id}, '${escapeHtml(location.name)}')">Delete</button>
                             </td>
                         </tr>
@@ -726,6 +729,37 @@ async function showApproveDeviceModal(deviceId, code) {
 }
 
 // Handle device type change to show/hide CodeProject server selection and scanner settings
+// Load areas when location changes in approve device form
+document.getElementById('approve-device-location').addEventListener('change', async (e) => {
+    const locationId = e.target.value;
+    const areaSelect = document.getElementById('approve-device-area');
+
+    // Clear and reset area dropdown
+    areaSelect.innerHTML = '<option value="">No area assigned</option>';
+
+    if (!locationId) return;
+
+    try {
+        const response = await fetch(`/api/locations/${locationId}/areas`, {
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const areas = data.areas || [];
+
+            areas.forEach(area => {
+                const option = document.createElement('option');
+                option.value = area.id;
+                option.textContent = area.area_name;
+                areaSelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading areas:', error);
+    }
+});
+
 document.getElementById('approve-device-type').addEventListener('change', (e) => {
     const serverGroup = document.getElementById('approve-device-server-group');
     const serverSelect = document.getElementById('approve-device-server');
@@ -768,9 +802,12 @@ document.getElementById('approve-device-form').addEventListener('submit', async 
     const serverId = document.getElementById('approve-device-server').value;
     const server = allServers.find(s => s.id == serverId);
 
+    const areaId = document.getElementById('approve-device-area').value;
+
     const data = {
         device_name: document.getElementById('approve-device-name').value,
         location_id: parseInt(document.getElementById('approve-device-location').value),
+        area_id: areaId ? parseInt(areaId) : null,
         device_type: deviceType,
         codeproject_endpoint: deviceType === 'location_dashboard' ? null : (server ? server.endpoint_url : '')
     };
@@ -863,6 +900,32 @@ async function editDeviceById(deviceId) {
     document.getElementById('edit-device-type').value = device.device_type;
     document.getElementById('edit-device-location').value = device.location_id;
 
+    // Load areas for the device's location
+    const areaSelect = document.getElementById('edit-device-area');
+    areaSelect.innerHTML = '<option value="">No area assigned</option>';
+    if (device.location_id) {
+        try {
+            const response = await fetch(`/api/locations/${device.location_id}/areas`, {
+                credentials: 'include'
+            });
+            if (response.ok) {
+                const data = await response.json();
+                const areas = data.areas || [];
+                areas.forEach(area => {
+                    const option = document.createElement('option');
+                    option.value = area.id;
+                    option.textContent = area.area_name;
+                    if (device.area_id && area.id === device.area_id) {
+                        option.selected = true;
+                    }
+                    areaSelect.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading areas:', error);
+        }
+    }
+
     // Find and select the server
     const server = allServers.find(s => s.endpoint_url === device.codeproject_endpoint);
     if (server) {
@@ -952,6 +1015,37 @@ document.getElementById('edit-device-type').addEventListener('change', (e) => {
     }
 });
 
+// Load areas when location changes in edit device form
+document.getElementById('edit-device-location').addEventListener('change', async (e) => {
+    const locationId = e.target.value;
+    const areaSelect = document.getElementById('edit-device-area');
+
+    // Clear and reset area dropdown
+    areaSelect.innerHTML = '<option value="">No area assigned</option>';
+
+    if (!locationId) return;
+
+    try {
+        const response = await fetch(`/api/locations/${locationId}/areas`, {
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const areas = data.areas || [];
+
+            areas.forEach(area => {
+                const option = document.createElement('option');
+                option.value = area.id;
+                option.textContent = area.area_name;
+                areaSelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading areas:', error);
+    }
+});
+
 document.getElementById('edit-device-form').addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -959,10 +1053,12 @@ document.getElementById('edit-device-form').addEventListener('submit', async (e)
     const deviceType = document.getElementById('edit-device-type').value;
     const serverId = document.getElementById('edit-device-server').value;
     const server = allServers.find(s => s.id == serverId);
+    const areaId = document.getElementById('edit-device-area').value;
 
     const data = {
         device_name: document.getElementById('edit-device-name').value,
         location_id: parseInt(document.getElementById('edit-device-location').value),
+        area_id: areaId ? parseInt(areaId) : null,
         device_type: deviceType,
         codeproject_endpoint: deviceType === 'location_dashboard' ? null : (server ? server.endpoint_url : '')
     };
@@ -1470,6 +1566,132 @@ async function logout() {
         window.location.href = '/login';
     } catch (error) {
         window.location.href = '/login';
+    }
+}
+
+// Area Management
+let currentLocationId = null;
+let currentLocationName = '';
+
+async function manageAreas(locationId, locationName) {
+    currentLocationId = locationId;
+    currentLocationName = locationName;
+
+    document.getElementById('manage-areas-title').textContent = `Manage Areas - ${locationName}`;
+    document.getElementById('create-area-form').style.display = 'none';
+    document.getElementById('area-create-form').reset();
+
+    openModal('manage-areas-modal');
+    await loadAreas();
+}
+
+async function loadAreas() {
+    const container = document.getElementById('areas-container');
+    container.innerHTML = '<div class="loading"><div class="spinner"></div>Loading areas...</div>';
+
+    try {
+        const response = await fetch(`/api/locations/${currentLocationId}/areas`, {
+            credentials: 'include'
+        });
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const data = await response.json();
+        const areas = data.areas || [];
+
+        if (areas.length === 0) {
+            container.innerHTML = '<div class="empty-state"><div class="icon">📍</div><p>No areas configured for this location</p></div>';
+            return;
+        }
+
+        container.innerHTML = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>Area Name</th>
+                        <th>Description</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${areas.map(area => `
+                        <tr>
+                            <td><strong>${escapeHtml(area.area_name)}</strong></td>
+                            <td>${escapeHtml(area.description || 'N/A')}</td>
+                            <td>
+                                <button class="btn btn-danger btn-sm" onclick="deleteArea(${area.id}, '${escapeHtml(area.area_name)}')">Delete</button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (error) {
+        console.error('Error loading areas:', error);
+        container.innerHTML = '<div class="alert alert-error">Error loading areas</div>';
+    }
+}
+
+function showCreateAreaForm() {
+    document.getElementById('create-area-form').style.display = 'block';
+    document.getElementById('create-area-name').focus();
+}
+
+function hideCreateAreaForm() {
+    document.getElementById('create-area-form').style.display = 'none';
+    document.getElementById('area-create-form').reset();
+}
+
+document.getElementById('area-create-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const data = {
+        location_id: currentLocationId,
+        area_name: document.getElementById('create-area-name').value,
+        description: document.getElementById('create-area-description').value || null
+    };
+
+    try {
+        const response = await fetch('/api/areas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            showAlert('Area created successfully', 'success');
+            hideCreateAreaForm();
+            await loadAreas();
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Failed to create area', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error creating area', 'error');
+    }
+});
+
+async function deleteArea(areaId, areaName) {
+    if (!confirm(`Delete area "${areaName}"?\n\nDevices in this area will have their area unset.`)) return;
+
+    try {
+        const response = await fetch(`/api/areas/${areaId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            showAlert('Area deleted successfully', 'success');
+            await loadAreas();
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Failed to delete area', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error deleting area', 'error');
     }
 }
 
