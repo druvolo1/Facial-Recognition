@@ -402,6 +402,10 @@ class ApproveDeviceRequest(BaseModel):
     location_id: int
     device_type: str  # 'registration_kiosk', 'people_scanner', or 'location_dashboard'
     codeproject_endpoint: Optional[str] = None  # Not required for location_dashboard
+    # Scanner detection settings (optional, defaults to .env values)
+    confidence_threshold: Optional[float] = None
+    presence_timeout_minutes: Optional[int] = None
+    detection_cooldown_seconds: Optional[int] = None
 
 
 class UpdateDeviceRequest(BaseModel):
@@ -3129,6 +3133,14 @@ async def approve_device(
     device.device_token = device_token
     device.token_created_at = datetime.utcnow()
 
+    # Set scanner detection settings if provided
+    if data.confidence_threshold is not None:
+        device.confidence_threshold = data.confidence_threshold
+    if data.presence_timeout_minutes is not None:
+        device.presence_timeout_minutes = data.presence_timeout_minutes
+    if data.detection_cooldown_seconds is not None:
+        device.detection_cooldown_seconds = data.detection_cooldown_seconds
+
     await session.commit()
 
     print(f"[DEVICE] Device approved by {user.email}: {device_id} -> {data.device_name} at location {data.location_id}")
@@ -3265,7 +3277,11 @@ async def list_devices(
             "last_seen": device.last_seen.isoformat() if device.last_seen else None,
             "token_status": token_status,
             "token_age_days": token_age_days,
-            "token_created_at": device.token_created_at.isoformat() if device.token_created_at else None
+            "token_created_at": device.token_created_at.isoformat() if device.token_created_at else None,
+            # Scanner detection settings
+            "confidence_threshold": float(device.confidence_threshold) if device.confidence_threshold is not None else None,
+            "presence_timeout_minutes": device.presence_timeout_minutes,
+            "detection_cooldown_seconds": device.detection_cooldown_seconds
         })
 
     return {

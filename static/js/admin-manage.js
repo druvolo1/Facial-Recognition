@@ -725,17 +725,26 @@ async function showApproveDeviceModal(deviceId, code) {
     openModal('approve-device-modal');
 }
 
-// Handle device type change to show/hide CodeProject server selection
+// Handle device type change to show/hide CodeProject server selection and scanner settings
 document.getElementById('approve-device-type').addEventListener('change', (e) => {
     const serverGroup = document.getElementById('approve-device-server-group');
     const serverSelect = document.getElementById('approve-device-server');
+    const scannerSettings = document.getElementById('approve-device-scanner-settings');
 
     if (e.target.value === 'location_dashboard') {
         serverGroup.style.display = 'none';
         serverSelect.removeAttribute('required');
+        scannerSettings.style.display = 'none';
     } else {
         serverGroup.style.display = 'block';
         serverSelect.setAttribute('required', 'required');
+
+        // Show scanner settings only for people_scanner
+        if (e.target.value === 'people_scanner') {
+            scannerSettings.style.display = 'block';
+        } else {
+            scannerSettings.style.display = 'none';
+        }
     }
 });
 
@@ -753,6 +762,17 @@ document.getElementById('approve-device-form').addEventListener('submit', async 
         device_type: deviceType,
         codeproject_endpoint: deviceType === 'location_dashboard' ? null : (server ? server.endpoint_url : '')
     };
+
+    // Add scanner settings if device is a people_scanner
+    if (deviceType === 'people_scanner') {
+        const confidence = document.getElementById('approve-device-confidence').value;
+        const presence = document.getElementById('approve-device-presence').value;
+        const cooldown = document.getElementById('approve-device-cooldown').value;
+
+        if (confidence) data.confidence_threshold = parseFloat(confidence);
+        if (presence) data.presence_timeout_minutes = parseInt(presence);
+        if (cooldown) data.detection_cooldown_seconds = parseInt(cooldown);
+    }
 
     try {
         const response = await fetch(`/api/devices/${deviceId}/approve`, {
