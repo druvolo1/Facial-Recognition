@@ -137,6 +137,8 @@ class RegisteredFace(Base):
     registered_by_user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("user.id"), nullable=True)
     # Profile photo (base64 encoded image for dashboard thumbnails)
     profile_photo: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Whether this person is an employee or visitor
+    is_employee: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
 
 
 class Location(Base):
@@ -665,6 +667,34 @@ fastapi_users = FastAPIUsers[User, int](
 
 current_active_user = fastapi_users.current_user(active=True)
 current_superuser = fastapi_users.current_user(active=True, superuser=True)
+
+
+# Custom dependency that redirects to login for browser requests
+async def current_active_user_with_redirect(
+    request: Request,
+    user: User = Depends(current_active_user)
+) -> User:
+    """Get current user, but redirect to login instead of JSON error for browser requests"""
+    return user
+
+
+# Exception handler to redirect browser requests to login
+@app.exception_handler(HTTPException)
+async def custom_http_exception_handler(request: Request, exc: HTTPException):
+    """Custom exception handler that redirects to login for 401 errors from browsers"""
+    # Check if this is a 401 Unauthorized error
+    if exc.status_code == 401:
+        # Check if this is a browser request (looks for text/html in Accept header)
+        accept_header = request.headers.get("accept", "")
+        if "text/html" in accept_header:
+            # Browser request - redirect to login
+            return RedirectResponse(url="/login", status_code=302)
+
+    # For all other cases, return the default JSON response
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+    )
 
 
 # ============================================================================
@@ -3238,16 +3268,18 @@ async def log_scan(
         if detection_records:
             person_names = [det["person_name"] for det in detection_records]
             face_result = await session.execute(
-                select(RegisteredFace.person_name, RegisteredFace.profile_photo)
+                select(RegisteredFace.person_name, RegisteredFace.profile_photo, RegisteredFace.is_employee)
                 .where(RegisteredFace.location_id == device.location_id)
                 .where(RegisteredFace.person_name.in_(person_names))
                 .distinct(RegisteredFace.person_name)
             )
-            profile_photos = {row.person_name: row.profile_photo for row in face_result.all()}
+            person_data = {row.person_name: {"profile_photo": row.profile_photo, "is_employee": row.is_employee} for row in face_result.all()}
 
-            # Add profile photos to detection records
+            # Add profile photos and employee status to detection records
             for det in detection_records:
-                det["profile_photo"] = profile_photos.get(det["person_name"])
+                data = person_data.get(det["person_name"], {})
+                det["profile_photo"] = data.get("profile_photo")
+                det["is_employee"] = data.get("is_employee", False)
                 det["device_id"] = device.device_id
 
             # Broadcast to dashboards for this location via WebSocket
@@ -3336,25 +3368,29 @@ async def websocket_dashboard(
             )
             areas = {a.id: a.area_name for a in area_result.scalars().all()}
 
-            # Get profile photos from registered_face table
-            # Group by person_name to get one photo per person
+            # Get profile photos and employee status from registered_face table
+            # Group by person_name to get one record per person
             face_result = await session.execute(
-                select(RegisteredFace.person_name, RegisteredFace.profile_photo)
+                select(RegisteredFace.person_name, RegisteredFace.profile_photo, RegisteredFace.is_employee)
                 .where(RegisteredFace.location_id == location_id)
-                .where(RegisteredFace.profile_photo.isnot(None))
             )
-            profile_photos = {}
+            person_data = {}
             for row in face_result.all():
-                if row.person_name not in profile_photos:
-                    profile_photos[row.person_name] = row.profile_photo
+                if row.person_name not in person_data:
+                    person_data[row.person_name] = {
+                        "profile_photo": row.profile_photo,
+                        "is_employee": row.is_employee
+                    }
 
-            # Add device names, area names, and profile photos to detections
+            # Add device names, area names, profile photos, and employee status to detections
             for detection in person_latest.values():
                 device_info = devices.get(detection["device_id"], {})
                 detection["device_name"] = device_info.get("name", detection["device_id"][:8])
                 area_id = device_info.get("area_id")
                 detection["area_name"] = areas.get(area_id) if area_id else None
-                detection["profile_photo"] = profile_photos.get(detection["person_name"])
+                data = person_data.get(detection["person_name"], {})
+                detection["profile_photo"] = data.get("profile_photo")
+                detection["is_employee"] = data.get("is_employee", False)
 
             await websocket.send_json({
                 "type": "initial_data",
@@ -3981,6 +4017,29 @@ async def device_register_face(
 
         successful_registrations = 0
         errors = []
+        profile_photo_path = None
+
+        # Save profile photo to file if provided
+        if data.profile_photo:
+            try:
+                print(f"[DEVICE-REGISTER] Saving profile photo...")
+                profile_data = data.profile_photo
+                if ',' in profile_data:
+                    profile_data = profile_data.split(',')[1]
+
+                profile_bytes = base64.b64decode(profile_data)
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                profile_filename = f"{data.name.replace(' ', '_')}_{timestamp}_profile.jpg"
+                profile_filepath = os.path.join(UPLOAD_FOLDER, profile_filename)
+
+                with open(profile_filepath, 'wb') as f:
+                    f.write(profile_bytes)
+                # Store web-accessible path (not file system path)
+                profile_photo_path = f"/uploads/{profile_filename}"
+                print(f"[DEVICE-REGISTER]   ✓ Profile photo saved: {profile_filename}")
+            except Exception as e:
+                print(f"[DEVICE-REGISTER]   ✗ Error saving profile photo: {e}")
+                profile_photo_path = None
 
         for idx, photo_data in enumerate(data.photos):
             try:
@@ -4027,6 +4086,7 @@ async def device_register_face(
                         print(f"[DEVICE-REGISTER]   ✓ Photo {idx+1} registered successfully")
 
                         # Save to database (no user_id for device registrations)
+                        # Only set profile_photo on the first database entry
                         registered_face = RegisteredFace(
                             person_name=data.name,
                             codeproject_user_id=data.name,
@@ -4034,7 +4094,8 @@ async def device_register_face(
                             codeproject_endpoint=codeproject_url,
                             location_id=device.location_id,  # Tag with device's location
                             registered_by_user_id=None,  # Device registration
-                            profile_photo=data.profile_photo  # Profile photo for dashboard thumbnail
+                            profile_photo=profile_photo_path if idx == 0 and profile_photo_path else None,
+                            is_employee=False  # Default to visitor
                         )
                         session.add(registered_face)
                         await session.commit()
@@ -4308,7 +4369,8 @@ async def get_registered_faces(
                 "all_photos": photos,
                 "codeproject_user_id": face_record.codeproject_user_id if face_record else name,
                 "location_id": face_record.location_id if face_record else None,
-                "location_name": location_name
+                "location_name": location_name,
+                "is_employee": face_record.is_employee if face_record else False
             })
 
         print(f"[GET-REGISTERED-FACES] Returning {len(registered_faces)} unique people")
@@ -4397,7 +4459,8 @@ async def register_face(
                             file_path=filepath,
                             codeproject_endpoint=CODEPROJECT_BASE_URL,
                             location_id=location_id,
-                            registered_by_user_id=user.id
+                            registered_by_user_id=user.id,
+                            is_employee=False  # Default to visitor
                         )
                         session.add(registered_face)
                         await session.commit()
@@ -4505,9 +4568,10 @@ async def admin_register_face(
                     f.write(image_bytes)
                 print(f"[ADMIN-REGISTER]   Saved locally: {filename}")
 
-                # Use first photo (Center) as profile photo
-                if idx == 0:
-                    profile_photo_path = filepath
+                # Use last photo (straight and smile) as profile photo
+                # Store web-accessible path (not file system path)
+                if idx == len(data.photos) - 1:
+                    profile_photo_path = f"/uploads/{filename}"
 
                 # Register with CodeProject.AI
                 files = {
@@ -4540,7 +4604,8 @@ async def admin_register_face(
                             codeproject_endpoint=codeproject_endpoint,
                             location_id=data.location_id,
                             registered_by_user_id=user.id,
-                            profile_photo=profile_photo_path if idx == 0 else None
+                            profile_photo=profile_photo_path if idx == len(data.photos) - 1 else None,
+                            is_employee=False  # Default to visitor
                         )
                         session.add(registered_face)
                         await session.commit()
@@ -4750,6 +4815,67 @@ async def delete_registered_face(
         raise
     except Exception as e:
         print(f"[DELETE] ✗ EXCEPTION: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/registered-faces/{person_name}/employee-status")
+async def update_employee_status(
+    person_name: str,
+    is_employee: bool,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Update employee status for a registered face"""
+    try:
+        print(f"\n{'='*60}")
+        print(f"[UPDATE-EMPLOYEE] Updating {person_name} to is_employee={is_employee}")
+
+        # Get all registered face records for this person
+        result = await session.execute(
+            select(RegisteredFace).where(RegisteredFace.person_name == person_name)
+        )
+        face_records = result.scalars().all()
+
+        if not face_records:
+            raise HTTPException(status_code=404, detail=f"No registered faces found for {person_name}")
+
+        # Check permissions - location admins can only edit faces from their locations
+        if not user.is_superuser:
+            # Get user's admin locations
+            admin_result = await session.execute(
+                select(UserLocationRole).where(
+                    UserLocationRole.user_id == user.id,
+                    UserLocationRole.role == 'location_admin'
+                )
+            )
+            admin_location_ids = [ulr.location_id for ulr in admin_result.scalars().all()]
+
+            # Check if all face records belong to locations the user manages
+            for face_record in face_records:
+                if face_record.location_id not in admin_location_ids:
+                    raise HTTPException(
+                        status_code=403,
+                        detail=f"You don't have permission to edit this face (belongs to another location)"
+                    )
+
+        # Update all records for this person
+        for face_record in face_records:
+            face_record.is_employee = is_employee
+
+        await session.commit()
+        print(f"[UPDATE-EMPLOYEE] ✓ Updated {len(face_records)} record(s)")
+        print(f"{'='*60}\n")
+
+        return {
+            "success": True,
+            "message": f"Updated {person_name} to {'employee' if is_employee else 'visitor'}",
+            "records_updated": len(face_records)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[UPDATE-EMPLOYEE] ✗ EXCEPTION: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

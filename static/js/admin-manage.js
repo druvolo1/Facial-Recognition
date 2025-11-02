@@ -477,6 +477,15 @@ async function loadRegisteredFaces() {
                         <h4>${escapeHtml(face.person_name)}</h4>
                         <p>Photos: ${face.photo_count}</p>
                         ${face.location_name ? `<p><span class="badge badge-info">${escapeHtml(face.location_name)}</span></p>` : ''}
+                        <p style="margin-top: 8px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
+                                <input type="checkbox"
+                                       ${face.is_employee ? 'checked' : ''}
+                                       onchange="updateEmployeeStatus('${escapeHtml(face.person_name)}', this.checked)"
+                                       style="cursor: pointer;">
+                                <span>Employee</span>
+                            </label>
+                        </p>
                         <button class="btn btn-danger btn-sm" style="margin-top: 10px; width: 100%;"
                                 onclick="deleteFaceFromDatabase('${escapeHtml(face.person_name)}')">Delete</button>
                     </div>
@@ -1183,6 +1192,31 @@ async function deleteFaceFromDatabase(personName) {
     } catch (error) {
         console.error('Error:', error);
         showAlert('Error deleting face', 'error');
+    }
+}
+
+// Update employee status for a registered face
+async function updateEmployeeStatus(personName, isEmployee) {
+    try {
+        const response = await fetch(`/api/registered-faces/${encodeURIComponent(personName)}/employee-status?is_employee=${isEmployee}`, {
+            method: 'PUT',
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            showAlert(`Updated ${personName} to ${isEmployee ? 'employee' : 'visitor'}`, 'success');
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Failed to update employee status', 'error');
+            // Reload to restore checkbox state
+            await loadRegisteredFaces();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error updating employee status', 'error');
+        // Reload to restore checkbox state
+        await loadRegisteredFaces();
     }
 }
 
