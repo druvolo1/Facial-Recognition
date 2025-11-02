@@ -4,7 +4,7 @@ Based on plant_logs_server authentication system
 """
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, AsyncGenerator, List
 import secrets
 import base64
@@ -46,6 +46,10 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123!")
 CODEPROJECT_HOST = os.getenv("CODEPROJECT_HOST", "172.16.1.150")
 CODEPROJECT_PORT = int(os.getenv("CODEPROJECT_PORT", "32168"))
 CODEPROJECT_BASE_URL = f"http://{CODEPROJECT_HOST}:{CODEPROJECT_PORT}/v1"
+
+# Device security configuration
+DEVICE_TOKEN_ROTATION_DAYS = int(os.getenv("DEVICE_TOKEN_ROTATION_DAYS", "30"))
+REGISTRATION_CODE_EXPIRATION_MINUTES = int(os.getenv("REGISTRATION_CODE_EXPIRATION_MINUTES", "15"))
 
 # Get the application directory
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -184,6 +188,10 @@ class Device(Base):
     approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     approved_by_user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("user.id"), nullable=True)
     last_seen: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    # Device authentication token
+    device_token: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    token_created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    token_rotated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
 
 # Database engine and session
@@ -202,13 +210,42 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
+def generate_device_token() -> str:
+    """Generate a cryptographically secure random token for device authentication"""
+    return secrets.token_urlsafe(48)  # Returns ~64 characters
+
+
+async def rotate_device_token_if_needed(device: Device, session: AsyncSession) -> Optional[str]:
+    """
+    Check if device token needs rotation and rotate if necessary.
+    Returns new token if rotated, None otherwise.
+    """
+    if not device.device_token or not device.token_created_at:
+        # Device has no token yet
+        return None
+
+    # Check if token is older than rotation period
+    token_age = datetime.utcnow() - device.token_created_at
+    if token_age > timedelta(days=DEVICE_TOKEN_ROTATION_DAYS):
+        # Token expired - generate new one
+        new_token = generate_device_token()
+        device.device_token = new_token
+        device.token_rotated_at = datetime.utcnow()
+        await session.commit()
+
+        print(f"[TOKEN] Rotated token for device {device.device_name or device.device_id[:8]}")
+        return new_token
+
+    return None
+
+
 # Device authentication dependency
 async def get_current_device(
     request: Request,
     session: AsyncSession = Depends(get_async_session)
 ) -> Device:
-    """Authenticate device by device_id from request body or header"""
-    # Try to get device_id from header first
+    """Authenticate device by device_id and token from request headers"""
+    # Get device_id from header first
     device_id = request.headers.get("X-Device-ID")
 
     # If not in header, try to get from body
@@ -224,6 +261,9 @@ async def get_current_device(
             status_code=401,
             detail="Device ID required"
         )
+
+    # Get device token from header
+    device_token = request.headers.get("X-Device-Token")
 
     # Get device from database
     result = await session.execute(
@@ -242,6 +282,25 @@ async def get_current_device(
             status_code=403,
             detail="Device not approved"
         )
+
+    # Validate device token
+    if not device.device_token:
+        raise HTTPException(
+            status_code=401,
+            detail="Device has no token. Please re-register."
+        )
+
+    if not device_token or device_token != device.device_token:
+        raise HTTPException(
+            status_code=403,
+            detail="Invalid or missing device token"
+        )
+
+    # Check if token needs rotation
+    new_token = await rotate_device_token_if_needed(device, session)
+    if new_token:
+        # Token was rotated - include in response header for client to update
+        request.state.new_device_token = new_token
 
     # Update last_seen
     device.last_seen = datetime.utcnow()
@@ -2608,7 +2667,7 @@ async def get_device_status(
     device.last_seen = datetime.utcnow()
     await session.commit()
 
-    return {
+    response_data = {
         "device_id": device.device_id,
         "registration_code": device.registration_code,
         "is_approved": device.is_approved,
@@ -2617,6 +2676,18 @@ async def get_device_status(
         "location_id": device.location_id,
         "codeproject_endpoint": device.codeproject_endpoint
     }
+
+    # Add token if device is approved (only sent once during first status check after approval)
+    if device.is_approved and device.device_token:
+        response_data["device_token"] = device.device_token
+
+    # Add registration expiration info for pending devices
+    if not device.is_approved:
+        registration_age_seconds = (datetime.utcnow() - device.registered_at).total_seconds()
+        expires_in_seconds = (REGISTRATION_CODE_EXPIRATION_MINUTES * 60) - registration_age_seconds
+        response_data["registration_expires_in_seconds"] = max(0, int(expires_in_seconds))
+
+    return response_data
 
 
 @app.get("/api/devices/pending")
@@ -2683,6 +2754,17 @@ async def approve_device(
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
 
+    # Check if registration code has expired
+    registration_age = datetime.utcnow() - device.registered_at
+    if registration_age > timedelta(minutes=REGISTRATION_CODE_EXPIRATION_MINUTES):
+        # Delete expired device
+        await session.delete(device)
+        await session.commit()
+        raise HTTPException(
+            status_code=410,  # Gone
+            detail=f"Registration code expired ({REGISTRATION_CODE_EXPIRATION_MINUTES} minutes). Device must re-register."
+        )
+
     # Check permissions - must be superadmin or admin of the target location
     if not user.is_superuser:
         location_check = await session.execute(
@@ -2702,6 +2784,9 @@ async def approve_device(
     if not location_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Location not found")
 
+    # Generate device token
+    device_token = generate_device_token()
+
     # Approve and configure device
     device.is_approved = True
     device.device_name = data.device_name
@@ -2710,14 +2795,18 @@ async def approve_device(
     device.codeproject_endpoint = data.codeproject_endpoint
     device.approved_at = datetime.utcnow()
     device.approved_by_user_id = user.id
+    device.device_token = device_token
+    device.token_created_at = datetime.utcnow()
 
     await session.commit()
 
     print(f"[DEVICE] Device approved by {user.email}: {device_id} -> {data.device_name} at location {data.location_id}")
+    print(f"[TOKEN] Generated token for device {data.device_name}")
 
     return {
         "success": True,
-        "message": f"Device {data.device_name} approved"
+        "message": f"Device {data.device_name} approved",
+        "device_token": device_token  # Return token to device
     }
 
 
@@ -2825,6 +2914,14 @@ async def list_devices(
             if location:
                 location_name = location.name
 
+        # Calculate token status
+        has_token = device.device_token is not None
+        token_status = "active" if has_token else "missing"
+        token_age_days = None
+        if has_token and device.token_created_at:
+            token_age = datetime.utcnow() - device.token_created_at
+            token_age_days = token_age.days
+
         device_list.append({
             "id": device.id,
             "device_id": device.device_id,
@@ -2834,7 +2931,10 @@ async def list_devices(
             "location_name": location_name,
             "codeproject_endpoint": device.codeproject_endpoint,
             "registered_at": device.registered_at.isoformat(),
-            "last_seen": device.last_seen.isoformat() if device.last_seen else None
+            "last_seen": device.last_seen.isoformat() if device.last_seen else None,
+            "token_status": token_status,
+            "token_age_days": token_age_days,
+            "token_created_at": device.token_created_at.isoformat() if device.token_created_at else None
         })
 
     return {
@@ -2901,6 +3001,52 @@ async def update_device(
     return {
         "success": True,
         "message": "Device updated successfully"
+    }
+
+
+@app.post("/api/devices/{device_id}/revoke-token")
+async def revoke_device_token(
+    device_id: str,
+    user: User = Depends(require_any_admin_access),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Revoke a device's authentication token (superadmin or location admin)"""
+    result = await session.execute(
+        select(Device).where(Device.device_id == device_id)
+    )
+    device = result.scalar_one_or_none()
+
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    # Check permissions for location admins
+    if not user.is_superuser:
+        admin_result = await session.execute(
+            select(UserLocationRole).where(
+                UserLocationRole.user_id == user.id,
+                UserLocationRole.role == 'location_admin'
+            )
+        )
+        admin_locations = admin_result.scalars().all()
+        admin_location_ids = [loc.location_id for loc in admin_locations]
+
+        if device.location_id not in admin_location_ids:
+            raise HTTPException(
+                status_code=403,
+                detail="You can only revoke tokens for devices from locations you manage"
+            )
+
+    # Revoke the token
+    device.device_token = None
+    device.token_created_at = None
+    device.token_rotated_at = None
+    await session.commit()
+
+    print(f"[TOKEN] Token revoked for device {device.device_name or device.device_id[:8]} by {user.email}")
+
+    return {
+        "success": True,
+        "message": f"Token revoked for device {device.device_name or device.device_id[:8]}. Device must re-register."
     }
 
 

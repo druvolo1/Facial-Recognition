@@ -383,22 +383,32 @@ async function loadDevices() {
                         <th>Type</th>
                         <th>Location</th>
                         <th>Last Seen</th>
+                        <th>Token Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${allDevices.map(device => `
+                    ${allDevices.map(device => {
+                        const tokenStatus = device.token_status || 'missing';
+                        const tokenAge = device.token_age_days !== null && device.token_age_days !== undefined ? `${device.token_age_days}d` : '';
+                        const tokenBadgeClass = tokenStatus === 'active' ? 'badge-success' : 'badge-secondary';
+                        const tokenDisplay = tokenStatus === 'active' ? `Active ${tokenAge ? `(${tokenAge})` : ''}` : 'No Token';
+
+                        return `
                         <tr>
                             <td><strong>${escapeHtml(device.device_name)}</strong></td>
                             <td><span class="badge badge-info">${escapeHtml(device.device_type)}</span></td>
                             <td>${escapeHtml(device.location_name || 'Unknown')}</td>
                             <td>${device.last_seen ? new Date(device.last_seen).toLocaleString() : 'Never'}</td>
+                            <td><span class="badge ${tokenBadgeClass}">${tokenDisplay}</span></td>
                             <td>
                                 <button class="btn btn-warning btn-sm" onclick="editDeviceById('${device.device_id}')">Edit</button>
+                                ${tokenStatus === 'active' ? `<button class="btn btn-secondary btn-sm" onclick="revokeDeviceToken('${device.device_id}', '${escapeHtml(device.device_name)}')">Revoke Token</button>` : ''}
                                 <button class="btn btn-danger btn-sm" onclick="deleteDevice('${device.device_id}', '${escapeHtml(device.device_name)}')">Delete</button>
                             </td>
                         </tr>
-                    `).join('')}
+                        `;
+                    }).join('')}
                 </tbody>
             </table>
         `;
@@ -838,6 +848,28 @@ document.getElementById('edit-device-form').addEventListener('submit', async (e)
         showAlert('Error updating device', 'error');
     }
 });
+
+async function revokeDeviceToken(deviceId, deviceName) {
+    if (!confirm(`Revoke authentication token for device "${deviceName}"?\n\nThis will force the device to re-register to obtain a new token.`)) return;
+
+    try {
+        const response = await fetch(`/api/devices/${deviceId}/revoke-token`, {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            showAlert('Device token revoked successfully', 'success');
+            await loadDevices();
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Failed to revoke device token', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error revoking device token', 'error');
+    }
+}
 
 async function deleteDevice(deviceId, deviceName) {
     if (!confirm(`Are you sure you want to delete device "${deviceName}"?`)) return;
