@@ -52,21 +52,35 @@ async function loadOverview() {
             roleBadge.style.background = '#667eea';
         }
 
-        // Show location selector for location admins
-        if (!overviewStats.is_superuser && overviewStats.managed_locations.length > 1) {
-            const locationContext = document.getElementById('locationContext');
-            const select = document.getElementById('managedLocationSelect');
+        // Populate location filter dropdown
+        const select = document.getElementById('managedLocationSelect');
+        const locationContext = document.getElementById('locationContext');
 
-            select.innerHTML = '<option value="">All My Locations</option>';
+        if (overviewStats.is_superuser) {
+            // Superadmin: Show "All Locations" + all locations
+            select.innerHTML = '<option value="">All Locations</option>';
             overviewStats.managed_locations.forEach(loc => {
                 const option = document.createElement('option');
                 option.value = loc.id;
                 option.textContent = loc.name;
                 select.appendChild(option);
             });
-
-            locationContext.style.display = 'block';
+        } else {
+            // Location admin: Show their locations
+            if (overviewStats.managed_locations.length > 1) {
+                select.innerHTML = '<option value="">All My Locations</option>';
+            } else {
+                select.innerHTML = '<option value="">Select Location...</option>';
+            }
+            overviewStats.managed_locations.forEach(loc => {
+                const option = document.createElement('option');
+                option.value = loc.id;
+                option.textContent = loc.name;
+                select.appendChild(option);
+            });
         }
+
+        locationContext.style.display = 'block';
 
         // Build overview stats cards
         buildStatsCards();
@@ -253,7 +267,13 @@ async function loadTabData(tabName) {
 // Load pending devices
 async function loadPendingDevices() {
     try {
-        const response = await fetch('/api/devices/pending', {
+        // Build URL with location filter
+        let url = '/api/devices/pending';
+        if (managedLocationFilter) {
+            url += `?location_id=${managedLocationFilter}`;
+        }
+
+        const response = await fetch(url, {
             credentials: 'include'
         });
 
@@ -304,7 +324,13 @@ async function loadPendingDevices() {
 // Load devices
 async function loadDevices() {
     try {
-        const response = await fetch('/api/devices?approved=true', {
+        // Build URL with location filter
+        let url = '/api/devices?approved=true';
+        if (managedLocationFilter) {
+            url += `&location_id=${managedLocationFilter}`;
+        }
+
+        const response = await fetch(url, {
             credentials: 'include'
         });
 
@@ -356,7 +382,13 @@ async function loadDevices() {
 // Load registered faces
 async function loadRegisteredFaces() {
     try {
-        const response = await fetch('/api/registered-faces', {
+        // Build URL with location filter
+        let url = '/api/registered-faces';
+        if (managedLocationFilter) {
+            url += `?location_id=${managedLocationFilter}`;
+        }
+
+        const response = await fetch(url, {
             credentials: 'include'
         });
 
@@ -1102,6 +1134,8 @@ async function removeUserFromLocation(userId, locationId, locationName) {
 function changeManagementLocation() {
     const select = document.getElementById('managedLocationSelect');
     managedLocationFilter = select.value ? parseInt(select.value) : null;
+
+    console.log('Location filter changed to:', managedLocationFilter || 'All Locations');
 
     // Reload current tab with new filter
     if (activeTab) {

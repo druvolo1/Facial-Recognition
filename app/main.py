@@ -2508,11 +2508,13 @@ async def get_device_status(
 
 @app.get("/api/devices/pending")
 async def list_pending_devices(
+    location_id: Optional[int] = None,
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session)
 ):
     """List pending device approvals (for superadmins and location admins)"""
     # Only superadmins and location admins can see pending devices
+    admin_location_ids = []
     if not user.is_superuser:
         # Check if they're a location admin
         result = await session.execute(
@@ -2526,10 +2528,22 @@ async def list_pending_devices(
         if not admin_locations:
             raise HTTPException(status_code=403, detail="Access denied")
 
-    # Get all pending devices
-    result = await session.execute(
-        select(Device).where(Device.is_approved == False)
-    )
+        admin_location_ids = [loc.location_id for loc in admin_locations]
+
+    # Build query based on filter and permissions
+    query = select(Device).where(Device.is_approved == False)
+
+    if location_id:
+        # Specific location filter
+        if not user.is_superuser and location_id not in admin_location_ids:
+            raise HTTPException(status_code=403, detail="Access denied to this location")
+        query = query.where(Device.location_id == location_id)
+    elif not user.is_superuser:
+        # Location admin without filter - show only their locations
+        if admin_location_ids:
+            query = query.where(Device.location_id.in_(admin_location_ids))
+
+    result = await session.execute(query)
     pending_devices = result.scalars().all()
 
     return {
@@ -3069,50 +3083,59 @@ async def registered_faces_page(request: Request, user: User = Depends(current_a
 
 @app.get("/api/registered-faces")
 async def get_registered_faces(
+    location_id: Optional[int] = None,
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session)
 ):
-    """Get registered faces filtered by user's selected location"""
+    """Get registered faces filtered by location (optional query parameter)"""
     try:
         from collections import defaultdict
 
         print(f"[GET-REGISTERED-FACES] User: {user.email} (ID: {user.id})")
+        print(f"[GET-REGISTERED-FACES] Location filter: {location_id}")
 
-        # Get user's selected location and role
-        location_context = await get_user_selected_location_and_role(user, session)
-        print(f"[GET-REGISTERED-FACES] Location context: {location_context}")
-
-        # Build query based on permissions
-        if not location_context:
-            # No location selected or no access - return empty
-            return {
-                "success": True,
-                "faces": [],
-                "total": 0,
-                "message": "Please select a location to view registered faces"
-            }
-
-        location_id = location_context.get("location_id")
-        is_superuser = location_context.get("is_superuser", False)
-
-        # Filter by location unless superuser with no location selected
-        if is_superuser and not location_id:
-            # Superuser with no location selected - show all faces
-            result = await session.execute(select(RegisteredFace))
-        elif location_id:
-            # Filter by selected location ONLY
-            print(f"[GET-REGISTERED-FACES] Filtering by location_id: {location_id}")
-            result = await session.execute(
-                select(RegisteredFace).where(RegisteredFace.location_id == location_id)
-            )
+        # Check user permissions
+        if user.is_superuser:
+            # Superadmin can see all or filter by specific location
+            if location_id:
+                result = await session.execute(
+                    select(RegisteredFace).where(RegisteredFace.location_id == location_id)
+                )
+            else:
+                # No filter - show all faces across all locations
+                result = await session.execute(select(RegisteredFace))
         else:
-            # No location selected and not superuser - show empty
-            return {
-                "success": True,
-                "faces": [],
-                "total": 0,
-                "message": "Please select a location to view registered faces"
-            }
+            # Location admin - get their managed locations
+            admin_result = await session.execute(
+                select(UserLocationRole).where(
+                    UserLocationRole.user_id == user.id,
+                    UserLocationRole.role == 'location_admin'
+                )
+            )
+            admin_locations = [ulr.location_id for ulr in admin_result.scalars().all()]
+
+            if not admin_locations:
+                return {
+                    "success": True,
+                    "faces": [],
+                    "total": 0,
+                    "message": "No locations assigned"
+                }
+
+            # Filter based on query parameter
+            if location_id:
+                # Specific location requested - verify access
+                if location_id not in admin_locations:
+                    raise HTTPException(status_code=403, detail="Access denied to this location")
+                result = await session.execute(
+                    select(RegisteredFace).where(RegisteredFace.location_id == location_id)
+                )
+            else:
+                # No filter - show all faces from managed locations
+                result = await session.execute(
+                    select(RegisteredFace).where(RegisteredFace.location_id.in_(admin_locations))
+                )
+
 
         all_face_records = result.scalars().all()
         print(f"[GET-REGISTERED-FACES] Found {len(all_face_records)} face records")
