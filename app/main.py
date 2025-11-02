@@ -858,7 +858,7 @@ async def test_auth(
     }
 
 
-@app.get("/api/users/me/locations")
+@app.get("/api/my-locations")
 async def get_my_locations(
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session)

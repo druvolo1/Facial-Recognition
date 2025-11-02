@@ -1,8 +1,14 @@
-dashboard:205  GET https://nrf.ruvolo.loseyourip.com/api/users/me/locations 403 (Forbidden)
-loadLocations @ dashboard:205
-(anonymous) @ dashboard:301
-Warning: Don’t paste code into the DevTools Console that you don’t understand or haven’t reviewed yourself. This could allow attackers to steal your identity or take control of your computer. Please type ‘allow pasting’ below and press Enter to allow pasting.
-allow pasting
-fetch('/api/test-auth', {credentials: 'include'}).then(r => r.json()).then(d => console.log(d))
-Promise {<pending>}[[Prototype]]: Promise[[PromiseState]]: "fulfilled"[[PromiseResult]]: undefined
-VM228:1 {authenticated: true, user_id: 5, user_email: 'linda@example.com', cookies_present: Array(1)}authenticated: truecookies_present: ['auth_cookie']user_email: "linda@example.com"user_id: 5[[Prototype]]: Object
+
+INFO:     Application startup complete.
+INFO:     172.16.1.150:51566 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     172.16.1.150:51572 - "GET /api/users/me/locations HTTP/1.1" 403 Forbidden
+INFO:     172.16.1.150:51574 - "GET /api/users/me/selected-location HTTP/1.1" 200 OK
+INFO:     172.16.1.150:42450 - "POST /auth/logout HTTP/1.1" 302 Found
+INFO:     172.16.1.150:42464 - "GET /login HTTP/1.1" 200 OK
+INFO:     172.16.1.150:42470 - "GET /login HTTP/1.1" 200 OK
+INFO:     172.16.1.150:42472 - "POST /auth/jwt/login HTTP/1.1" 200 OK
+INFO:     172.16.1.150:42484 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     172.16.1.150:42478 - "GET /api/devices/status/42f88ee8-e2f4-40be-8dda-752928f318dd HTTP/1.1" 200 OK
+INFO:     172.16.1.150:42500 - "GET /api/users/me/locations HTTP/1.1" 403 Forbidden
+INFO:     172.16.1.150:42512 - "GET /api/users/me/selected-location HTTP/1.1" 200 OK
+

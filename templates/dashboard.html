@@ -212,7 +212,7 @@
         async function loadLocations() {
             try {
                 // Get user's available locations
-                const locationsResponse = await fetch('/api/users/me/locations', {
+                const locationsResponse = await fetch('/api/my-locations', {
                     credentials: 'include'
                 });
                 const locationsData = await locationsResponse.json();
