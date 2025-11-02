@@ -835,6 +835,121 @@ async def get_user_locations(
     }
 
 
+@app.get("/api/users/me/locations")
+async def get_my_locations(
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Get current user's location assignments"""
+    # Superadmins have access to all locations
+    if user.is_superuser:
+        result = await session.execute(select(Location))
+        all_locations = result.scalars().all()
+        return {
+            "user_id": user.id,
+            "is_superuser": True,
+            "locations": [
+                {
+                    "location_id": loc.id,
+                    "location_name": loc.name,
+                    "role": "superadmin"
+                }
+                for loc in all_locations
+            ]
+        }
+
+    # Get user's location assignments
+    result = await session.execute(
+        select(UserLocationRole, Location).join(Location).where(
+            UserLocationRole.user_id == user.id
+        )
+    )
+    assignments = result.all()
+
+    return {
+        "user_id": user.id,
+        "is_superuser": False,
+        "locations": [
+            {
+                "location_id": loc.id,
+                "location_name": loc.name,
+                "role": assignment.role
+            }
+            for assignment, loc in assignments
+        ]
+    }
+
+
+@app.get("/api/users/me/selected-location")
+async def get_selected_location(
+    user: User = Depends(current_active_user)
+):
+    """Get the user's currently selected location"""
+    if user.dashboard_preferences:
+        try:
+            prefs = json.loads(user.dashboard_preferences)
+            return {
+                "selected_location_id": prefs.get("selected_location_id")
+            }
+        except:
+            pass
+
+    return {"selected_location_id": None}
+
+
+class SetLocationRequest(BaseModel):
+    location_id: int
+
+
+@app.post("/api/users/me/selected-location")
+async def set_selected_location(
+    request: SetLocationRequest,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Set the user's currently selected location"""
+    location_id = request.location_id
+
+    # Verify the location exists
+    loc_result = await session.execute(select(Location).where(Location.id == location_id))
+    location = loc_result.scalar_one_or_none()
+
+    if not location:
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    # Verify user has access to this location (unless superuser)
+    if not user.is_superuser:
+        access_result = await session.execute(
+            select(UserLocationRole).where(
+                UserLocationRole.user_id == user.id,
+                UserLocationRole.location_id == location_id
+            )
+        )
+        access = access_result.scalar_one_or_none()
+
+        if not access:
+            raise HTTPException(status_code=403, detail="You don't have access to this location")
+
+    # Update user preferences
+    prefs = {}
+    if user.dashboard_preferences:
+        try:
+            prefs = json.loads(user.dashboard_preferences)
+        except:
+            prefs = {}
+
+    prefs["selected_location_id"] = location_id
+    user.dashboard_preferences = json.dumps(prefs)
+
+    await session.commit()
+
+    return {
+        "success": True,
+        "selected_location_id": location_id,
+        "location_name": location.name
+    }
+
+
 @app.post("/api/admin/users/{user_id}/approve")
 async def approve_user(
     user_id: int,
@@ -1130,6 +1245,16 @@ async def delete_user(
         raise HTTPException(status_code=404, detail="User not found")
 
     user_email = user.email
+
+    # Delete user's location assignments first
+    await session.execute(
+        select(UserLocationRole).where(UserLocationRole.user_id == user_id)
+    )
+    location_roles = await session.execute(
+        select(UserLocationRole).where(UserLocationRole.user_id == user_id)
+    )
+    for role in location_roles.scalars():
+        await session.delete(role)
 
     # Delete the user
     await session.delete(user)
