@@ -690,6 +690,8 @@ document.getElementById('approve-device-form').addEventListener('submit', async 
             showAlert('Device approved successfully', 'success');
             closeModal('approve-device-modal');
             await loadOverview(); // Refresh stats
+            buildTabs(); // Update pending badge in tab
+            buildStatsCards(); // Update stats cards
             await loadPendingDevices();
         } else {
             const error = await response.json();
@@ -713,6 +715,8 @@ async function rejectDevice(deviceId) {
         if (response.ok) {
             showAlert('Device rejected', 'success');
             await loadOverview();
+            buildTabs(); // Update pending badge in tab
+            buildStatsCards(); // Update stats cards
             await loadPendingDevices();
         } else {
             showAlert('Failed to reject device', 'error');
@@ -796,6 +800,7 @@ async function deleteDevice(deviceId, deviceName) {
         if (response.ok) {
             showAlert('Device deleted successfully', 'success');
             await loadOverview();
+            buildStatsCards(); // Update stats cards
             await loadDevices();
         } else {
             showAlert('Failed to delete device', 'error');
@@ -808,12 +813,25 @@ async function deleteDevice(deviceId, deviceName) {
 
 // Registered faces management
 async function deleteFaceFromDatabase(personName) {
-    if (!confirm(`Delete all photos for "${personName}"?`)) return;
+    if (!confirm(`Delete all photos and records for "${personName}"?\n\nThis will:\n- Remove the face from CodeProject.AI server(s)\n- Delete all photo files\n- Remove all database records\n\nThis cannot be undone.`)) return;
 
     try {
-        // This would need a backend endpoint to delete from database
-        // For now, show a message
-        showAlert('Face deletion requires selecting a CodeProject server', 'error');
+        const response = await fetch(`/api/registered-faces/${encodeURIComponent(personName)}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            showAlert(`Successfully deleted ${personName} (${data.records_deleted} records, ${data.files_deleted} files)`, 'success');
+
+            // Reload registered faces and overview stats
+            await loadOverview();
+            await loadRegisteredFaces();
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Failed to delete face', 'error');
+        }
     } catch (error) {
         console.error('Error:', error);
         showAlert('Error deleting face', 'error');

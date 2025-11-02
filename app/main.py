@@ -3388,6 +3388,25 @@ async def delete_registered_face(
         if not face_records:
             raise HTTPException(status_code=404, detail=f"No registered faces found for {person_name}")
 
+        # Check permissions - location admins can only delete faces from their locations
+        if not user.is_superuser:
+            # Get user's admin locations
+            admin_result = await session.execute(
+                select(UserLocationRole).where(
+                    UserLocationRole.user_id == user.id,
+                    UserLocationRole.role == 'location_admin'
+                )
+            )
+            admin_location_ids = [ulr.location_id for ulr in admin_result.scalars().all()]
+
+            # Check if all face records belong to locations the user manages
+            for face_record in face_records:
+                if face_record.location_id not in admin_location_ids:
+                    raise HTTPException(
+                        status_code=403,
+                        detail=f"You don't have permission to delete this face (belongs to another location)"
+                    )
+
         print(f"[DELETE] Found {len(face_records)} file(s) to delete")
 
         # Group face records by CodeProject endpoint
