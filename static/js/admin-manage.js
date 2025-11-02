@@ -484,6 +484,11 @@ async function loadUsers() {
         }
 
         container.innerHTML = `
+            <div style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 8px; display: flex; gap: 20px; align-items: center;">
+                <strong>Location Access Legend:</strong>
+                <span class="badge badge-danger">Admin</span>
+                <span class="badge badge-info">User</span>
+            </div>
             <table>
                 <thead>
                     <tr>
@@ -507,7 +512,10 @@ async function loadUsers() {
                         }
 
                         const locationList = user.locations && user.locations.length > 0
-                            ? user.locations.map(loc => `${escapeHtml(loc.location_name)} (${loc.role})`).join('<br>')
+                            ? user.locations.map(loc => {
+                                const badgeClass = loc.role === 'location_admin' ? 'badge-danger' : 'badge-info';
+                                return `<span class="badge ${badgeClass}" style="margin: 2px;">${escapeHtml(loc.location_name)}</span>`;
+                            }).join(' ')
                             : '<span style="color: #999;">None</span>';
 
                         return `
