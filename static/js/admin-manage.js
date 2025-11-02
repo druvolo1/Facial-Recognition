@@ -5,6 +5,7 @@ let currentUser = null;
 let overviewStats = null;
 let allLocations = [];
 let allServers = [];
+let allDevices = []; // Store all devices for editing
 let managedLocationFilter = null; // For location admins to filter by specific location
 let activeTab = null;
 
@@ -310,11 +311,11 @@ async function loadDevices() {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         const data = await response.json();
-        const devices = data.devices || [];
+        allDevices = data.devices || [];
 
         const container = document.getElementById('devices-container');
 
-        if (devices.length === 0) {
+        if (allDevices.length === 0) {
             container.innerHTML = '<div class="empty-state"><div class="icon">📱</div><p>No devices configured</p></div>';
             return;
         }
@@ -331,14 +332,14 @@ async function loadDevices() {
                     </tr>
                 </thead>
                 <tbody>
-                    ${devices.map(device => `
+                    ${allDevices.map(device => `
                         <tr>
                             <td><strong>${escapeHtml(device.device_name)}</strong></td>
                             <td><span class="badge badge-info">${escapeHtml(device.device_type)}</span></td>
                             <td>${escapeHtml(device.location_name || 'Unknown')}</td>
                             <td>${device.last_seen ? new Date(device.last_seen).toLocaleString() : 'Never'}</td>
                             <td>
-                                <button class="btn btn-warning btn-sm" onclick='editDevice(${JSON.stringify(device)})'>Edit</button>
+                                <button class="btn btn-warning btn-sm" onclick="editDeviceById('${device.device_id}')">Edit</button>
                                 <button class="btn btn-danger btn-sm" onclick="deleteDevice('${device.device_id}', '${escapeHtml(device.device_name)}')">Delete</button>
                             </td>
                         </tr>
@@ -667,7 +668,14 @@ async function rejectDevice(deviceId) {
     }
 }
 
-async function editDevice(device) {
+async function editDeviceById(deviceId) {
+    // Find device in allDevices array
+    const device = allDevices.find(d => d.device_id === deviceId);
+    if (!device) {
+        showAlert('Device not found', 'error');
+        return;
+    }
+
     await loadLocationsData();
     await loadServersData();
 
