@@ -864,43 +864,57 @@ async def get_my_locations(
     session: AsyncSession = Depends(get_async_session)
 ):
     """Get current user's location assignments"""
-    # Superadmins have access to all locations
-    if user.is_superuser:
-        result = await session.execute(select(Location))
-        all_locations = result.scalars().all()
-        return {
+    try:
+        print(f"[GET-LOCATIONS] User: {user.email} (ID: {user.id}, Superuser: {user.is_superuser})")
+
+        # Superadmins have access to all locations
+        if user.is_superuser:
+            result = await session.execute(select(Location))
+            all_locations = result.scalars().all()
+            print(f"[GET-LOCATIONS] Superuser - returning {len(all_locations)} locations")
+            return {
+                "user_id": user.id,
+                "is_superuser": True,
+                "locations": [
+                    {
+                        "location_id": loc.id,
+                        "location_name": loc.name,
+                        "role": "superadmin"
+                    }
+                    for loc in all_locations
+                ]
+            }
+
+        # Get user's location assignments
+        print(f"[GET-LOCATIONS] Regular user - querying UserLocationRole")
+        result = await session.execute(
+            select(UserLocationRole, Location).join(Location).where(
+                UserLocationRole.user_id == user.id
+            )
+        )
+        assignments = result.all()
+        print(f"[GET-LOCATIONS] Found {len(assignments)} location assignments")
+
+        locations_data = {
             "user_id": user.id,
-            "is_superuser": True,
+            "is_superuser": False,
             "locations": [
                 {
                     "location_id": loc.id,
                     "location_name": loc.name,
-                    "role": "superadmin"
+                    "role": assignment.role
                 }
-                for loc in all_locations
+                for assignment, loc in assignments
             ]
         }
+        print(f"[GET-LOCATIONS] Returning: {locations_data}")
+        return locations_data
 
-    # Get user's location assignments
-    result = await session.execute(
-        select(UserLocationRole, Location).join(Location).where(
-            UserLocationRole.user_id == user.id
-        )
-    )
-    assignments = result.all()
-
-    return {
-        "user_id": user.id,
-        "is_superuser": False,
-        "locations": [
-            {
-                "location_id": loc.id,
-                "location_name": loc.name,
-                "role": assignment.role
-            }
-            for assignment, loc in assignments
-        ]
-    }
+    except Exception as e:
+        print(f"[GET-LOCATIONS] ERROR: {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 
 @app.get("/api/users/me/selected-location")

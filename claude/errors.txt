@@ -1,2 +1,8 @@
-manage:1 [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) <input type=​"password" id=​"user-password" required minlength=​"6">​
-manage:1 Uncaught SyntaxError: missing ) after argument list (at manage:1:30)
+dashboard:205  GET https://nrf.ruvolo.loseyourip.com/api/users/me/locations 403 (Forbidden)
+loadLocations @ dashboard:205
+(anonymous) @ dashboard:301
+Warning: Don’t paste code into the DevTools Console that you don’t understand or haven’t reviewed yourself. This could allow attackers to steal your identity or take control of your computer. Please type ‘allow pasting’ below and press Enter to allow pasting.
+allow pasting
+fetch('/api/test-auth', {credentials: 'include'}).then(r => r.json()).then(d => console.log(d))
+Promise {<pending>}[[Prototype]]: Promise[[PromiseState]]: "fulfilled"[[PromiseResult]]: undefined
+VM228:1 {authenticated: true, user_id: 5, user_email: 'linda@example.com', cookies_present: Array(1)}authenticated: truecookies_present: ['auth_cookie']user_email: "linda@example.com"user_id: 5[[Prototype]]: Object
