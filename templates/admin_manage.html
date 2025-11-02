@@ -1059,7 +1059,11 @@
                                         <td><span class="badge ${loc.role === 'location_admin' ? 'badge-danger' : 'badge-info'}">${escapeHtml(loc.role)}</span></td>
                                         <td>${new Date(loc.assigned_at).toLocaleDateString()}</td>
                                         <td>
-                                            <button class="btn btn-danger btn-sm" onclick="removeUserFromLocation(${userId}, ${loc.location_id}, '${escapeHtml(loc.location_name)}')">Remove</button>
+                                            <button class="btn btn-danger btn-sm"
+                                                    data-user-id="${userId}"
+                                                    data-location-id="${loc.location_id}"
+                                                    data-location-name="${escapeHtml(loc.location_name)}"
+                                                    onclick="removeUserFromLocation(this)">Remove</button>
                                         </td>
                                     </tr>
                                 `).join('')}
@@ -1111,7 +1115,11 @@
             }
         });
 
-        async function removeUserFromLocation(userId, locationId, locationName) {
+        async function removeUserFromLocation(button) {
+            const userId = button.getAttribute('data-user-id');
+            const locationId = button.getAttribute('data-location-id');
+            const locationName = button.getAttribute('data-location-name');
+
             if (!confirm(`Remove user from ${locationName}?`)) return;
 
             try {
