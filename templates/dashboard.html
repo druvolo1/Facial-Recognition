@@ -212,12 +212,16 @@
         async function loadLocations() {
             try {
                 // Get user's available locations
-                const locationsResponse = await fetch('/api/users/me/locations');
+                const locationsResponse = await fetch('/api/users/me/locations', {
+                    credentials: 'include'
+                });
                 const locationsData = await locationsResponse.json();
                 userLocations = locationsData.locations || [];
 
                 // Get currently selected location
-                const selectedResponse = await fetch('/api/users/me/selected-location');
+                const selectedResponse = await fetch('/api/users/me/selected-location', {
+                    credentials: 'include'
+                });
                 const selectedData = await selectedResponse.json();
                 selectedLocationId = selectedData.selected_location_id;
 
@@ -267,6 +271,7 @@
             try {
                 const response = await fetch('/api/users/me/selected-location', {
                     method: 'POST',
+                    credentials: 'include',
                     headers: {
                         'Content-Type': 'application/json'
                     },
