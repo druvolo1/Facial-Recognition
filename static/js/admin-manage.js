@@ -29,7 +29,13 @@ async function init() {
 // Load overview stats
 async function loadOverview() {
     try {
-        const response = await fetch('/api/admin/overview', {
+        // Build URL with location filter if set
+        let url = '/api/admin/overview';
+        if (managedLocationFilter) {
+            url += `?location_id=${managedLocationFilter}`;
+        }
+
+        const response = await fetch(url, {
             credentials: 'include'
         });
 
@@ -160,45 +166,54 @@ function buildTabs() {
     const tabNav = document.getElementById('tabNav');
     const tabs = [];
 
+    // Remember current active tab, or default to 'pending'
+    const currentActive = activeTab || 'pending';
+
     // Pending approvals (always first, with count badge if > 0)
     const pendingBadge = overviewStats.pending_devices > 0
         ? `<span class="badge-count">${overviewStats.pending_devices}</span>`
         : '';
+    const pendingActive = currentActive === 'pending' ? 'active' : '';
     tabs.push(`
-        <button class="tab-button active" onclick="switchTab('pending')">
+        <button class="tab-button ${pendingActive}" onclick="switchTab('pending')">
             ⚠️ Pending${pendingBadge}
         </button>
     `);
 
     // Common tabs for all admins
+    const devicesActive = currentActive === 'devices' ? 'active' : '';
     tabs.push(`
-        <button class="tab-button" onclick="switchTab('devices')">
+        <button class="tab-button ${devicesActive}" onclick="switchTab('devices')">
             📱 Devices
         </button>
     `);
 
+    const facesActive = currentActive === 'faces' ? 'active' : '';
     tabs.push(`
-        <button class="tab-button" onclick="switchTab('faces')">
+        <button class="tab-button ${facesActive}" onclick="switchTab('faces')">
             👥 Registered Faces
         </button>
     `);
 
     // Superadmin-only tabs
     if (overviewStats.is_superuser) {
+        const usersActive = currentActive === 'users' ? 'active' : '';
         tabs.push(`
-            <button class="tab-button" onclick="switchTab('users')">
+            <button class="tab-button ${usersActive}" onclick="switchTab('users')">
                 👤 Users
             </button>
         `);
 
+        const locationsActive = currentActive === 'locations' ? 'active' : '';
         tabs.push(`
-            <button class="tab-button" onclick="switchTab('locations')">
+            <button class="tab-button ${locationsActive}" onclick="switchTab('locations')">
                 📍 Locations
             </button>
         `);
 
+        const serversActive = currentActive === 'servers' ? 'active' : '';
         tabs.push(`
-            <button class="tab-button" onclick="switchTab('servers')">
+            <button class="tab-button ${serversActive}" onclick="switchTab('servers')">
                 🖥️ Servers
             </button>
         `);
@@ -1149,15 +1164,22 @@ async function removeUserFromLocation(userId, locationId, locationName) {
 }
 
 // Utility functions
-function changeManagementLocation() {
+async function changeManagementLocation() {
     const select = document.getElementById('managedLocationSelect');
     managedLocationFilter = select.value ? parseInt(select.value) : null;
 
     console.log('Location filter changed to:', managedLocationFilter || 'All Locations');
 
+    // Reload overview stats with new filter
+    await loadOverview();
+
+    // Rebuild stats cards and tabs with updated counts
+    buildStatsCards();
+    buildTabs();
+
     // Reload current tab with new filter
     if (activeTab) {
-        loadTabData(activeTab);
+        await loadTabData(activeTab);
     }
 }
 

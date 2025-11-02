@@ -811,6 +811,7 @@ async def admin_locations_page(request: Request, user: User = Depends(current_su
 
 @app.get("/api/admin/overview")
 async def get_admin_overview(
+    location_id: Optional[int] = None,
     user: User = Depends(require_any_admin_access),
     session: AsyncSession = Depends(get_async_session)
 ):
@@ -825,33 +826,86 @@ async def get_admin_overview(
         "managed_locations": []
     }
 
+    # Verify location access if filtering by specific location
+    if location_id and not user.is_superuser:
+        # Check if user has access to this location
+        result = await session.execute(
+            select(UserLocationRole).where(
+                UserLocationRole.user_id == user.id,
+                UserLocationRole.location_id == location_id
+            )
+        )
+        if not result.scalar_one_or_none():
+            raise HTTPException(status_code=403, detail="Access denied to this location")
+
     if user.is_superuser:
-        # Superadmin sees everything
-        # Count users
-        user_count = await session.execute(select(func.count(User.id)))
-        stats["total_users"] = user_count.scalar()
+        # Superadmin sees everything (or filtered by location_id)
 
-        # Count locations
-        location_count = await session.execute(select(func.count(Location.id)))
-        stats["total_locations"] = location_count.scalar()
+        if location_id:
+            # Filtering by specific location
+            # Count users assigned to this location
+            user_count = await session.execute(
+                select(func.count(func.distinct(UserLocationRole.user_id))).where(
+                    UserLocationRole.location_id == location_id
+                )
+            )
+            stats["total_users"] = user_count.scalar()
 
-        # Count all devices
-        device_count = await session.execute(
-            select(func.count(Device.id)).where(Device.is_approved == True)
-        )
-        stats["total_devices"] = device_count.scalar()
+            # Location count is always 1 when filtering
+            stats["total_locations"] = 1
 
-        # Count pending devices
-        pending_count = await session.execute(
-            select(func.count(Device.id)).where(Device.is_approved == False)
-        )
-        stats["pending_devices"] = pending_count.scalar()
+            # Count devices in this location
+            device_count = await session.execute(
+                select(func.count(Device.id)).where(
+                    Device.is_approved == True,
+                    Device.location_id == location_id
+                )
+            )
+            stats["total_devices"] = device_count.scalar()
 
-        # Count unique registered people (not total photos)
-        face_count = await session.execute(select(func.count(func.distinct(RegisteredFace.person_name))))
-        stats["total_registered_faces"] = face_count.scalar()
+            # Count pending devices in this location
+            pending_count = await session.execute(
+                select(func.count(Device.id)).where(
+                    Device.is_approved == False,
+                    Device.location_id == location_id
+                )
+            )
+            stats["pending_devices"] = pending_count.scalar()
 
-        # Get all locations for managed_locations
+            # Count unique registered people in this location
+            face_count = await session.execute(
+                select(func.count(func.distinct(RegisteredFace.person_name))).where(
+                    RegisteredFace.location_id == location_id
+                )
+            )
+            stats["total_registered_faces"] = face_count.scalar()
+        else:
+            # Show all locations (no filter)
+            # Count users
+            user_count = await session.execute(select(func.count(User.id)))
+            stats["total_users"] = user_count.scalar()
+
+            # Count locations
+            location_count = await session.execute(select(func.count(Location.id)))
+            stats["total_locations"] = location_count.scalar()
+
+            # Count all devices
+            device_count = await session.execute(
+                select(func.count(Device.id)).where(Device.is_approved == True)
+            )
+            stats["total_devices"] = device_count.scalar()
+
+            # Count pending devices
+            pending_count = await session.execute(
+                select(func.count(Device.id)).where(Device.is_approved == False)
+            )
+            stats["pending_devices"] = pending_count.scalar()
+
+            # Count unique registered people (not total photos)
+            face_count = await session.execute(select(func.count(func.distinct(RegisteredFace.person_name))))
+            stats["total_registered_faces"] = face_count.scalar()
+
+        # Get all locations for managed_locations dropdown (always show all for superadmin)
         locations_result = await session.execute(select(Location))
         all_locations = locations_result.scalars().all()
         stats["managed_locations"] = [
@@ -867,11 +921,10 @@ async def get_admin_overview(
             .where(UserLocationRole.user_id == user.id)
         )
         all_locs = all_user_locations.all()
-        location_ids = [loc.id for _, loc in all_locs]
+        all_location_ids = [loc.id for _, loc in all_locs]
         stats["managed_locations"] = [
             {"id": loc.id, "name": loc.name} for _, loc in all_locs
         ]
-        stats["total_locations"] = len(location_ids)
 
         # Get locations where user is admin (for permission filtering)
         admin_locations = await session.execute(
@@ -886,8 +939,18 @@ async def get_admin_overview(
         admin_location_ids = [loc.id for _, loc in admin_locs]
         stats["admin_location_ids"] = admin_location_ids
 
+        # Determine which location IDs to use for counts
+        if location_id:
+            # Filtering by specific location - use only that one
+            location_ids = [location_id]
+            stats["total_locations"] = 1
+        else:
+            # Show all managed locations
+            location_ids = all_location_ids
+            stats["total_locations"] = len(location_ids)
+
         if location_ids:
-            # Count devices in managed locations
+            # Count devices in managed/filtered locations
             device_count = await session.execute(
                 select(func.count(Device.id)).where(
                     Device.is_approved == True,
@@ -896,7 +959,7 @@ async def get_admin_overview(
             )
             stats["total_devices"] = device_count.scalar()
 
-            # Count pending devices in managed locations
+            # Count pending devices in managed/filtered locations
             pending_count = await session.execute(
                 select(func.count(Device.id)).where(
                     Device.is_approved == False,
@@ -905,7 +968,7 @@ async def get_admin_overview(
             )
             stats["pending_devices"] = pending_count.scalar()
 
-            # Count unique registered people in managed locations (not total photos)
+            # Count unique registered people in managed/filtered locations
             face_count = await session.execute(
                 select(func.count(func.distinct(RegisteredFace.person_name))).where(
                     RegisteredFace.location_id.in_(location_ids)
