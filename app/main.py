@@ -2896,11 +2896,25 @@ async def log_scan(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.websocket("/ws/test")
+async def websocket_test(websocket: WebSocket):
+    """Simple test WebSocket endpoint"""
+    print("[WEBSOCKET-TEST] Connection attempt")
+    await websocket.accept()
+    print("[WEBSOCKET-TEST] Connection accepted")
+    await websocket.send_json({"message": "Test connection successful"})
+    try:
+        while True:
+            data = await websocket.receive_text()
+            await websocket.send_text(f"Echo: {data}")
+    except WebSocketDisconnect:
+        print("[WEBSOCKET-TEST] Client disconnected")
+
+
 @app.websocket("/ws/dashboard/{location_id}")
 async def websocket_dashboard(
     websocket: WebSocket,
-    location_id: int,
-    session: AsyncSession = Depends(get_async_session)
+    location_id: int
 ):
     """
     WebSocket endpoint for dashboard real-time updates.
@@ -2908,55 +2922,65 @@ async def websocket_dashboard(
     Dashboards connect to this endpoint to receive live detection updates
     for their assigned location.
     """
+    print(f"[WEBSOCKET] Connection attempt for location {location_id}")
+    print(f"[WEBSOCKET] Headers: {websocket.headers}")
+
     await manager.connect(websocket, location_id)
+    print(f"[WEBSOCKET] Connected successfully for location {location_id}")
 
     try:
-        # Send initial data: recent detections for this location
-        presence_threshold = datetime.utcnow() - timedelta(minutes=DEFAULT_PRESENCE_TIMEOUT_MINUTES)
+        # Create a database session manually for WebSocket
+        async with async_session_maker() as session:
+            # Send initial data: recent detections for this location
+            presence_threshold = datetime.utcnow() - timedelta(minutes=DEFAULT_PRESENCE_TIMEOUT_MINUTES)
 
-        # Query recent detections (within presence timeout)
-        result = await session.execute(
-            select(Detection)
-            .where(Detection.location_id == location_id)
-            .where(Detection.detected_at >= presence_threshold)
-            .order_by(Detection.detected_at.desc())
-        )
-        recent_detections = result.scalars().all()
+            # Query recent detections (within presence timeout)
+            result = await session.execute(
+                select(Detection)
+                .where(Detection.location_id == location_id)
+                .where(Detection.detected_at >= presence_threshold)
+                .order_by(Detection.detected_at.desc())
+            )
+            recent_detections = result.scalars().all()
 
-        # Group by person_name and get most recent detection for each
-        person_latest = {}
-        for det in recent_detections:
-            if det.person_name not in person_latest:
-                person_latest[det.person_name] = {
-                    "person_name": det.person_name,
-                    "confidence": float(det.confidence),
-                    "device_id": det.device_id,
-                    "detected_at": det.detected_at.isoformat()
-                }
+            # Group by person_name and get most recent detection for each
+            person_latest = {}
+            for det in recent_detections:
+                if det.person_name not in person_latest:
+                    person_latest[det.person_name] = {
+                        "person_name": det.person_name,
+                        "confidence": float(det.confidence),
+                        "device_id": det.device_id,
+                        "detected_at": det.detected_at.isoformat()
+                    }
 
-        # Get device names
-        device_result = await session.execute(
-            select(Device).where(Device.location_id == location_id)
-        )
-        devices = {d.device_id: d.device_name for d in device_result.scalars().all()}
+            # Get device names
+            device_result = await session.execute(
+                select(Device).where(Device.location_id == location_id)
+            )
+            devices = {d.device_id: d.device_name for d in device_result.scalars().all()}
 
-        # Get profile photos from registered_face table
-        face_result = await session.execute(
-            select(RegisteredFace.person_name, RegisteredFace.profile_photo)
-            .where(RegisteredFace.location_id == location_id)
-            .distinct(RegisteredFace.person_name)
-        )
-        profile_photos = {row.person_name: row.profile_photo for row in face_result.all()}
+            # Get profile photos from registered_face table
+            # Group by person_name to get one photo per person
+            face_result = await session.execute(
+                select(RegisteredFace.person_name, RegisteredFace.profile_photo)
+                .where(RegisteredFace.location_id == location_id)
+                .where(RegisteredFace.profile_photo.isnot(None))
+            )
+            profile_photos = {}
+            for row in face_result.all():
+                if row.person_name not in profile_photos:
+                    profile_photos[row.person_name] = row.profile_photo
 
-        # Add device names and profile photos to detections
-        for detection in person_latest.values():
-            detection["device_name"] = devices.get(detection["device_id"], detection["device_id"][:8])
-            detection["profile_photo"] = profile_photos.get(detection["person_name"])
+            # Add device names and profile photos to detections
+            for detection in person_latest.values():
+                detection["device_name"] = devices.get(detection["device_id"], detection["device_id"][:8])
+                detection["profile_photo"] = profile_photos.get(detection["person_name"])
 
-        await websocket.send_json({
-            "type": "initial_data",
-            "detections": list(person_latest.values())
-        })
+            await websocket.send_json({
+                "type": "initial_data",
+                "detections": list(person_latest.values())
+            })
 
         # Keep connection alive and wait for disconnect
         while True:
@@ -2968,6 +2992,8 @@ async def websocket_dashboard(
 
     except WebSocketDisconnect:
         pass
+    except Exception as e:
+        print(f"[WEBSOCKET] Error: {e}")
     finally:
         manager.disconnect(websocket, location_id)
 

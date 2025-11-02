@@ -1,21 +1,128 @@
-dashboard.html:419 WebSocket connection to 'wss://nrf.ruvolo.loseyourip.com/ws/dashboard/2' failed: 
-connectWebSocket @ dashboard.html:419
-(anonymous) @ dashboard.html:461
-dashboard.html:447 [WEBSOCKET] Error: Event {isTrusted: true, type: 'error', target: WebSocket, currentTarget: WebSocket, eventPhase: 2, …}
-websocket.onerror @ dashboard.html:447
-dashboard.html:453 [WEBSOCKET] Disconnected - reconnecting in 5s...
-dashboard.html:419 WebSocket connection to 'wss://nrf.ruvolo.loseyourip.com/ws/dashboard/2' failed: 
-connectWebSocket @ dashboard.html:419
-dashboard.html:447 [WEBSOCKET] Error: Event {isTrusted: true, type: 'error', target: WebSocket, currentTarget: WebSocket, eventPhase: 2, …}
-websocket.onerror @ dashboard.html:447
-dashboard.html:453 [WEBSOCKET] Disconnected - reconnecting in 5s...
-dashboard.html:419 WebSocket connection to 'wss://nrf.ruvolo.loseyourip.com/ws/dashboard/2' failed: 
-connectWebSocket @ dashboard.html:419
-dashboard.html:447 [WEBSOCKET] Error: Event {isTrusted: true, type: 'error', target: WebSocket, currentTarget: WebSocket, eventPhase: 2, …}
-websocket.onerror @ dashboard.html:447
-dashboard.html:453 [WEBSOCKET] Disconnected - reconnecting in 5s...
-dashboard.html:419 WebSocket connection to 'wss://nrf.ruvolo.loseyourip.com/ws/dashboard/2' failed: 
-connectWebSocket @ dashboard.html:419
-dashboard.html:447 [WEBSOCKET] Error: Event {isTrusted: true, type: 'error', target: WebSocket, currentTarget: WebSocket, eventPhase: 2, …}
-websocket.onerror @ dashboard.html:447
-dashboard.html:453 [WEBSOCKET] Disconnected - reconnecting in 5s...
+(venv) dave@Garden1:~/Facial-Recognition/app $ python main.py
+[CONFIG] Database URL: mariadb+aiomysql://app_user:testpass123@172.16.1.150:3306/facial_recognition
+[CONFIG] Base directory: /home/dave/Facial-Recognition
+[CONFIG] Upload folder: /home/dave/Facial-Recognition/uploads
+[CONFIG] CodeProject.AI: http://172.16.1.150:32168/v1
+/home/dave/Facial-Recognition/app/main.py:606: DeprecationWarning:
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+  @app.on_event("startup")
+
+************************************************************
+*                                                          *
+*  Facial Recognition App with Authentication              *
+*                                                          *
+************************************************************
+
+Server will start at: http://localhost:5000
+Login page: http://localhost:5000/login
+Dashboard: http://localhost:5000/dashboard
+
+Press Ctrl+C to stop
+
+INFO:     Will watch for changes in these directories: ['/home/dave/Facial-Recognition/app']
+INFO:     Uvicorn running on http://0.0.0.0:5000 (Press CTRL+C to quit)
+INFO:     Started reloader process [570513] using StatReload
+[CONFIG] Database URL: mariadb+aiomysql://app_user:testpass123@172.16.1.150:3306/facial_recognition
+[CONFIG] Base directory: /home/dave/Facial-Recognition
+[CONFIG] Upload folder: /home/dave/Facial-Recognition/uploads
+[CONFIG] CodeProject.AI: http://172.16.1.150:32168/v1
+[CONFIG] Database URL: mariadb+aiomysql://app_user:testpass123@172.16.1.150:3306/facial_recognition
+[CONFIG] Base directory: /home/dave/Facial-Recognition
+[CONFIG] Upload folder: /home/dave/Facial-Recognition/uploads
+[CONFIG] CodeProject.AI: http://172.16.1.150:32168/v1
+INFO:     Started server process [570518]
+INFO:     Waiting for application startup.
+
+============================================================
+[STARTUP] Facial Recognition App starting...
+[DB-INIT] Looking for .env file at: /home/dave/Facial-Recognition/.env
+[DB-INIT] .env file exists: True
+[DB-INIT] Connecting to MariaDB server at 172.16.1.150:3306
+[DB-INIT] User: app_user
+[DB-INIT] Target database: facial_recognition
+
+============================================================
+[DATABASE] Initializing database: facial_recognition
+[DATABASE] Host: 172.16.1.150:3306
+[DATABASE] User: app_user
+[DATABASE] ✓ Database 'facial_recognition' already exists and is accessible
+[STARTUP] ✓ Database tables created/verified
+[STARTUP] ✓ Admin user already exists: admin@example.com
+[STARTUP] ✓ Startup complete
+============================================================
+
+INFO:     Application startup complete.
+INFO:     172.16.1.150:47272 - "OPTIONS /api/devices/recognize-face HTTP/1.1" 200 OK
+
+============================================================
+[DEVICE-RECOGNIZE] Device: Scanner (2be4c33f...)
+[DEVICE-RECOGNIZE] Location: 2
+[DEVICE-RECOGNIZE] Image size: 68.92 KB
+[DEVICE-RECOGNIZE] Sending to CodeProject.AI at http://172.16.1.150:32168/v1...
+[DEVICE-RECOGNIZE] Faces detected: 1
+[DEVICE-RECOGNIZE]   - dave: 0.54
+============================================================
+
+INFO:     172.16.1.150:47276 - "POST /api/devices/recognize-face HTTP/1.1" 200 OK
+INFO:     172.16.1.150:46428 - "OPTIONS /api/devices/heartbeat HTTP/1.1" 200 OK
+INFO:     172.16.1.150:46440 - "POST /api/devices/heartbeat HTTP/1.1" 200 OK
+INFO:     172.16.1.150:46442 - "OPTIONS /api/devices/recognize-face HTTP/1.1" 200 OK
+
+============================================================
+[DEVICE-RECOGNIZE] Device: Scanner (2be4c33f...)
+[DEVICE-RECOGNIZE] Location: 2
+[DEVICE-RECOGNIZE] Image size: 68.31 KB
+[DEVICE-RECOGNIZE] Sending to CodeProject.AI at http://172.16.1.150:32168/v1...
+[DEVICE-RECOGNIZE] Faces detected: 1
+[DEVICE-RECOGNIZE]   - dave: 0.50
+============================================================
+
+INFO:     172.16.1.150:46444 - "POST /api/devices/recognize-face HTTP/1.1" 200 OK
+INFO:     172.16.1.150:46450 - "OPTIONS /api/devices/recognize-face HTTP/1.1" 200 OK
+
+============================================================
+[DEVICE-RECOGNIZE] Device: Scanner (2be4c33f...)
+[DEVICE-RECOGNIZE] Location: 2
+[DEVICE-RECOGNIZE] Image size: 68.23 KB
+[DEVICE-RECOGNIZE] Sending to CodeProject.AI at http://172.16.1.150:32168/v1...
+[DEVICE-RECOGNIZE] Faces detected: 1
+[DEVICE-RECOGNIZE]   - dave: 0.51
+============================================================
+
+INFO:     172.16.1.150:46466 - "POST /api/devices/recognize-face HTTP/1.1" 200 OK
+WARNING:  Unsupported upgrade request.
+WARNING:  No supported WebSocket library detected. Please use "pip install 'uvicorn[standard]'", or install 'websockets' or 'wsproto' manually.
+INFO:     172.16.1.150:46482 - "GET /ws/dashboard/2 HTTP/1.1" 404 Not Found
+INFO:     172.16.1.150:46496 - "OPTIONS /api/devices/recognize-face HTTP/1.1" 200 OK
+
+============================================================
+[DEVICE-RECOGNIZE] Device: Scanner (2be4c33f...)
+[DEVICE-RECOGNIZE] Location: 2
+[DEVICE-RECOGNIZE] Image size: 68.16 KB
+[DEVICE-RECOGNIZE] Sending to CodeProject.AI at http://172.16.1.150:32168/v1...
+[DEVICE-RECOGNIZE] Faces detected: 1
+[DEVICE-RECOGNIZE]   - dave: 0.51
+============================================================
+
+INFO:     172.16.1.150:46502 - "POST /api/devices/recognize-face HTTP/1.1" 200 OK
+INFO:     172.16.1.150:46506 - "OPTIONS /api/devices/recognize-face HTTP/1.1" 200 OK
+
+============================================================
+[DEVICE-RECOGNIZE] Device: Scanner (2be4c33f...)
+[DEVICE-RECOGNIZE] Location: 2
+[DEVICE-RECOGNIZE] Image size: 66.12 KB
+[DEVICE-RECOGNIZE] Sending to CodeProject.AI at http://172.16.1.150:32168/v1...
+[DEVICE-RECOGNIZE] Faces detected: 1
+[DEVICE-RECOGNIZE]   - dave: 0.54
+============================================================
+
+INFO:     172.16.1.150:46516 - "POST /api/devices/recognize-face HTTP/1.1" 200 OK
+^CINFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [570518]
+INFO:     Stopping reloader process [570513]
