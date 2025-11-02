@@ -691,6 +691,20 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Categories & Tags Tab -->
+            <div id="categories-tab" class="tab-content">
+                <div class="section-header">
+                    <h2>🏷️ Categories & Tags</h2>
+                    <button class="btn btn-primary" onclick="showCreateCategoryModal()">+ Create Category</button>
+                </div>
+                <div id="categories-container">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Loading categories...
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1120,12 +1134,247 @@
         </div>
     </div>
 
+    <!-- Create Category Modal -->
+    <div id="create-category-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Create Category</h2>
+                <button class="close-modal" onclick="closeModal('create-category-modal')">&times;</button>
+            </div>
+            <form id="create-category-form">
+                <div class="form-group">
+                    <label for="category-name">Category Name *</label>
+                    <input type="text" id="category-name" required placeholder="e.g., Age Group, Relationship">
+                </div>
+                <div class="form-group">
+                    <label for="category-description">Description</label>
+                    <textarea id="category-description" rows="3" placeholder="Optional description"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="category-scope">Scope *</label>
+                    <select id="category-scope" required onchange="toggleCategoryLocation()">
+                        <option value="">Select scope...</option>
+                        <option value="global">Global (All Locations)</option>
+                        <option value="location">Location-Specific</option>
+                    </select>
+                </div>
+                <div class="form-group" id="category-location-group" style="display: none;">
+                    <label for="category-location">Location *</label>
+                    <select id="category-location">
+                        <option value="">Select location...</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('create-category-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Category</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Category Modal -->
+    <div id="edit-category-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Category</h2>
+                <button class="close-modal" onclick="closeModal('edit-category-modal')">&times;</button>
+            </div>
+            <form id="edit-category-form">
+                <input type="hidden" id="edit-category-id">
+                <div class="form-group">
+                    <label for="edit-category-name">Category Name *</label>
+                    <input type="text" id="edit-category-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-category-description">Description</label>
+                    <textarea id="edit-category-description" rows="3"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('edit-category-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Category</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create Tag Modal -->
+    <div id="create-tag-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Create Tag</h2>
+                <button class="close-modal" onclick="closeModal('create-tag-modal')">&times;</button>
+            </div>
+            <form id="create-tag-form">
+                <input type="hidden" id="tag-category-id">
+                <div class="form-group">
+                    <label>Category</label>
+                    <input type="text" id="tag-category-name" disabled style="background: #e9ecef;">
+                </div>
+                <div class="form-group">
+                    <label for="tag-name">Tag Name *</label>
+                    <input type="text" id="tag-name" required placeholder="e.g., Child, Adult, Family">
+                </div>
+                <div class="form-group">
+                    <label for="tag-description">Description</label>
+                    <textarea id="tag-description" rows="3" placeholder="Optional description"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('create-tag-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Tag</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Tag Modal -->
+    <div id="edit-tag-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Tag</h2>
+                <button class="close-modal" onclick="closeModal('edit-tag-modal')">&times;</button>
+            </div>
+            <form id="edit-tag-form">
+                <input type="hidden" id="edit-tag-id">
+                <div class="form-group">
+                    <label for="edit-tag-name">Tag Name *</label>
+                    <input type="text" id="edit-tag-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-tag-description">Description</label>
+                    <textarea id="edit-tag-description" rows="3"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('edit-tag-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Tag</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Assign Tags Modal -->
+    <div id="assign-tags-modal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2>Assign Tags to <span id="assign-tags-person-name"></span></h2>
+                <button class="close-modal" onclick="closeModal('assign-tags-modal')">&times;</button>
+            </div>
+            <div id="assign-tags-container">
+                <!-- Will be populated with categories and checkboxes -->
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('assign-tags-modal')">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="savePersonTags()">Save Tags</button>
+            </div>
+        </div>
+    </div>
+
     <style>
         .register-step {
             display: none;
         }
         .register-step.active {
             display: block;
+        }
+
+        /* Category/Tag styling */
+        .category-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .category-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .category-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .scope-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .scope-badge.global {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .scope-badge.location {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .tags-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .tag-item {
+            background: #f3f4f6;
+            padding: 8px 15px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .tag-item button {
+            background: none;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 0;
+            font-size: 16px;
+        }
+
+        .tag-item button:hover {
+            color: #dc2626;
+        }
+
+        .tag-checkbox-group {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+
+        .tag-checkbox-group h4 {
+            margin-bottom: 10px;
+            color: #374151;
+        }
+
+        .tag-checkbox-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .tag-checkbox-list label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .tag-checkbox-list input[type="checkbox"] {
+            cursor: pointer;
         }
     </style>
 

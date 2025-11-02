@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 
-from sqlalchemy import Boolean, Integer, String, Text, Column, ForeignKey, select, DateTime, func, Numeric
+from sqlalchemy import Boolean, Integer, String, Text, Column, ForeignKey, select, DateTime, func, Numeric, or_, and_, delete
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.exc import IntegrityError
@@ -165,6 +165,42 @@ class Area(Base):
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Category(Base):
+    """Categories for organizing tags (can be global or location-specific)"""
+    __tablename__ = "category"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    scope: Mapped[str] = mapped_column(String(20), nullable=False, default='global')  # 'global' or 'location'
+    location_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("location.id", ondelete="CASCADE"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Tag(Base):
+    """Tags within categories"""
+    __tablename__ = "tag"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    category_id: Mapped[int] = mapped_column(Integer, ForeignKey("category.id", ondelete="CASCADE"), nullable=False)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class PersonTag(Base):
+    """Many-to-many relationship between registered faces and tags"""
+    __tablename__ = "person_tag"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    person_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    location_id: Mapped[int] = mapped_column(Integer, ForeignKey("location.id", ondelete="CASCADE"), nullable=False)
+    tag_id: Mapped[int] = mapped_column(Integer, ForeignKey("tag.id", ondelete="CASCADE"), nullable=False)
+    assigned_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
 
 class UserLocationRole(Base):
@@ -563,6 +599,35 @@ class CreateAreaRequest(BaseModel):
 class UpdateAreaRequest(BaseModel):
     area_name: Optional[str] = None
     description: Optional[str] = None
+
+
+class CreateCategoryRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+    scope: str  # 'global' or 'location'
+    location_id: Optional[int] = None
+
+
+class UpdateCategoryRequest(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+
+class CreateTagRequest(BaseModel):
+    category_id: int
+    name: str
+    description: Optional[str] = None
+
+
+class UpdateTagRequest(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+
+class AssignPersonTagsRequest(BaseModel):
+    person_name: str
+    location_id: int
+    tag_ids: list[int]
 
 
 class AssignUserToLocationRequest(BaseModel):
@@ -2622,6 +2687,512 @@ async def delete_area(
 
 
 # ============================================================================
+# CATEGORY & TAG MANAGEMENT API ROUTES
+# ============================================================================
+
+@app.post("/api/categories")
+async def create_category(
+    data: CreateCategoryRequest,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Create a new category"""
+    try:
+        # Validate scope
+        if data.scope not in ['global', 'location']:
+            raise HTTPException(status_code=400, detail="Scope must be 'global' or 'location'")
+
+        # If location-specific, validate location_id and access
+        if data.scope == 'location':
+            if not data.location_id:
+                raise HTTPException(status_code=400, detail="location_id required for location-specific categories")
+
+            # Check if user has access to this location
+            if not user.is_superuser:
+                result = await session.execute(
+                    select(UserLocationRole).where(
+                        UserLocationRole.user_id == user.id,
+                        UserLocationRole.location_id == data.location_id,
+                        UserLocationRole.role == 'location_admin'
+                    )
+                )
+                if not result.scalar_one_or_none():
+                    raise HTTPException(status_code=403, detail="Access denied to this location")
+
+        # Global categories require superadmin
+        if data.scope == 'global' and not user.is_superuser:
+            raise HTTPException(status_code=403, detail="Only superadmins can create global categories")
+
+        category = Category(
+            name=data.name,
+            description=data.description,
+            scope=data.scope,
+            location_id=data.location_id if data.scope == 'location' else None
+        )
+        session.add(category)
+        await session.commit()
+        await session.refresh(category)
+
+        return {
+            "success": True,
+            "category": {
+                "id": category.id,
+                "name": category.name,
+                "description": category.description,
+                "scope": category.scope,
+                "location_id": category.location_id,
+                "created_at": category.created_at.isoformat()
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/categories")
+async def get_categories(
+    location_id: Optional[int] = None,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Get all categories (global + location-specific for given location)"""
+    try:
+        # If location_id provided, check access
+        if location_id and not user.is_superuser:
+            result = await session.execute(
+                select(UserLocationRole).where(
+                    UserLocationRole.user_id == user.id,
+                    UserLocationRole.location_id == location_id
+                )
+            )
+            if not result.scalar_one_or_none():
+                raise HTTPException(status_code=403, detail="Access denied to this location")
+
+        # Get global categories + location-specific ones
+        if location_id:
+            result = await session.execute(
+                select(Category).where(
+                    or_(
+                        Category.scope == 'global',
+                        and_(Category.scope == 'location', Category.location_id == location_id)
+                    )
+                )
+            )
+        else:
+            # No location specified - return only global categories
+            result = await session.execute(
+                select(Category).where(Category.scope == 'global')
+            )
+
+        categories = result.scalars().all()
+
+        return {
+            "success": True,
+            "categories": [
+                {
+                    "id": cat.id,
+                    "name": cat.name,
+                    "description": cat.description,
+                    "scope": cat.scope,
+                    "location_id": cat.location_id,
+                    "created_at": cat.created_at.isoformat()
+                }
+                for cat in categories
+            ]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/categories/{category_id}")
+async def update_category(
+    category_id: int,
+    data: UpdateCategoryRequest,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Update a category"""
+    try:
+        result = await session.execute(select(Category).where(Category.id == category_id))
+        category = result.scalar_one_or_none()
+        if not category:
+            raise HTTPException(status_code=404, detail="Category not found")
+
+        # Check permissions
+        if category.scope == 'global' and not user.is_superuser:
+            raise HTTPException(status_code=403, detail="Only superadmins can edit global categories")
+
+        if category.scope == 'location' and not user.is_superuser:
+            result = await session.execute(
+                select(UserLocationRole).where(
+                    UserLocationRole.user_id == user.id,
+                    UserLocationRole.location_id == category.location_id,
+                    UserLocationRole.role == 'location_admin'
+                )
+            )
+            if not result.scalar_one_or_none():
+                raise HTTPException(status_code=403, detail="Access denied to this location")
+
+        if data.name is not None:
+            category.name = data.name
+        if data.description is not None:
+            category.description = data.description
+        category.updated_at = datetime.utcnow()
+
+        await session.commit()
+        await session.refresh(category)
+
+        return {
+            "success": True,
+            "category": {
+                "id": category.id,
+                "name": category.name,
+                "description": category.description,
+                "scope": category.scope,
+                "location_id": category.location_id,
+                "updated_at": category.updated_at.isoformat()
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/categories/{category_id}")
+async def delete_category(
+    category_id: int,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Delete a category (will cascade delete tags)"""
+    try:
+        result = await session.execute(select(Category).where(Category.id == category_id))
+        category = result.scalar_one_or_none()
+        if not category:
+            raise HTTPException(status_code=404, detail="Category not found")
+
+        # Check permissions
+        if category.scope == 'global' and not user.is_superuser:
+            raise HTTPException(status_code=403, detail="Only superadmins can delete global categories")
+
+        if category.scope == 'location' and not user.is_superuser:
+            result = await session.execute(
+                select(UserLocationRole).where(
+                    UserLocationRole.user_id == user.id,
+                    UserLocationRole.location_id == category.location_id,
+                    UserLocationRole.role == 'location_admin'
+                )
+            )
+            if not result.scalar_one_or_none():
+                raise HTTPException(status_code=403, detail="Access denied to this location")
+
+        await session.delete(category)
+        await session.commit()
+
+        return {"success": True, "message": "Category deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/tags")
+async def create_tag(
+    data: CreateTagRequest,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Create a new tag within a category"""
+    try:
+        # Get category to check permissions
+        result = await session.execute(select(Category).where(Category.id == data.category_id))
+        category = result.scalar_one_or_none()
+        if not category:
+            raise HTTPException(status_code=404, detail="Category not found")
+
+        # Check permissions
+        if category.scope == 'global' and not user.is_superuser:
+            raise HTTPException(status_code=403, detail="Only superadmins can add tags to global categories")
+
+        if category.scope == 'location' and not user.is_superuser:
+            result = await session.execute(
+                select(UserLocationRole).where(
+                    UserLocationRole.user_id == user.id,
+                    UserLocationRole.location_id == category.location_id,
+                    UserLocationRole.role == 'location_admin'
+                )
+            )
+            if not result.scalar_one_or_none():
+                raise HTTPException(status_code=403, detail="Access denied to this location")
+
+        tag = Tag(
+            category_id=data.category_id,
+            name=data.name,
+            description=data.description
+        )
+        session.add(tag)
+        await session.commit()
+        await session.refresh(tag)
+
+        return {
+            "success": True,
+            "tag": {
+                "id": tag.id,
+                "category_id": tag.category_id,
+                "name": tag.name,
+                "description": tag.description,
+                "created_at": tag.created_at.isoformat()
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/categories/{category_id}/tags")
+async def get_tags_by_category(
+    category_id: int,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Get all tags for a category"""
+    try:
+        result = await session.execute(select(Tag).where(Tag.category_id == category_id))
+        tags = result.scalars().all()
+
+        return {
+            "success": True,
+            "tags": [
+                {
+                    "id": tag.id,
+                    "category_id": tag.category_id,
+                    "name": tag.name,
+                    "description": tag.description,
+                    "created_at": tag.created_at.isoformat()
+                }
+                for tag in tags
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/tags/{tag_id}")
+async def update_tag(
+    tag_id: int,
+    data: UpdateTagRequest,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Update a tag"""
+    try:
+        result = await session.execute(select(Tag).where(Tag.id == tag_id))
+        tag = result.scalar_one_or_none()
+        if not tag:
+            raise HTTPException(status_code=404, detail="Tag not found")
+
+        # Get category for permission check
+        result = await session.execute(select(Category).where(Category.id == tag.category_id))
+        category = result.scalar_one_or_none()
+
+        # Check permissions
+        if category.scope == 'global' and not user.is_superuser:
+            raise HTTPException(status_code=403, detail="Only superadmins can edit tags in global categories")
+
+        if category.scope == 'location' and not user.is_superuser:
+            result = await session.execute(
+                select(UserLocationRole).where(
+                    UserLocationRole.user_id == user.id,
+                    UserLocationRole.location_id == category.location_id,
+                    UserLocationRole.role == 'location_admin'
+                )
+            )
+            if not result.scalar_one_or_none():
+                raise HTTPException(status_code=403, detail="Access denied to this location")
+
+        if data.name is not None:
+            tag.name = data.name
+        if data.description is not None:
+            tag.description = data.description
+        tag.updated_at = datetime.utcnow()
+
+        await session.commit()
+        await session.refresh(tag)
+
+        return {
+            "success": True,
+            "tag": {
+                "id": tag.id,
+                "category_id": tag.category_id,
+                "name": tag.name,
+                "description": tag.description,
+                "updated_at": tag.updated_at.isoformat()
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/tags/{tag_id}")
+async def delete_tag(
+    tag_id: int,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Delete a tag"""
+    try:
+        result = await session.execute(select(Tag).where(Tag.id == tag_id))
+        tag = result.scalar_one_or_none()
+        if not tag:
+            raise HTTPException(status_code=404, detail="Tag not found")
+
+        # Get category for permission check
+        result = await session.execute(select(Category).where(Category.id == tag.category_id))
+        category = result.scalar_one_or_none()
+
+        # Check permissions
+        if category.scope == 'global' and not user.is_superuser:
+            raise HTTPException(status_code=403, detail="Only superadmins can delete tags in global categories")
+
+        if category.scope == 'location' and not user.is_superuser:
+            result = await session.execute(
+                select(UserLocationRole).where(
+                    UserLocationRole.user_id == user.id,
+                    UserLocationRole.location_id == category.location_id,
+                    UserLocationRole.role == 'location_admin'
+                )
+            )
+            if not result.scalar_one_or_none():
+                raise HTTPException(status_code=403, detail="Access denied to this location")
+
+        await session.delete(tag)
+        await session.commit()
+
+        return {"success": True, "message": "Tag deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/person-tags")
+async def assign_person_tags(
+    data: AssignPersonTagsRequest,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Assign tags to a registered person (replaces existing tags)"""
+    try:
+        # Check if user has access to location
+        if not user.is_superuser:
+            result = await session.execute(
+                select(UserLocationRole).where(
+                    UserLocationRole.user_id == user.id,
+                    UserLocationRole.location_id == data.location_id,
+                    UserLocationRole.role == 'location_admin'
+                )
+            )
+            if not result.scalar_one_or_none():
+                raise HTTPException(status_code=403, detail="Access denied to this location")
+
+        # Delete existing tags for this person
+        await session.execute(
+            delete(PersonTag).where(
+                PersonTag.person_name == data.person_name,
+                PersonTag.location_id == data.location_id
+            )
+        )
+
+        # Add new tags
+        for tag_id in data.tag_ids:
+            person_tag = PersonTag(
+                person_name=data.person_name,
+                location_id=data.location_id,
+                tag_id=tag_id
+            )
+            session.add(person_tag)
+
+        await session.commit()
+
+        return {
+            "success": True,
+            "message": f"Assigned {len(data.tag_ids)} tags to {data.person_name}"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/person-tags/{person_name}")
+async def get_person_tags(
+    person_name: str,
+    location_id: int,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Get all tags assigned to a person"""
+    try:
+        # Check access
+        if not user.is_superuser:
+            result = await session.execute(
+                select(UserLocationRole).where(
+                    UserLocationRole.user_id == user.id,
+                    UserLocationRole.location_id == location_id
+                )
+            )
+            if not result.scalar_one_or_none():
+                raise HTTPException(status_code=403, detail="Access denied to this location")
+
+        # Get person tags with tag and category info
+        result = await session.execute(
+            select(PersonTag, Tag, Category).join(
+                Tag, PersonTag.tag_id == Tag.id
+            ).join(
+                Category, Tag.category_id == Category.id
+            ).where(
+                PersonTag.person_name == person_name,
+                PersonTag.location_id == location_id
+            )
+        )
+        person_tags = result.all()
+
+        return {
+            "success": True,
+            "tags": [
+                {
+                    "tag_id": tag.id,
+                    "tag_name": tag.name,
+                    "tag_description": tag.description,
+                    "category_id": category.id,
+                    "category_name": category.name,
+                    "category_scope": category.scope,
+                    "assigned_at": person_tag.assigned_at.isoformat()
+                }
+                for person_tag, tag, category in person_tags
+            ]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
 
 @app.get("/api/settings")
 async def get_all_settings(
@@ -3264,7 +3835,7 @@ async def log_scan(
 
         await session.commit()
 
-        # Get profile photos for detected people
+        # Get profile photos, employee status, and tags for detected people
         if detection_records:
             person_names = [det["person_name"] for det in detection_records]
             face_result = await session.execute(
@@ -3273,13 +3844,35 @@ async def log_scan(
                 .where(RegisteredFace.person_name.in_(person_names))
                 .distinct(RegisteredFace.person_name)
             )
-            person_data = {row.person_name: {"profile_photo": row.profile_photo, "is_employee": row.is_employee} for row in face_result.all()}
+            person_data = {row.person_name: {"profile_photo": row.profile_photo, "is_employee": row.is_employee, "tags": []} for row in face_result.all()}
 
-            # Add profile photos and employee status to detection records
+            # Get tags for detected people
+            tag_result = await session.execute(
+                select(PersonTag, Tag, Category).join(
+                    Tag, PersonTag.tag_id == Tag.id
+                ).join(
+                    Category, Tag.category_id == Category.id
+                ).where(
+                    PersonTag.person_name.in_(person_names),
+                    PersonTag.location_id == device.location_id
+                )
+            )
+            for person_tag, tag, category in tag_result.all():
+                if person_tag.person_name in person_data:
+                    person_data[person_tag.person_name]["tags"].append({
+                        "tag_id": tag.id,
+                        "tag_name": tag.name,
+                        "category_id": category.id,
+                        "category_name": category.name,
+                        "category_scope": category.scope
+                    })
+
+            # Add profile photos, employee status, and tags to detection records
             for det in detection_records:
                 data = person_data.get(det["person_name"], {})
                 det["profile_photo"] = data.get("profile_photo")
                 det["is_employee"] = data.get("is_employee", False)
+                det["tags"] = data.get("tags", [])
                 det["device_id"] = device.device_id
 
             # Broadcast to dashboards for this location via WebSocket
@@ -3379,10 +3972,31 @@ async def websocket_dashboard(
                 if row.person_name not in person_data:
                     person_data[row.person_name] = {
                         "profile_photo": row.profile_photo,
-                        "is_employee": row.is_employee
+                        "is_employee": row.is_employee,
+                        "tags": []
                     }
 
-            # Add device names, area names, profile photos, and employee status to detections
+            # Get tags for people in this location
+            tag_result = await session.execute(
+                select(PersonTag, Tag, Category).join(
+                    Tag, PersonTag.tag_id == Tag.id
+                ).join(
+                    Category, Tag.category_id == Category.id
+                ).where(
+                    PersonTag.location_id == location_id
+                )
+            )
+            for person_tag, tag, category in tag_result.all():
+                if person_tag.person_name in person_data:
+                    person_data[person_tag.person_name]["tags"].append({
+                        "tag_id": tag.id,
+                        "tag_name": tag.name,
+                        "category_id": category.id,
+                        "category_name": category.name,
+                        "category_scope": category.scope
+                    })
+
+            # Add device names, area names, profile photos, employee status, and tags to detections
             for detection in person_latest.values():
                 device_info = devices.get(detection["device_id"], {})
                 detection["device_name"] = device_info.get("name", detection["device_id"][:8])
@@ -3391,6 +4005,7 @@ async def websocket_dashboard(
                 data = person_data.get(detection["person_name"], {})
                 detection["profile_photo"] = data.get("profile_photo")
                 detection["is_employee"] = data.get("is_employee", False)
+                detection["tags"] = data.get("tags", [])
 
             await websocket.send_json({
                 "type": "initial_data",

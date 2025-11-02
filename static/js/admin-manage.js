@@ -208,6 +208,14 @@ function buildTabs() {
         </button>
     `);
 
+    // Categories & Tags tab (all admins)
+    const categoriesActive = currentActive === 'categories' ? 'active' : '';
+    tabs.push(`
+        <button class="tab-button ${categoriesActive}" onclick="switchTab('categories')">
+            🏷️ Categories & Tags
+        </button>
+    `);
+
     // Superadmin-only tabs
     if (overviewStats.is_superuser) {
         const usersActive = currentActive === 'users' ? 'active' : '';
@@ -273,6 +281,9 @@ async function loadTabData(tabName) {
             break;
         case 'faces':
             await loadRegisteredFaces();
+            break;
+        case 'categories':
+            await loadCategories();
             break;
         case 'users':
             if (overviewStats.is_superuser) {
@@ -486,7 +497,9 @@ async function loadRegisteredFaces() {
                                 <span>Employee</span>
                             </label>
                         </p>
-                        <button class="btn btn-danger btn-sm" style="margin-top: 10px; width: 100%;"
+                        <button class="btn btn-secondary btn-sm" style="margin-top: 10px; width: 100%;"
+                                onclick="showAssignTagsModal('${escapeHtml(face.person_name)}', ${face.location_id})">🏷️ Assign Tags</button>
+                        <button class="btn btn-danger btn-sm" style="margin-top: 5px; width: 100%;"
                                 onclick="deleteFaceFromDatabase('${escapeHtml(face.person_name)}')">Delete</button>
                     </div>
                 `).join('')}
@@ -1953,6 +1966,420 @@ function speak(text) {
         utterance.rate = 0.9;
         utterance.pitch = 1;
         speechSynthesis.speak(utterance);
+    }
+}
+
+// ============================================================================
+// CATEGORY & TAG MANAGEMENT
+// ============================================================================
+
+let allCategories = [];
+let categoryTagsMap = {}; // Map of category_id -> tags array
+
+// Load categories and their tags
+async function loadCategories() {
+    try {
+        const url = managedLocationFilter
+            ? `/api/categories?location_id=${managedLocationFilter}`
+            : '/api/categories';
+
+        const response = await fetch(url, { credentials: 'include' });
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error('Failed to load categories');
+        }
+
+        allCategories = data.categories;
+
+        // Load tags for each category
+        for (const category of allCategories) {
+            await loadTagsForCategory(category.id);
+        }
+
+        displayCategories();
+    } catch (error) {
+        console.error('Error loading categories:', error);
+        showAlert('Failed to load categories', 'error');
+    }
+}
+
+// Load tags for a specific category
+async function loadTagsForCategory(categoryId) {
+    try {
+        const response = await fetch(`/api/categories/${categoryId}/tags`, {
+            credentials: 'include'
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            categoryTagsMap[categoryId] = data.tags;
+        }
+    } catch (error) {
+        console.error(`Error loading tags for category ${categoryId}:`, error);
+    }
+}
+
+// Display categories with their tags
+function displayCategories() {
+    const container = document.getElementById('categories-container');
+
+    if (allCategories.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">🏷️</div><p>No categories yet</p></div>';
+        return;
+    }
+
+    container.innerHTML = allCategories.map(category => {
+        const scopeClass = category.scope === 'global' ? 'global' : 'location';
+        const tags = categoryTagsMap[category.id] || [];
+
+        return `
+            <div class="category-card">
+                <div class="category-header">
+                    <div class="category-title">
+                        <h3>${escapeHtml(category.name)}</h3>
+                        <span class="scope-badge ${scopeClass}">${category.scope === 'global' ? '🌍 Global' : '📍 Location'}</span>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-sm btn-primary" onclick="showCreateTagModal(${category.id}, '${escapeHtml(category.name)}')">+ Add Tag</button>
+                        <button class="btn btn-sm btn-secondary" onclick="showEditCategoryModal(${category.id})">Edit</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteCategory(${category.id}, '${escapeHtml(category.name)}')">Delete</button>
+                    </div>
+                </div>
+                ${category.description ? `<p style="color: #666; margin-bottom: 10px;">${escapeHtml(category.description)}</p>` : ''}
+                <div class="tags-grid">
+                    ${tags.length === 0 ? '<p style="color: #999; font-style: italic;">No tags yet</p>' : tags.map(tag => `
+                        <div class="tag-item">
+                            <span>${escapeHtml(tag.name)}</span>
+                            <button onclick="showEditTagModal(${tag.id}, ${category.id})" title="Edit">✏️</button>
+                            <button onclick="deleteTag(${tag.id}, ${category.id}, '${escapeHtml(tag.name)}')" title="Delete">×</button>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Show create category modal
+function showCreateCategoryModal() {
+    document.getElementById('create-category-form').reset();
+    document.getElementById('category-location-group').style.display = 'none';
+
+    // Populate locations
+    const locationSelect = document.getElementById('category-location');
+    locationSelect.innerHTML = '<option value="">Select location...</option>';
+    allLocations.forEach(loc => {
+        const option = document.createElement('option');
+        option.value = loc.id;
+        option.textContent = loc.name;
+        locationSelect.appendChild(option);
+    });
+
+    openModal('create-category-modal');
+}
+
+// Toggle category location dropdown based on scope
+function toggleCategoryLocation() {
+    const scope = document.getElementById('category-scope').value;
+    const locationGroup = document.getElementById('category-location-group');
+    locationGroup.style.display = scope === 'location' ? 'block' : 'none';
+}
+
+// Create category form submission
+document.getElementById('create-category-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const scope = document.getElementById('category-scope').value;
+    const data = {
+        name: document.getElementById('category-name').value,
+        description: document.getElementById('category-description').value || null,
+        scope: scope,
+        location_id: scope === 'location' ? parseInt(document.getElementById('category-location').value) : null
+    };
+
+    try {
+        const response = await fetch('/api/categories', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            showAlert('Category created successfully', 'success');
+            closeModal('create-category-modal');
+            await loadCategories();
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Failed to create category', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error creating category', 'error');
+    }
+});
+
+// Show edit category modal
+async function showEditCategoryModal(categoryId) {
+    const category = allCategories.find(c => c.id === categoryId);
+    if (!category) return;
+
+    document.getElementById('edit-category-id').value = category.id;
+    document.getElementById('edit-category-name').value = category.name;
+    document.getElementById('edit-category-description').value = category.description || '';
+
+    openModal('edit-category-modal');
+}
+
+// Edit category form submission
+document.getElementById('edit-category-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const categoryId = document.getElementById('edit-category-id').value;
+    const data = {
+        name: document.getElementById('edit-category-name').value,
+        description: document.getElementById('edit-category-description').value || null
+    };
+
+    try {
+        const response = await fetch(`/api/categories/${categoryId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            showAlert('Category updated successfully', 'success');
+            closeModal('edit-category-modal');
+            await loadCategories();
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Failed to update category', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error updating category', 'error');
+    }
+});
+
+// Delete category
+async function deleteCategory(categoryId, categoryName) {
+    if (!confirm(`Delete category "${categoryName}" and all its tags?\n\nThis will also remove these tags from all people. This cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/categories/${categoryId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            showAlert(`Category "${categoryName}" deleted`, 'success');
+            await loadCategories();
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Failed to delete category', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error deleting category', 'error');
+    }
+}
+
+// Show create tag modal
+function showCreateTagModal(categoryId, categoryName) {
+    document.getElementById('create-tag-form').reset();
+    document.getElementById('tag-category-id').value = categoryId;
+    document.getElementById('tag-category-name').value = categoryName;
+    openModal('create-tag-modal');
+}
+
+// Create tag form submission
+document.getElementById('create-tag-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const data = {
+        category_id: parseInt(document.getElementById('tag-category-id').value),
+        name: document.getElementById('tag-name').value,
+        description: document.getElementById('tag-description').value || null
+    };
+
+    try {
+        const response = await fetch('/api/tags', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            showAlert('Tag created successfully', 'success');
+            closeModal('create-tag-modal');
+            await loadCategories();
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Failed to create tag', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error creating tag', 'error');
+    }
+});
+
+// Show edit tag modal
+async function showEditTagModal(tagId, categoryId) {
+    const tags = categoryTagsMap[categoryId];
+    const tag = tags.find(t => t.id === tagId);
+    if (!tag) return;
+
+    document.getElementById('edit-tag-id').value = tag.id;
+    document.getElementById('edit-tag-name').value = tag.name;
+    document.getElementById('edit-tag-description').value = tag.description || '';
+
+    openModal('edit-tag-modal');
+}
+
+// Edit tag form submission
+document.getElementById('edit-tag-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const tagId = document.getElementById('edit-tag-id').value;
+    const data = {
+        name: document.getElementById('edit-tag-name').value,
+        description: document.getElementById('edit-tag-description').value || null
+    };
+
+    try {
+        const response = await fetch(`/api/tags/${tagId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            showAlert('Tag updated successfully', 'success');
+            closeModal('edit-tag-modal');
+            await loadCategories();
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Failed to update tag', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error updating tag', 'error');
+    }
+});
+
+// Delete tag
+async function deleteTag(tagId, categoryId, tagName) {
+    if (!confirm(`Delete tag "${tagName}"?\n\nThis will remove this tag from all people. This cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/tags/${tagId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            showAlert(`Tag "${tagName}" deleted`, 'success');
+            await loadCategories();
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Failed to delete tag', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error deleting tag', 'error');
+    }
+}
+
+// Show assign tags modal for a person
+let currentAssignPerson = null;
+let currentAssignLocationId = null;
+
+async function showAssignTagsModal(personName, locationId) {
+    currentAssignPerson = personName;
+    currentAssignLocationId = locationId;
+
+    document.getElementById('assign-tags-person-name').textContent = personName;
+
+    // Load current tags for person
+    const personTags = await loadPersonTags(personName, locationId);
+    const personTagIds = personTags.map(t => t.tag_id);
+
+    // Build UI with categories and checkboxes
+    const container = document.getElementById('assign-tags-container');
+    container.innerHTML = allCategories.map(category => {
+        const tags = categoryTagsMap[category.id] || [];
+        if (tags.length === 0) return '';
+
+        return `
+            <div class="tag-checkbox-group">
+                <h4>${escapeHtml(category.name)} <span class="scope-badge ${category.scope}">${category.scope === 'global' ? '🌍' : '📍'}</span></h4>
+                <div class="tag-checkbox-list">
+                    ${tags.map(tag => `
+                        <label>
+                            <input type="checkbox" value="${tag.id}" ${personTagIds.includes(tag.id) ? 'checked' : ''}>
+                            ${escapeHtml(tag.name)}
+                            ${tag.description ? `<span style="color: #999; font-size: 12px;">- ${escapeHtml(tag.description)}</span>` : ''}
+                        </label>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    openModal('assign-tags-modal');
+}
+
+// Load current tags for a person
+async function loadPersonTags(personName, locationId) {
+    try {
+        const response = await fetch(`/api/person-tags/${encodeURIComponent(personName)}?location_id=${locationId}`, {
+            credentials: 'include'
+        });
+        const data = await response.json();
+        return data.success ? data.tags : [];
+    } catch (error) {
+        console.error('Error loading person tags:', error);
+        return [];
+    }
+}
+
+// Save person tags
+async function savePersonTags() {
+    const checkboxes = document.querySelectorAll('#assign-tags-container input[type="checkbox"]:checked');
+    const tagIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+    try {
+        const response = await fetch('/api/person-tags', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                person_name: currentAssignPerson,
+                location_id: currentAssignLocationId,
+                tag_ids: tagIds
+            })
+        });
+
+        if (response.ok) {
+            showAlert(`Tags updated for ${currentAssignPerson}`, 'success');
+            closeModal('assign-tags-modal');
+            await loadRegisteredFaces();
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Failed to update tags', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error updating tags', 'error');
     }
 }
 
