@@ -11,14 +11,14 @@ import base64
 from io import BytesIO
 import json
 
-from fastapi import FastAPI, Depends, HTTPException, Request, Form, status
+from fastapi import FastAPI, Depends, HTTPException, Request, Form, status, WebSocket, WebSocketDisconnect
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 
-from sqlalchemy import Boolean, Integer, String, Text, Column, ForeignKey, select, DateTime, func
+from sqlalchemy import Boolean, Integer, String, Text, Column, ForeignKey, select, DateTime, func, Numeric
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.exc import IntegrityError
@@ -50,6 +50,12 @@ CODEPROJECT_BASE_URL = f"http://{CODEPROJECT_HOST}:{CODEPROJECT_PORT}/v1"
 # Device security configuration
 DEVICE_TOKEN_ROTATION_DAYS = int(os.getenv("DEVICE_TOKEN_ROTATION_DAYS", "30"))
 REGISTRATION_CODE_EXPIRATION_MINUTES = int(os.getenv("REGISTRATION_CODE_EXPIRATION_MINUTES", "15"))
+
+# Detection/Scan configuration
+SCAN_RETENTION_MINUTES = int(os.getenv("SCAN_RETENTION_MINUTES", "60"))
+DEFAULT_CONFIDENCE_THRESHOLD = float(os.getenv("DEFAULT_CONFIDENCE_THRESHOLD", "0.6"))
+DEFAULT_PRESENCE_TIMEOUT_MINUTES = int(os.getenv("DEFAULT_PRESENCE_TIMEOUT_MINUTES", "2"))
+DEFAULT_DETECTION_COOLDOWN_SECONDS = int(os.getenv("DEFAULT_DETECTION_COOLDOWN_SECONDS", "10"))
 
 # Get the application directory
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -119,6 +125,8 @@ class RegisteredFace(Base):
     registered_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     # User who registered this face
     registered_by_user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("user.id"), nullable=True)
+    # Profile photo (base64 encoded image for dashboard thumbnails)
+    profile_photo: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
 class Location(Base):
@@ -192,6 +200,22 @@ class Device(Base):
     device_token: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     token_created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     token_rotated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    # Device-specific detection settings (if NULL, use .env defaults)
+    confidence_threshold: Mapped[Optional[float]] = mapped_column(Numeric(5, 4), nullable=True)
+    presence_timeout_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    detection_cooldown_seconds: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+
+class Detection(Base):
+    """Tracks face detection events for dashboard display"""
+    __tablename__ = "detection"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    device_id: Mapped[str] = mapped_column(String(36), ForeignKey("device.device_id", ondelete="CASCADE"), nullable=False, index=True)
+    person_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    confidence: Mapped[float] = mapped_column(Numeric(5, 4), nullable=False)
+    location_id: Mapped[int] = mapped_column(Integer, ForeignKey("location.id", ondelete="CASCADE"), nullable=False, index=True)
+    detected_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, index=True)
 
 
 # Database engine and session
@@ -349,6 +373,7 @@ class DeviceRegisterRequest(BaseModel):
     device_id: str
     name: str
     photos: List[str]
+    profile_photo: Optional[str] = None  # Base64 encoded profile photo for dashboard
 
 
 class DeviceRecognizeRequest(BaseModel):
@@ -368,8 +393,8 @@ class RegisterDeviceRequest(BaseModel):
 class ApproveDeviceRequest(BaseModel):
     device_name: str
     location_id: int
-    device_type: str  # 'registration_kiosk' or 'people_scanner'
-    codeproject_endpoint: str
+    device_type: str  # 'registration_kiosk', 'people_scanner', or 'location_dashboard'
+    codeproject_endpoint: Optional[str] = None  # Not required for location_dashboard
 
 
 class UpdateDeviceRequest(BaseModel):
@@ -497,6 +522,53 @@ fastapi_users = FastAPIUsers[User, int](
 
 current_active_user = fastapi_users.current_user(active=True)
 current_superuser = fastapi_users.current_user(active=True, superuser=True)
+
+
+# ============================================================================
+# WEBSOCKET CONNECTION MANAGER
+# ============================================================================
+
+class ConnectionManager:
+    """Manages WebSocket connections for dashboard updates"""
+
+    def __init__(self):
+        # Dictionary mapping location_id to list of active WebSocket connections
+        self.active_connections: dict[int, list[WebSocket]] = {}
+
+    async def connect(self, websocket: WebSocket, location_id: int):
+        """Accept and register a WebSocket connection for a location"""
+        await websocket.accept()
+        if location_id not in self.active_connections:
+            self.active_connections[location_id] = []
+        self.active_connections[location_id].append(websocket)
+        print(f"[WEBSOCKET] New connection for location {location_id}. Total: {len(self.active_connections[location_id])}")
+
+    def disconnect(self, websocket: WebSocket, location_id: int):
+        """Remove a WebSocket connection"""
+        if location_id in self.active_connections:
+            self.active_connections[location_id].remove(websocket)
+            print(f"[WEBSOCKET] Connection closed for location {location_id}. Remaining: {len(self.active_connections[location_id])}")
+            if not self.active_connections[location_id]:
+                del self.active_connections[location_id]
+
+    async def broadcast_to_location(self, location_id: int, message: dict):
+        """Send a message to all WebSocket connections for a specific location"""
+        if location_id not in self.active_connections:
+            return
+
+        disconnected = []
+        for connection in self.active_connections[location_id]:
+            try:
+                await connection.send_json(message)
+            except Exception as e:
+                print(f"[WEBSOCKET] Error sending to connection: {e}")
+                disconnected.append(connection)
+
+        # Clean up disconnected connections
+        for connection in disconnected:
+            self.disconnect(connection, location_id)
+
+manager = ConnectionManager()
 
 
 # ============================================================================
@@ -2720,7 +2792,11 @@ async def device_heartbeat(
         "device_type": device.device_type,
         "location_id": device.location_id,
         "codeproject_endpoint": device.codeproject_endpoint,
-        "is_approved": device.is_approved
+        "is_approved": device.is_approved,
+        # Detection settings (use device-specific or fall back to .env defaults)
+        "confidence_threshold": float(device.confidence_threshold) if device.confidence_threshold is not None else DEFAULT_CONFIDENCE_THRESHOLD,
+        "presence_timeout_minutes": device.presence_timeout_minutes if device.presence_timeout_minutes is not None else DEFAULT_PRESENCE_TIMEOUT_MINUTES,
+        "detection_cooldown_seconds": device.detection_cooldown_seconds if device.detection_cooldown_seconds is not None else DEFAULT_DETECTION_COOLDOWN_SECONDS
     }
 
     # If token was rotated, send the new token
@@ -2729,6 +2805,143 @@ async def device_heartbeat(
         print(f"[HEARTBEAT] Sending rotated token to device {device.device_name or device.device_id[:8]}")
 
     return response_data
+
+
+@app.post("/api/devices/log-scan")
+async def log_scan(
+    request: Request,
+    device: Device = Depends(get_current_device),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """
+    Log face detection events from scanner devices.
+
+    Expects a JSON body with a 'detections' array:
+    {
+        "detections": [
+            {"person_name": "John Doe", "confidence": 0.95},
+            {"person_name": "Jane Smith", "confidence": 0.87}
+        ]
+    }
+    """
+    try:
+        data = await request.json()
+        detections = data.get("detections", [])
+
+        if not detections:
+            raise HTTPException(status_code=400, detail="No detections provided")
+
+        if not device.location_id:
+            raise HTTPException(status_code=400, detail="Device must have a location assigned")
+
+        # Create detection records
+        detection_records = []
+        for det in detections:
+            person_name = det.get("person_name")
+            confidence = det.get("confidence")
+
+            if not person_name or confidence is None:
+                continue
+
+            detection = Detection(
+                device_id=device.device_id,
+                person_name=person_name,
+                confidence=float(confidence),
+                location_id=device.location_id,
+                detected_at=datetime.utcnow()
+            )
+            session.add(detection)
+            detection_records.append({
+                "person_name": person_name,
+                "confidence": confidence,
+                "device_name": device.device_name or device.device_id[:8],
+                "detected_at": detection.detected_at.isoformat()
+            })
+
+        await session.commit()
+
+        # Broadcast to dashboards for this location via WebSocket
+        if detection_records:
+            await manager.broadcast_to_location(device.location_id, {
+                "type": "new_detections",
+                "detections": detection_records
+            })
+
+        print(f"[LOG-SCAN] Logged {len(detection_records)} detections from {device.device_name or device.device_id[:8]}")
+
+        return {"status": "ok", "logged": len(detection_records)}
+
+    except Exception as e:
+        print(f"[LOG-SCAN] Error: {e}")
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.websocket("/ws/dashboard/{location_id}")
+async def websocket_dashboard(
+    websocket: WebSocket,
+    location_id: int,
+    session: AsyncSession = Depends(get_async_session)
+):
+    """
+    WebSocket endpoint for dashboard real-time updates.
+
+    Dashboards connect to this endpoint to receive live detection updates
+    for their assigned location.
+    """
+    await manager.connect(websocket, location_id)
+
+    try:
+        # Send initial data: recent detections for this location
+        presence_threshold = datetime.utcnow() - timedelta(minutes=DEFAULT_PRESENCE_TIMEOUT_MINUTES)
+
+        # Query recent detections (within presence timeout)
+        result = await session.execute(
+            select(Detection)
+            .where(Detection.location_id == location_id)
+            .where(Detection.detected_at >= presence_threshold)
+            .order_by(Detection.detected_at.desc())
+        )
+        recent_detections = result.scalars().all()
+
+        # Group by person_name and get most recent detection for each
+        person_latest = {}
+        for det in recent_detections:
+            if det.person_name not in person_latest:
+                person_latest[det.person_name] = {
+                    "person_name": det.person_name,
+                    "confidence": float(det.confidence),
+                    "device_id": det.device_id,
+                    "detected_at": det.detected_at.isoformat()
+                }
+
+        # Get device names
+        device_result = await session.execute(
+            select(Device).where(Device.location_id == location_id)
+        )
+        devices = {d.device_id: d.device_name for d in device_result.scalars().all()}
+
+        # Add device names to detections
+        for detection in person_latest.values():
+            detection["device_name"] = devices.get(detection["device_id"], detection["device_id"][:8])
+
+        await websocket.send_json({
+            "type": "initial_data",
+            "detections": list(person_latest.values())
+        })
+
+        # Keep connection alive and wait for disconnect
+        while True:
+            # Wait for any message from client (ping/pong)
+            try:
+                await websocket.receive_text()
+            except WebSocketDisconnect:
+                break
+
+    except WebSocketDisconnect:
+        pass
+    finally:
+        manager.disconnect(websocket, location_id)
 
 
 @app.get("/api/devices/pending")
@@ -2824,6 +3037,22 @@ async def approve_device(
     )
     if not location_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Location not found")
+
+    # Validate device type and codeproject_endpoint requirements
+    if data.device_type in ['registration_kiosk', 'people_scanner']:
+        if not data.codeproject_endpoint:
+            raise HTTPException(
+                status_code=400,
+                detail=f"CodeProject endpoint is required for {data.device_type}"
+            )
+    elif data.device_type == 'location_dashboard':
+        # Dashboard doesn't need CodeProject endpoint
+        data.codeproject_endpoint = None
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid device_type: {data.device_type}. Must be 'registration_kiosk', 'people_scanner', or 'location_dashboard'"
+        )
 
     # Generate device token
     device_token = generate_device_token()
@@ -3025,6 +3254,22 @@ async def update_device(
         if not has_permission:
             raise HTTPException(status_code=403, detail="Access denied")
 
+    # Validate device type and codeproject_endpoint compatibility
+    target_device_type = data.device_type if data.device_type is not None else device.device_type
+
+    if target_device_type in ['registration_kiosk', 'people_scanner']:
+        # These types require a CodeProject endpoint
+        target_endpoint = data.codeproject_endpoint if data.codeproject_endpoint is not None else device.codeproject_endpoint
+        if not target_endpoint:
+            raise HTTPException(
+                status_code=400,
+                detail=f"CodeProject endpoint is required for {target_device_type}"
+            )
+    elif target_device_type == 'location_dashboard':
+        # Dashboard doesn't use CodeProject, clear it if changing to this type
+        if data.device_type == 'location_dashboard':
+            data.codeproject_endpoint = None
+
     # Update device
     if data.device_name is not None:
         device.device_name = data.device_name
@@ -3034,6 +3279,9 @@ async def update_device(
         device.device_type = data.device_type
     if data.codeproject_endpoint is not None:
         device.codeproject_endpoint = data.codeproject_endpoint
+    elif data.device_type == 'location_dashboard':
+        # Explicitly clear codeproject_endpoint when switching to dashboard
+        device.codeproject_endpoint = None
 
     await session.commit()
 
@@ -3236,7 +3484,8 @@ async def device_register_face(
                             file_path=filepath,
                             codeproject_endpoint=codeproject_url,
                             location_id=device.location_id,  # Tag with device's location
-                            registered_by_user_id=None  # Device registration
+                            registered_by_user_id=None,  # Device registration
+                            profile_photo=data.profile_photo  # Profile photo for dashboard thumbnail
                         )
                         session.add(registered_face)
                         await session.commit()
