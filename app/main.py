@@ -3077,17 +3077,37 @@ async def revoke_device_token(
                 detail="You can only revoke tokens for devices from locations you manage"
             )
 
-    # Revoke the token
+    # Revoke the token and reset device to pending state
+    import random
+    import string
+
+    # Generate new registration code
+    while True:
+        new_registration_code = ''.join(random.choices(string.digits, k=6))
+        # Check if code is unique
+        check_result = await session.execute(
+            select(Device).where(Device.registration_code == new_registration_code)
+        )
+        if not check_result.scalar_one_or_none():
+            break
+
     device.device_token = None
     device.token_created_at = None
     device.token_rotated_at = None
+    device.is_approved = False
+    device.registration_code = new_registration_code
+    device.registered_at = datetime.utcnow()
+    # Clear device configuration - will be set again on re-approval
+    device.device_name = None
+    device.device_type = None
+    device.codeproject_endpoint = None
     await session.commit()
 
-    print(f"[TOKEN] Token revoked for device {device.device_name or device.device_id[:8]} by {user.email}")
+    print(f"[TOKEN] Token revoked for device {device.device_id[:8]} by {user.email}. New code: {new_registration_code}")
 
     return {
         "success": True,
-        "message": f"Token revoked for device {device.device_name or device.device_id[:8]}. Device must re-register."
+        "message": f"Token revoked. Device must re-register with new code."
     }
 
 
