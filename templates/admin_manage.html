@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage - Facial Recognition System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 32px;
+        }
+
+        .header .user-info {
+            color: #666;
+        }
+
+        .logout-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 15px;
+        }
+
+        .logout-btn:hover {
+            background: #c82333;
+        }
+
+        .nav {
+            background: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .nav a {
+            color: #667eea;
+            text-decoration: none;
+            margin-right: 20px;
+            font-weight: 500;
+        }
+
+        .nav a:hover {
+            text-decoration: underline;
+        }
+
+        /* Tab Navigation */
+        .tabs {
+            background: white;
+            border-radius: 15px 15px 0 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .tab-nav {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 20px;
+            background: none;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-button:hover {
+            background: #e9ecef;
+            color: #333;
+        }
+
+        .tab-button.active {
+            color: #667eea;
+            background: white;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 30px;
+            background: white;
+            border-radius: 0 0 15px 15px;
+            min-height: 500px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Cards */
+        .card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            margin-right: 5px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            color: #667eea;
+            font-size: 24px;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 28px;
+            color: #999;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close-modal:hover {
+            color: #333;
+        }
+
+        /* Alerts */
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .badge-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state svg {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        /* Face List */
+        .face-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .face-item {
+            background: white;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            padding: 15px;
+            transition: all 0.3s;
+        }
+
+        .face-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 10px rgba(102, 126, 234, 0.2);
+        }
+
+        .face-item h4 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .face-item p {
+            color: #666;
+            font-size: 13px;
+            margin: 5px 0;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div>
+                <h1>Management Console</h1>
+                <div class="user-info">
+                    Logged in as: <strong id="user-email">Loading...</strong>
+                </div>
+            </div>
+            <div>
+                <button onclick="window.location.href='/dashboard'" class="btn btn-secondary">Dashboard</button>
+                <button onclick="logout()" class="logout-btn">Logout</button>
+            </div>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alert-container"></div>
+
+        <!-- Tabbed Interface -->
+        <div class="tabs">
+            <div class="tab-nav">
+                <button class="tab-button active" onclick="switchTab('users')">Users</button>
+                <button class="tab-button" onclick="switchTab('locations')">Locations</button>
+                <button class="tab-button" onclick="switchTab('servers')">CodeProject Servers</button>
+            </div>
+
+            <!-- Users Tab -->
+            <div id="users-tab" class="tab-content active">
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2>User Management</h2>
+                        <button class="btn btn-primary" onclick="showCreateUserModal()">+ Create User</button>
+                    </div>
+                    <div id="users-list-container">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            Loading users...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Locations Tab -->
+            <div id="locations-tab" class="tab-content">
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2>Location Management</h2>
+                        <button class="btn btn-primary" onclick="showCreateLocationModal()">+ Create Location</button>
+                    </div>
+                    <div id="locations-list-container">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            Loading locations...
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 30px;">
+                    <h2>Pending Device Registrations</h2>
+                    <div id="pending-devices-container">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            Loading pending devices...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CodeProject Servers Tab -->
+            <div id="servers-tab" class="tab-content">
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2>CodeProject.AI Servers</h2>
+                        <button class="btn btn-primary" onclick="showCreateServerModal()">+ Add Server</button>
+                    </div>
+                    <div id="servers-list-container">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            Loading servers...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create User Modal -->
+    <div id="create-user-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Create New User</h2>
+                <button class="close-modal" onclick="closeModal('create-user-modal')">&times;</button>
+            </div>
+            <form id="create-user-form">
+                <div class="form-group">
+                    <label for="user-email">Email *</label>
+                    <input type="email" id="user-email" required>
+                </div>
+                <div class="form-group">
+                    <label for="user-password">Password *</label>
+                    <input type="password" id="user-password" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label for="user-first-name">First Name</label>
+                    <input type="text" id="user-first-name">
+                </div>
+                <div class="form-group">
+                    <label for="user-last-name">Last Name</label>
+                    <input type="text" id="user-last-name">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="user-is-superuser"> System Administrator
+                    </label>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" class="btn btn-primary">Create User</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('create-user-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create Location Modal -->
+    <div id="create-location-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Create New Location</h2>
+                <button class="close-modal" onclick="closeModal('create-location-modal')">&times;</button>
+            </div>
+            <form id="create-location-form">
+                <div class="form-group">
+                    <label for="location-name">Location Name *</label>
+                    <input type="text" id="location-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="location-address">Address</label>
+                    <input type="text" id="location-address">
+                </div>
+                <div class="form-group">
+                    <label for="location-description">Description</label>
+                    <textarea id="location-description"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="location-timezone">Timezone</label>
+                    <input type="text" id="location-timezone" value="UTC">
+                </div>
+                <div class="form-group">
+                    <label for="location-contact">Contact Info</label>
+                    <input type="text" id="location-contact">
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" class="btn btn-primary">Create Location</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('create-location-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Approve Device Modal -->
+    <div id="approve-device-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Approve Device</h2>
+                <button class="close-modal" onclick="closeModal('approve-device-modal')">&times;</button>
+            </div>
+            <form id="approve-device-form">
+                <input type="hidden" id="approve-device-id">
+                <div class="form-group">
+                    <label>Registration Code</label>
+                    <input type="text" id="approve-device-code" disabled style="background: #e9ecef;">
+                </div>
+                <div class="form-group">
+                    <label for="approve-device-name">Device Name *</label>
+                    <input type="text" id="approve-device-name" required placeholder="e.g., Main Entrance Kiosk">
+                </div>
+                <div class="form-group">
+                    <label for="approve-device-location">Location *</label>
+                    <select id="approve-device-location" required>
+                        <option value="">Select a location...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="approve-device-type">Device Type *</label>
+                    <select id="approve-device-type" required>
+                        <option value="">Select a type...</option>
+                        <option value="registration_kiosk">Registration Kiosk</option>
+                        <option value="people_scanner">People Scanner</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="approve-device-server">CodeProject Server *</label>
+                    <select id="approve-device-server" required>
+                        <option value="">Select a server...</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" class="btn btn-success">Approve Device</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('approve-device-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Device Modal -->
+    <div id="edit-device-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Device</h2>
+                <button class="close-modal" onclick="closeModal('edit-device-modal')">&times;</button>
+            </div>
+            <form id="edit-device-form">
+                <input type="hidden" id="edit-device-id">
+                <div class="form-group">
+                    <label for="edit-device-name">Device Name *</label>
+                    <input type="text" id="edit-device-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-device-location">Location *</label>
+                    <select id="edit-device-location" required>
+                        <option value="">Select a location...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit-device-type">Device Type *</label>
+                    <select id="edit-device-type" required>
+                        <option value="registration_kiosk">Registration Kiosk</option>
+                        <option value="people_scanner">People Scanner</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit-device-server">CodeProject Server *</label>
+                    <select id="edit-device-server" required>
+                        <option value="">Select a server...</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('edit-device-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create CodeProject Server Modal -->
+    <div id="create-server-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add CodeProject.AI Server</h2>
+                <button class="close-modal" onclick="closeModal('create-server-modal')">&times;</button>
+            </div>
+            <form id="create-server-form">
+                <div class="form-group">
+                    <label for="server-name">Friendly Name *</label>
+                    <input type="text" id="server-name" required placeholder="e.g., Main Office Server">
+                </div>
+                <div class="form-group">
+                    <label for="server-url">Endpoint URL *</label>
+                    <input type="text" id="server-url" required placeholder="http://192.168.1.100:32168/v1">
+                    <small style="color: #666;">Include the full URL with /v1 suffix</small>
+                </div>
+                <div class="form-group">
+                    <label for="server-description">Description</label>
+                    <textarea id="server-description" placeholder="Optional notes about this server"></textarea>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" class="btn btn-primary">Add Server</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('create-server-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit CodeProject Server Modal -->
+    <div id="edit-server-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit CodeProject.AI Server</h2>
+                <button class="close-modal" onclick="closeModal('edit-server-modal')">&times;</button>
+            </div>
+            <form id="edit-server-form">
+                <input type="hidden" id="edit-server-id">
+                <div class="form-group">
+                    <label for="edit-server-name">Friendly Name *</label>
+                    <input type="text" id="edit-server-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-server-url">Endpoint URL *</label>
+                    <input type="text" id="edit-server-url" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-server-description">Description</label>
+                    <textarea id="edit-server-description"></textarea>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('edit-server-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- View Server Faces Modal -->
+    <div id="view-faces-modal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2 id="faces-modal-title">Server Faces</h2>
+                <button class="close-modal" onclick="closeModal('view-faces-modal')">&times;</button>
+            </div>
+            <div id="faces-list-container">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading faces...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let allLocations = [];
+        let allServers = [];
+        let currentEditDeviceOldEndpoint = null;
+
+        // Initialize
+        async function init() {
+            try {
+                // Get current user
+                const response = await fetch('/api/users/me');
+                if (!response.ok) {
+                    window.location.href = '/auth/login';
+                    return;
+                }
+                currentUser = await response.json();
+                document.getElementById('user-email').textContent = currentUser.email;
+
+                // Check if superuser
+                if (!currentUser.is_superuser) {
+                    showAlert('Access denied: Admin privileges required', 'error');
+                    setTimeout(() => window.location.href = '/dashboard', 2000);
+                    return;
+                }
+
+                // Load initial tab data
+                loadUsers();
+                loadLocations();
+                loadServers();
+            } catch (error) {
+                console.error('Initialization error:', error);
+                showAlert('Failed to initialize', 'error');
+            }
+        }
+
+        // Tab switching
+        function switchTab(tabName) {
+            // Update buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Update content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+
+            // Load data if needed
+            if (tabName === 'users') loadUsers();
+            if (tabName === 'locations') {
+                loadLocations();
+                loadPendingDevices();
+            }
+            if (tabName === 'servers') loadServers();
+        }
+
+        // Users Management
+        async function loadUsers() {
+            try {
+                const response = await fetch('/api/admin/users');
+                const users = await response.json();
+
+                const container = document.getElementById('users-list-container');
+                if (users.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><p>No users found</p></div>';
+                    return;
+                }
+
+                container.innerHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Email</th>
+                                <th>Name</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${users.map(user => `
+                                <tr>
+                                    <td>${escapeHtml(user.email)}</td>
+                                    <td>${escapeHtml(user.first_name || '')} ${escapeHtml(user.last_name || '')}</td>
+                                    <td>${user.is_superuser ? '<span class="badge badge-danger">Admin</span>' : '<span class="badge badge-info">User</span>'}</td>
+                                    <td>${user.is_active ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-warning">Inactive</span>'}</td>
+                                    <td>
+                                        ${user.id !== currentUser.id ? `
+                                            <button class="btn btn-warning btn-sm" onclick="toggleUserStatus(${user.id}, ${user.is_active})">
+                                                ${user.is_active ? 'Deactivate' : 'Activate'}
+                                            </button>
+                                            <button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id}, '${escapeHtml(user.email)}')">Delete</button>
+                                        ` : '<span style="color: #999;">Current User</span>'}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (error) {
+                console.error('Error loading users:', error);
+                showAlert('Failed to load users', 'error');
+            }
+        }
+
+        async function toggleUserStatus(userId, currentStatus) {
+            try {
+                const response = await fetch(`/api/admin/users/${userId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_active: !currentStatus })
+                });
+
+                if (response.ok) {
+                    showAlert('User status updated', 'success');
+                    loadUsers();
+                } else {
+                    showAlert('Failed to update user status', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('Error updating user status', 'error');
+            }
+        }
+
+        async function deleteUser(userId, email) {
+            if (!confirm(`Are you sure you want to delete user ${email}?`)) return;
+
+            try {
+                const response = await fetch(`/api/admin/users/${userId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    showAlert('User deleted successfully', 'success');
+                    loadUsers();
+                } else {
+                    showAlert('Failed to delete user', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('Error deleting user', 'error');
+            }
+        }
+
+        function showCreateUserModal() {
+            document.getElementById('create-user-form').reset();
+            openModal('create-user-modal');
+        }
+
+        document.getElementById('create-user-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const data = {
+                email: document.getElementById('user-email').value,
+                password: document.getElementById('user-password').value,
+                first_name: document.getElementById('user-first-name').value || null,
+                last_name: document.getElementById('user-last-name').value || null,
+                is_superuser: document.getElementById('user-is-superuser').checked
+            };
+
+            try {
+                const response = await fetch('/api/admin/users', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    showAlert('User created successfully', 'success');
+                    closeModal('create-user-modal');
+                    loadUsers();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.detail || 'Failed to create user', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('Error creating user', 'error');
+            }
+        });
+
+        // Locations Management
+        async function loadLocations() {
+            try {
+                const response = await fetch('/api/locations');
+                allLocations = await response.json();
+
+                // Update location dropdowns
+                updateLocationDropdowns();
+
+                const container = document.getElementById('locations-list-container');
+                if (allLocations.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><p>No locations found</p></div>';
+                    return;
+                }
+
+                container.innerHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Address</th>
+                                <th>Devices</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${allLocations.map(location => `
+                                <tr>
+                                    <td><strong>${escapeHtml(location.name)}</strong></td>
+                                    <td>${escapeHtml(location.address || 'N/A')}</td>
+                                    <td>
+                                        <button class="btn btn-secondary btn-sm" onclick="viewLocationDevices(${location.id})">
+                                            View Devices (${location.approved_devices?.length || 0})
+                                        </button>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-danger btn-sm" onclick="deleteLocation(${location.id}, '${escapeHtml(location.name)}')">Delete</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (error) {
+                console.error('Error loading locations:', error);
+                showAlert('Failed to load locations', 'error');
+            }
+        }
+
+        function updateLocationDropdowns() {
+            const selects = [
+                document.getElementById('approve-device-location'),
+                document.getElementById('edit-device-location')
+            ];
+
+            selects.forEach(select => {
+                const currentValue = select.value;
+                select.innerHTML = '<option value="">Select a location...</option>' +
+                    allLocations.map(loc => `<option value="${loc.id}">${escapeHtml(loc.name)}</option>`).join('');
+                if (currentValue) select.value = currentValue;
+            });
+        }
+
+        async function viewLocationDevices(locationId) {
+            try {
+                const response = await fetch(`/api/locations/${locationId}`);
+                const location = await response.json();
+
+                const devices = location.approved_devices || [];
+                let html = `<h3>Devices at ${escapeHtml(location.name)}</h3>`;
+
+                if (devices.length === 0) {
+                    html += '<div class="empty-state"><p>No devices at this location</p></div>';
+                } else {
+                    html += `
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Last Seen</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${devices.map(device => `
+                                    <tr>
+                                        <td>${escapeHtml(device.device_name)}</td>
+                                        <td><span class="badge badge-info">${escapeHtml(device.device_type)}</span></td>
+                                        <td>${device.last_seen ? new Date(device.last_seen).toLocaleString() : 'Never'}</td>
+                                        <td>
+                                            <button class="btn btn-warning btn-sm" onclick="editDevice('${device.device_id}', '${escapeHtml(device.device_name)}', '${device.device_type}', '${escapeHtml(device.codeproject_endpoint)}', ${device.location_id})">Edit</button>
+                                            <button class="btn btn-danger btn-sm" onclick="removeDevice('${device.device_id}', '${escapeHtml(device.device_name)}')">Remove</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+
+                showAlert(html, 'success');
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('Error loading devices', 'error');
+            }
+        }
+
+        async function deleteLocation(locationId, name) {
+            if (!confirm(`Are you sure you want to delete location "${name}"?`)) return;
+
+            try {
+                const response = await fetch(`/api/locations/${locationId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    showAlert('Location deleted successfully', 'success');
+                    loadLocations();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.detail || 'Failed to delete location', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('Error deleting location', 'error');
+            }
+        }
+
+        function showCreateLocationModal() {
+            document.getElementById('create-location-form').reset();
+            openModal('create-location-modal');
+        }
+
+        document.getElementById('create-location-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const data = {
+                name: document.getElementById('location-name').value,
+                address: document.getElementById('location-address').value || null,
+                description: document.getElementById('location-description').value || null,
+                timezone: document.getElementById('location-timezone').value || 'UTC',
+                contact_info: document.getElementById('location-contact').value || null
+            };
+
+            try {
+                const response = await fetch('/api/locations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    showAlert('Location created successfully', 'success');
+                    closeModal('create-location-modal');
+                    loadLocations();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.detail || 'Failed to create location', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('Error creating location', 'error');
+            }
+        });
+
+        // Device Management
+        async function loadPendingDevices() {
+            try {
+                const response = await fetch('/api/devices/pending');
+                const devices = await response.json();
+
+                const container = document.getElementById('pending-devices-container');
+                if (devices.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><p>No pending device registrations</p></div>';
+                    return;
+                }
+
+                container.innerHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Registration Code</th>
+                                <th>Registered At</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${devices.map(device => `
+                                <tr>
+                                    <td><strong style="font-size: 18px; letter-spacing: 2px;">${device.registration_code}</strong></td>
+                                    <td>${new Date(device.registered_at).toLocaleString()}</td>
+                                    <td>
+                                        <button class="btn btn-success" onclick="showApproveDeviceModal('${device.device_id}', '${device.registration_code}')">Approve</button>
+                                        <button class="btn btn-danger" onclick="rejectDevice('${device.device_id}')">Reject</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (error) {
+                console.error('Error loading pending devices:', error);
+                showAlert('Failed to load pending devices', 'error');
+            }
+        }
+
+        async function showApproveDeviceModal(deviceId, code) {
+            // Load servers for dropdown
+            await loadServers();
+
+            document.getElementById('approve-device-id').value = deviceId;
+            document.getElementById('approve-device-code').value = code;
+            document.getElementById('approve-device-form').reset();
+            document.getElementById('approve-device-id').value = deviceId;
+            document.getElementById('approve-device-code').value = code;
+
+            openModal('approve-device-modal');
+        }
+
+        document.getElementById('approve-device-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const deviceId = document.getElementById('approve-device-id').value;
+            const serverId = document.getElementById('approve-device-server').value;
+            const server = allServers.find(s => s.id == serverId);
+
+            const data = {
+                device_name: document.getElementById('approve-device-name').value,
+                location_id: parseInt(document.getElementById('approve-device-location').value),
+                device_type: document.getElementById('approve-device-type').value,
+                codeproject_endpoint: server ? server.endpoint_url : ''
+            };
+
+            try {
+                const response = await fetch(`/api/devices/${deviceId}/approve`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    showAlert('Device approved successfully', 'success');
+                    closeModal('approve-device-modal');
+                    loadPendingDevices();
+                    loadLocations();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.detail || 'Failed to approve device', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('Error approving device', 'error');
+            }
+        });
+
+        async function rejectDevice(deviceId) {
+            if (!confirm('Are you sure you want to reject this device?')) return;
+
+            try {
+                const response = await fetch(`/api/devices/${deviceId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    showAlert('Device rejected', 'success');
+                    loadPendingDevices();
+                } else {
+                    showAlert('Failed to reject device', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('Error rejecting device', 'error');
+            }
+        }
+
+        async function editDevice(deviceId, deviceName, deviceType, endpoint, locationId) {
+            currentEditDeviceOldEndpoint = endpoint;
+
+            document.getElementById('edit-device-id').value = deviceId;
+            document.getElementById('edit-device-name').value = deviceName;
+            document.getElementById('edit-device-type').value = deviceType;
+            document.getElementById('edit-device-location').value = locationId;
+
+            // Find and select the server
+            const server = allServers.find(s => s.endpoint_url === endpoint);
+            if (server) {
+                document.getElementById('edit-device-server').value = server.id;
+            }
+
+            openModal('edit-device-modal');
+        }
+
+        document.getElementById('edit-device-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const deviceId = document.getElementById('edit-device-id').value;
+            const serverId = document.getElementById('edit-device-server').value;
+            const server = allServers.find(s => s.id == serverId);
+
+            const endpoint = server ? server.endpoint_url : '';
+            const endpointChanged = endpoint !== currentEditDeviceOldEndpoint;
+
+            const data = {
+                device_name: document.getElementById('edit-device-name').value,
+                location_id: parseInt(document.getElementById('edit-device-location').value),
+                device_type: document.getElementById('edit-device-type').value,
+                codeproject_endpoint: endpoint
+            };
+
+            try {
+                const response = await fetch(`/api/devices/${deviceId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    if (endpointChanged) {
+                        showAlert('Device updated successfully! CodeProject endpoint changed - device will use new URL on next request.', 'success');
+                    } else {
+                        showAlert('Device updated successfully', 'success');
+                    }
+                    closeModal('edit-device-modal');
+                    loadLocations();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.detail || 'Failed to update device', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('Error updating device', 'error');
+            }
+        });
+
+        async function removeDevice(deviceId, deviceName) {
+            if (!confirm(`Are you sure you want to remove device "${deviceName}"?`)) return;
+
+            try {
+                const response = await fetch(`/api/devices/${deviceId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    showAlert('Device removed successfully', 'success');
+                    loadLocations();
+                } else {
+                    showAlert('Failed to remove device', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('Error removing device', 'error');
+            }
+        }
+
+        // CodeProject Servers Management
+        async function loadServers() {
+            try {
+                const response = await fetch('/api/codeproject-servers');
+                allServers = await response.json();
+
+                // Update server dropdowns
+                updateServerDropdowns();
+
+                const container = document.getElementById('servers-list-container');
+                if (allServers.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><p>No CodeProject.AI servers configured</p></div>';
+                    return;
+                }
+
+                container.innerHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Endpoint URL</th>
+                                <th>Description</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${allServers.map(server => `
+                                <tr>
+                                    <td><strong>${escapeHtml(server.friendly_name)}</strong></td>
+                                    <td><code>${escapeHtml(server.endpoint_url)}</code></td>
+                                    <td>${escapeHtml(server.description || 'N/A')}</td>
+                                    <td>
+                                        <button class="btn btn-secondary btn-sm" onclick="viewServerFaces(${server.id})">View Faces</button>
+                                        <button class="btn btn-warning btn-sm" onclick="editServer(${server.id})">Edit</button>
+                                        <button class="btn btn-danger btn-sm" onclick="deleteServer(${server.id}, '${escapeHtml(server.friendly_name)}')">Delete</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (error) {
+                console.error('Error loading servers:', error);
+                showAlert('Failed to load servers', 'error');
+            }
+        }
+
+        function updateServerDropdowns() {
+            const selects = [
+                document.getElementById('approve-device-server'),
+                document.getElementById('edit-device-server')
+            ];
+
+            selects.forEach(select => {
+                const currentValue = select.value;
+                select.innerHTML = '<option value="">Select a server...</option>' +
+                    allServers.map(srv => `<option value="${srv.id}">${escapeHtml(srv.friendly_name)}</option>`).join('');
+                if (currentValue) select.value = currentValue;
+            });
+        }
+
+        function showCreateServerModal() {
+            document.getElementById('create-server-form').reset();
+            openModal('create-server-modal');
+        }
+
+        document.getElementById('create-server-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const data = {
+                friendly_name: document.getElementById('server-name').value,
+                endpoint_url: document.getElementById('server-url').value,
+                description: document.getElementById('server-description').value || null
+            };
+
+            try {
+                const response = await fetch('/api/codeproject-servers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    showAlert('Server added successfully', 'success');
+                    closeModal('create-server-modal');
+                    loadServers();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.detail || 'Failed to add server', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('Error adding server', 'error');
+            }
+        });
+
+        async function editServer(serverId) {
+            const server = allServers.find(s => s.id === serverId);
+            if (!server) return;
+
+            document.getElementById('edit-server-id').value = server.id;
+            document.getElementById('edit-server-name').value = server.friendly_name;
+            document.getElementById('edit-server-url').value = server.endpoint_url;
+            document.getElementById('edit-server-description').value = server.description || '';
+
+            openModal('edit-server-modal');
+        }
+
+        document.getElementById('edit-server-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const serverId = document.getElementById('edit-server-id').value;
+            const data = {
+                friendly_name: document.getElementById('edit-server-name').value,
+                endpoint_url: document.getElementById('edit-server-url').value,
+                description: document.getElementById('edit-server-description').value || null
+            };
+
+            try {
+                const response = await fetch(`/api/codeproject-servers/${serverId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    showAlert('Server updated successfully', 'success');
+                    closeModal('edit-server-modal');
+                    loadServers();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.detail || 'Failed to update server', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('Error updating server', 'error');
+            }
+        });
+
+        async function deleteServer(serverId, name) {
+            if (!confirm(`Are you sure you want to delete server "${name}"?`)) return;
+
+            try {
+                const response = await fetch(`/api/codeproject-servers/${serverId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    showAlert('Server deleted successfully', 'success');
+                    loadServers();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.detail || 'Failed to delete server', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('Error deleting server', 'error');
+            }
+        }
+
+        async function viewServerFaces(serverId) {
+            const server = allServers.find(s => s.id === serverId);
+            if (!server) return;
+
+            document.getElementById('faces-modal-title').textContent = `Faces on ${server.friendly_name}`;
+            document.getElementById('faces-list-container').innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading faces...
+                </div>
+            `;
+
+            openModal('view-faces-modal');
+
+            try {
+                const response = await fetch(`/api/codeproject-servers/${serverId}/faces`);
+                const data = await response.json();
+
+                const container = document.getElementById('faces-list-container');
+
+                if (data.faces.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><p>No faces registered on this server</p></div>';
+                    return;
+                }
+
+                container.innerHTML = `
+                    <div class="face-list">
+                        ${data.faces.map(face => `
+                            <div class="face-item">
+                                <h4>${escapeHtml(face.userid)}</h4>
+                                <p>Photos: ${face.photo_count}</p>
+                                <p>${face.in_database ? '<span class="badge badge-success">In Database</span>' : '<span class="badge badge-warning">Not in Database</span>'}</p>
+                                ${face.registered_at ? `<p style="font-size: 12px;">Registered: ${new Date(face.registered_at).toLocaleString()}</p>` : ''}
+                                <button class="btn btn-danger btn-sm" style="margin-top: 10px; width: 100%;" onclick="deleteFace(${serverId}, '${escapeHtml(face.userid)}')">Delete</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('faces-list-container').innerHTML = '<div class="alert alert-error">Failed to load faces</div>';
+            }
+        }
+
+        async function deleteFace(serverId, userid) {
+            if (!confirm(`Are you sure you want to delete all faces for "${userid}"?`)) return;
+
+            try {
+                const response = await fetch(`/api/codeproject-servers/${serverId}/faces/${encodeURIComponent(userid)}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    showAlert(`Deleted ${userid} successfully`, 'success');
+                    viewServerFaces(serverId); // Reload the list
+                } else {
+                    const error = await response.json();
+                    showAlert(error.detail || 'Failed to delete face', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('Error deleting face', 'error');
+            }
+        }
+
+        // Utility functions
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        function showAlert(message, type = 'success') {
+            const container = document.getElementById('alert-container');
+            container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            setTimeout(() => container.innerHTML = '', 5000);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function logout() {
+            try {
+                await fetch('/auth/logout', { method: 'POST' });
+                window.location.href = '/auth/login';
+            } catch (error) {
+                console.error('Logout error:', error);
+                window.location.href = '/auth/login';
+            }
+        }
+
+        // Initialize on page load
+        init();
+    </script>
+</body>
+</html>

@@ -153,6 +153,18 @@ class ServerSettings(Base):
     updated_by_user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("user.id"), nullable=True)
 
 
+class CodeProjectServer(Base):
+    """CodeProject.AI servers available for facial recognition"""
+    __tablename__ = "codeproject_server"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    friendly_name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    endpoint_url: Mapped[str] = mapped_column(String(512), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_by_user_id: Mapped[int] = mapped_column(Integer, ForeignKey("user.id"), nullable=False)
+
+
 class Device(Base):
     """Devices registered for facial recognition (kiosks and scanners)"""
     __tablename__ = "device"
@@ -325,6 +337,18 @@ class UpdateLocationRequest(BaseModel):
 class AssignUserToLocationRequest(BaseModel):
     user_id: int
     role: str  # 'location_admin' or 'location_user'
+
+
+class CreateCodeProjectServerRequest(BaseModel):
+    friendly_name: str
+    endpoint_url: str
+    description: Optional[str] = None
+
+
+class UpdateCodeProjectServerRequest(BaseModel):
+    friendly_name: Optional[str] = None
+    endpoint_url: Optional[str] = None
+    description: Optional[str] = None
 
 
 # ============================================================================
@@ -709,16 +733,24 @@ async def logout(response: HTMLResponse):
 # ADMIN ROUTES
 # ============================================================================
 
+@app.get("/admin/manage", response_class=HTMLResponse)
+async def admin_manage_page(request: Request, user: User = Depends(current_superuser)):
+    """Combined admin management page"""
+    return templates.TemplateResponse("admin_manage.html", {"request": request, "user": user})
+
+
 @app.get("/admin/users", response_class=HTMLResponse)
 async def admin_users_page(request: Request, user: User = Depends(current_superuser)):
-    """Admin user management page"""
-    return templates.TemplateResponse("admin_users.html", {"request": request, "user": user})
+    """Admin user management page - redirects to new combined page"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/admin/manage")
 
 
 @app.get("/admin/locations", response_class=HTMLResponse)
 async def admin_locations_page(request: Request, user: User = Depends(current_superuser)):
-    """Admin location management page"""
-    return templates.TemplateResponse("admin_locations.html", {"request": request, "user": user})
+    """Admin location management page - redirects to new combined page"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/admin/manage")
 
 
 @app.get("/api/admin/users")
@@ -1603,6 +1635,292 @@ async def update_setting(
         "success": True,
         "setting_key": data.setting_key,
         "setting_value": data.setting_value
+    }
+
+
+# ============================================================================
+# CODEPROJECT SERVER MANAGEMENT API ROUTES
+# ============================================================================
+
+@app.get("/api/codeproject-servers")
+async def get_codeproject_servers(
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Get all CodeProject.AI servers"""
+    result = await session.execute(select(CodeProjectServer))
+    servers = result.scalars().all()
+
+    return [
+        {
+            "id": server.id,
+            "friendly_name": server.friendly_name,
+            "endpoint_url": server.endpoint_url,
+            "description": server.description,
+            "created_at": server.created_at.isoformat()
+        }
+        for server in servers
+    ]
+
+
+@app.post("/api/codeproject-servers")
+async def create_codeproject_server(
+    data: CreateCodeProjectServerRequest,
+    user: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Create a new CodeProject.AI server (superadmin only)"""
+    # Check if friendly name already exists
+    result = await session.execute(
+        select(CodeProjectServer).where(CodeProjectServer.friendly_name == data.friendly_name)
+    )
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Server with this name already exists")
+
+    server = CodeProjectServer(
+        friendly_name=data.friendly_name,
+        endpoint_url=data.endpoint_url.rstrip('/'),  # Remove trailing slash
+        description=data.description,
+        created_by_user_id=user.id
+    )
+    session.add(server)
+    await session.commit()
+
+    print(f"[CODEPROJECT-SERVER] Created by {user.email}: {data.friendly_name} -> {data.endpoint_url}")
+
+    return {
+        "success": True,
+        "id": server.id,
+        "friendly_name": server.friendly_name,
+        "endpoint_url": server.endpoint_url
+    }
+
+
+@app.put("/api/codeproject-servers/{server_id}")
+async def update_codeproject_server(
+    server_id: int,
+    data: UpdateCodeProjectServerRequest,
+    user: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Update a CodeProject.AI server (superadmin only)"""
+    result = await session.execute(
+        select(CodeProjectServer).where(CodeProjectServer.id == server_id)
+    )
+    server = result.scalar_one_or_none()
+
+    if not server:
+        raise HTTPException(status_code=404, detail="Server not found")
+
+    if data.friendly_name is not None:
+        # Check if new name already exists
+        result = await session.execute(
+            select(CodeProjectServer).where(
+                CodeProjectServer.friendly_name == data.friendly_name,
+                CodeProjectServer.id != server_id
+            )
+        )
+        if result.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Server with this name already exists")
+        server.friendly_name = data.friendly_name
+
+    if data.endpoint_url is not None:
+        server.endpoint_url = data.endpoint_url.rstrip('/')
+
+    if data.description is not None:
+        server.description = data.description
+
+    await session.commit()
+
+    print(f"[CODEPROJECT-SERVER] Updated by {user.email}: {server.friendly_name}")
+
+    return {
+        "success": True,
+        "id": server.id,
+        "friendly_name": server.friendly_name,
+        "endpoint_url": server.endpoint_url
+    }
+
+
+@app.delete("/api/codeproject-servers/{server_id}")
+async def delete_codeproject_server(
+    server_id: int,
+    user: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Delete a CodeProject.AI server (superadmin only)"""
+    result = await session.execute(
+        select(CodeProjectServer).where(CodeProjectServer.id == server_id)
+    )
+    server = result.scalar_one_or_none()
+
+    if not server:
+        raise HTTPException(status_code=404, detail="Server not found")
+
+    # Check if any devices are using this server
+    devices_result = await session.execute(
+        select(Device).where(Device.codeproject_endpoint == server.endpoint_url)
+    )
+    devices = devices_result.scalars().all()
+
+    if devices:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete server: {len(devices)} device(s) are using it"
+        )
+
+    friendly_name = server.friendly_name
+    await session.delete(server)
+    await session.commit()
+
+    print(f"[CODEPROJECT-SERVER] Deleted by {user.email}: {friendly_name}")
+
+    return {"success": True, "message": f"Deleted server: {friendly_name}"}
+
+
+@app.get("/api/codeproject-servers/{server_id}/faces")
+async def get_server_faces(
+    server_id: int,
+    user: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Get list of faces registered on a CodeProject.AI server"""
+    result = await session.execute(
+        select(CodeProjectServer).where(CodeProjectServer.id == server_id)
+    )
+    server = result.scalar_one_or_none()
+
+    if not server:
+        raise HTTPException(status_code=404, detail="Server not found")
+
+    try:
+        # Get list from CodeProject.AI
+        response = requests.post(
+            f"{server.endpoint_url}/vision/face/list",
+            timeout=30
+        )
+
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail=f"CodeProject.AI returned status {response.status_code}")
+
+        result_data = response.json()
+
+        if not result_data.get('success'):
+            raise HTTPException(status_code=500, detail="Failed to get face list from CodeProject.AI")
+
+        # Get the list of user IDs from CodeProject
+        codeproject_faces = result_data.get('faces', [])
+
+        # Match with our database records
+        faces_with_info = []
+        for cp_face in codeproject_faces:
+            userid = cp_face if isinstance(cp_face, str) else cp_face.get('userid')
+
+            # Look up in our database
+            db_result = await session.execute(
+                select(RegisteredFace).where(
+                    RegisteredFace.codeproject_user_id == userid,
+                    RegisteredFace.codeproject_endpoint == server.endpoint_url
+                )
+            )
+            db_records = db_result.scalars().all()
+
+            faces_with_info.append({
+                "userid": userid,
+                "photo_count": len(db_records),
+                "in_database": len(db_records) > 0,
+                "registered_at": db_records[0].registered_at.isoformat() if db_records else None
+            })
+
+        return {
+            "success": True,
+            "server_name": server.friendly_name,
+            "endpoint_url": server.endpoint_url,
+            "faces": faces_with_info
+        }
+
+    except requests.RequestException as e:
+        print(f"[CODEPROJECT-SERVER] Error fetching faces from {server.friendly_name}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error connecting to CodeProject.AI: {str(e)}")
+
+
+@app.delete("/api/codeproject-servers/{server_id}/faces/{userid}")
+async def delete_server_face(
+    server_id: int,
+    userid: str,
+    user: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Delete a face from CodeProject.AI server and database"""
+    result = await session.execute(
+        select(CodeProjectServer).where(CodeProjectServer.id == server_id)
+    )
+    server = result.scalar_one_or_none()
+
+    if not server:
+        raise HTTPException(status_code=404, detail="Server not found")
+
+    print(f"\n{'='*60}")
+    print(f"[DELETE-FACE] Deleting {userid} from {server.friendly_name}")
+
+    # Delete from CodeProject.AI
+    try:
+        response = requests.post(
+            f"{server.endpoint_url}/vision/face/delete",
+            data={'userid': userid},
+            timeout=30
+        )
+
+        if response.status_code == 200:
+            result_data = response.json()
+            if result_data.get('success'):
+                print(f"[DELETE-FACE]   ✓ Removed from CodeProject.AI")
+            else:
+                print(f"[DELETE-FACE]   ⚠ CodeProject.AI: {result_data.get('error', 'Unknown error')}")
+        else:
+            print(f"[DELETE-FACE]   ⚠ CodeProject.AI returned status {response.status_code}")
+    except Exception as e:
+        print(f"[DELETE-FACE]   ⚠ Error removing from CodeProject.AI: {e}")
+        # Continue with database deletion
+
+    # Delete from database
+    db_result = await session.execute(
+        select(RegisteredFace).where(
+            RegisteredFace.codeproject_user_id == userid,
+            RegisteredFace.codeproject_endpoint == server.endpoint_url
+        )
+    )
+    face_records = db_result.scalars().all()
+
+    deleted_files = 0
+    for face_record in face_records:
+        try:
+            if os.path.exists(face_record.file_path):
+                os.remove(face_record.file_path)
+                deleted_files += 1
+                print(f"[DELETE-FACE]   ✓ Deleted file: {os.path.basename(face_record.file_path)}")
+            else:
+                print(f"[DELETE-FACE]   ⚠ File not found: {face_record.file_path}")
+        except Exception as e:
+            print(f"[DELETE-FACE]   ⚠ Error deleting file {face_record.file_path}: {e}")
+
+    for face_record in face_records:
+        await session.delete(face_record)
+    await session.commit()
+
+    if face_records:
+        print(f"[DELETE-FACE]   ✓ Removed {len(face_records)} record(s) from database")
+    else:
+        print(f"[DELETE-FACE]   ⚠ No database records found for {userid}")
+
+    print(f"[DELETE-FACE] Deletion complete")
+    print(f"{'='*60}\n")
+
+    return {
+        "success": True,
+        "message": f"Deleted {userid} from {server.friendly_name}",
+        "files_deleted": deleted_files,
+        "records_deleted": len(face_records)
     }
 
 
