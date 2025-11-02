@@ -1819,6 +1819,66 @@ async def delete_codeproject_server(
     return {"success": True, "message": f"Deleted server: {friendly_name}"}
 
 
+@app.get("/api/codeproject-servers/{server_id}/test")
+async def test_codeproject_server(
+    server_id: int,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Test connection to a CodeProject.AI server"""
+    result = await session.execute(
+        select(CodeProjectServer).where(CodeProjectServer.id == server_id)
+    )
+    server = result.scalar_one_or_none()
+
+    if not server:
+        raise HTTPException(status_code=404, detail="Server not found")
+
+    try:
+        # Try to ping the server with a simple status check
+        response = requests.get(
+            f"{server.endpoint_url}/vision/face/list",
+            timeout=5
+        )
+
+        if response.status_code == 200:
+            return {
+                "success": True,
+                "online": True,
+                "status_code": response.status_code,
+                "message": "Server is online and responding"
+            }
+        else:
+            return {
+                "success": True,
+                "online": False,
+                "status_code": response.status_code,
+                "message": f"Server responded with status {response.status_code}"
+            }
+
+    except requests.Timeout:
+        return {
+            "success": True,
+            "online": False,
+            "status_code": None,
+            "message": "Connection timeout (server not responding)"
+        }
+    except requests.ConnectionError:
+        return {
+            "success": True,
+            "online": False,
+            "status_code": None,
+            "message": "Connection error (server unreachable)"
+        }
+    except Exception as e:
+        return {
+            "success": True,
+            "online": False,
+            "status_code": None,
+            "message": f"Error: {str(e)}"
+        }
+
+
 @app.get("/api/codeproject-servers/{server_id}/faces")
 async def get_server_faces(
     server_id: int,

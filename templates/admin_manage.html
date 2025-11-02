@@ -774,7 +774,9 @@
         };
         let allLocations = [];
         let allServers = [];
+        let serverStatuses = {}; // Track online/offline status of servers
         let currentEditDeviceOldEndpoint = null;
+        let serverStatusInterval = null;
 
         // Initialize
         async function init() {
@@ -803,13 +805,21 @@
             });
             document.getElementById(`${tabName}-tab`).classList.add('active');
 
+            // Stop server polling when switching away from servers tab
+            if (tabName !== 'servers') {
+                stopServerStatusPolling();
+            }
+
             // Load data if needed
             if (tabName === 'users') loadUsers();
             if (tabName === 'locations') {
                 loadLocations();
                 loadPendingDevices();
             }
-            if (tabName === 'servers') loadServers();
+            if (tabName === 'servers') {
+                loadServers();
+                startServerStatusPolling();
+            }
         }
 
         // Users Management
@@ -1362,27 +1372,46 @@
                         <thead>
                             <tr>
                                 <th>Name</th>
+                                <th>Status</th>
                                 <th>Endpoint URL</th>
                                 <th>Description</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${allServers.map(server => `
-                                <tr>
-                                    <td><strong>${escapeHtml(server.friendly_name)}</strong></td>
-                                    <td><code>${escapeHtml(server.endpoint_url)}</code></td>
-                                    <td>${escapeHtml(server.description || 'N/A')}</td>
-                                    <td>
-                                        <button class="btn btn-secondary btn-sm" onclick="viewServerFaces(${server.id})">View Faces</button>
-                                        <button class="btn btn-warning btn-sm" onclick="editServer(${server.id})">Edit</button>
-                                        <button class="btn btn-danger btn-sm" onclick="deleteServer(${server.id}, '${escapeHtml(server.friendly_name)}')">Delete</button>
-                                    </td>
-                                </tr>
-                            `).join('')}
+                            ${allServers.map(server => {
+                                const status = serverStatuses[server.id];
+                                let statusBadge = '<span class="badge badge-warning">Checking...</span>';
+
+                                if (status !== undefined) {
+                                    if (status.online) {
+                                        statusBadge = '<span class="badge badge-success">Online</span>';
+                                    } else {
+                                        statusBadge = '<span class="badge badge-danger" title="' + escapeHtml(status.message) + '">Offline</span>';
+                                    }
+                                }
+
+                                return `
+                                    <tr>
+                                        <td><strong>${escapeHtml(server.friendly_name)}</strong></td>
+                                        <td id="server-status-${server.id}">${statusBadge}</td>
+                                        <td><code>${escapeHtml(server.endpoint_url)}</code></td>
+                                        <td>${escapeHtml(server.description || 'N/A')}</td>
+                                        <td>
+                                            <button class="btn btn-secondary btn-sm" onclick="checkServerStatus(${server.id})">Check Now</button>
+                                            <button class="btn btn-secondary btn-sm" onclick="viewServerFaces(${server.id})">View Faces</button>
+                                            <button class="btn btn-warning btn-sm" onclick="editServer(${server.id})">Edit</button>
+                                            <button class="btn btn-danger btn-sm" onclick="deleteServer(${server.id}, '${escapeHtml(server.friendly_name)}')">Delete</button>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
                         </tbody>
                     </table>
                 `;
+
+                // Check status for all servers
+                checkAllServerStatuses();
             } catch (error) {
                 console.error('Error loading servers:', error);
                 showAlert('Failed to load servers', 'error');
@@ -1401,6 +1430,74 @@
                     allServers.map(srv => `<option value="${srv.id}">${escapeHtml(srv.friendly_name)}</option>`).join('');
                 if (currentValue) select.value = currentValue;
             });
+        }
+
+        // Server status checking
+        async function checkServerStatus(serverId) {
+            const statusCell = document.getElementById(`server-status-${serverId}`);
+            if (statusCell) {
+                statusCell.innerHTML = '<span class="badge badge-warning">Checking...</span>';
+            }
+
+            try {
+                const response = await fetch(`/api/codeproject-servers/${serverId}/test`, {
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const result = await response.json();
+                serverStatuses[serverId] = result;
+
+                // Update the status badge
+                if (statusCell) {
+                    if (result.online) {
+                        statusCell.innerHTML = '<span class="badge badge-success">Online</span>';
+                    } else {
+                        statusCell.innerHTML = `<span class="badge badge-danger" title="${escapeHtml(result.message)}">Offline</span>`;
+                    }
+                }
+
+                return result;
+            } catch (error) {
+                console.error(`Error checking server ${serverId}:`, error);
+                serverStatuses[serverId] = { online: false, message: 'Check failed' };
+
+                if (statusCell) {
+                    statusCell.innerHTML = '<span class="badge badge-danger" title="Check failed">Offline</span>';
+                }
+
+                return { online: false, message: 'Check failed' };
+            }
+        }
+
+        async function checkAllServerStatuses() {
+            // Check all servers in parallel
+            const promises = allServers.map(server => checkServerStatus(server.id));
+            await Promise.all(promises);
+        }
+
+        function startServerStatusPolling() {
+            // Clear any existing interval
+            if (serverStatusInterval) {
+                clearInterval(serverStatusInterval);
+            }
+
+            // Check every 30 seconds
+            serverStatusInterval = setInterval(() => {
+                if (allServers.length > 0) {
+                    checkAllServerStatuses();
+                }
+            }, 30000);
+        }
+
+        function stopServerStatusPolling() {
+            if (serverStatusInterval) {
+                clearInterval(serverStatusInterval);
+                serverStatusInterval = null;
+            }
         }
 
         function showCreateServerModal() {
@@ -1597,6 +1694,11 @@
                 window.location.href = '/login';
             }
         }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            stopServerStatusPolling();
+        });
 
         // Initialize on page load
         init();
