@@ -731,15 +731,18 @@ document.getElementById('approve-device-type').addEventListener('change', (e) =>
     const serverSelect = document.getElementById('approve-device-server');
     const processingMode = document.getElementById('approve-device-processing-mode');
     const scannerSettings = document.getElementById('approve-device-scanner-settings');
+    const dashboardSettings = document.getElementById('approve-device-dashboard-settings');
 
     if (e.target.value === 'location_dashboard') {
         serverGroup.style.display = 'none';
         serverSelect.removeAttribute('required');
         processingMode.style.display = 'none';
         scannerSettings.style.display = 'none';
+        dashboardSettings.style.display = 'block';
     } else {
         serverGroup.style.display = 'block';
         serverSelect.setAttribute('required', 'required');
+        dashboardSettings.style.display = 'none';
 
         // Show processing mode for devices that process images (kiosk and scanner)
         if (e.target.value === 'registration_kiosk' || e.target.value === 'people_scanner') {
@@ -787,6 +790,12 @@ document.getElementById('approve-device-form').addEventListener('submit', async 
         if (confidence) data.confidence_threshold = parseFloat(confidence);
         if (presence) data.presence_timeout_minutes = parseInt(presence);
         if (cooldown) data.detection_cooldown_seconds = parseInt(cooldown);
+    }
+
+    // Add dashboard settings if device is a location_dashboard
+    if (deviceType === 'location_dashboard') {
+        const dashboardTimeout = document.getElementById('approve-device-dashboard-timeout').value;
+        if (dashboardTimeout) data.dashboard_display_timeout_minutes = parseInt(dashboardTimeout);
     }
 
     try {
@@ -909,15 +918,18 @@ document.getElementById('edit-device-type').addEventListener('change', (e) => {
     const serverSelect = document.getElementById('edit-device-server');
     const processingMode = document.getElementById('edit-device-processing-mode');
     const scannerSettings = document.getElementById('edit-device-scanner-settings');
+    const dashboardSettings = document.getElementById('edit-device-dashboard-settings');
 
     if (e.target.value === 'location_dashboard') {
         serverGroup.style.display = 'none';
         serverSelect.removeAttribute('required');
         processingMode.style.display = 'none';
         scannerSettings.style.display = 'none';
+        dashboardSettings.style.display = 'block';
     } else {
         serverGroup.style.display = 'block';
         serverSelect.setAttribute('required', 'required');
+        dashboardSettings.style.display = 'none';
 
         // Show processing mode for devices that process images (kiosk and scanner)
         if (e.target.value === 'registration_kiosk' || e.target.value === 'people_scanner') {
@@ -965,6 +977,12 @@ document.getElementById('edit-device-form').addEventListener('submit', async (e)
         if (confidence) data.confidence_threshold = parseFloat(confidence);
         if (presence) data.presence_timeout_minutes = parseInt(presence);
         if (cooldown) data.detection_cooldown_seconds = parseInt(cooldown);
+    }
+
+    // Add dashboard settings if device is a location_dashboard
+    if (deviceType === 'location_dashboard') {
+        const dashboardTimeout = document.getElementById('edit-device-dashboard-timeout').value;
+        if (dashboardTimeout) data.dashboard_display_timeout_minutes = parseInt(dashboardTimeout);
     }
 
     try {

@@ -764,6 +764,15 @@
                         </div>
                     </div>
                 </div>
+                <div class="form-group" id="approve-device-dashboard-settings" style="display: none;">
+                    <h4 style="margin-bottom: 10px; color: #667eea;">Dashboard Display Settings</h4>
+                    <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Leave blank to use system defaults (.env file)</p>
+                    <div>
+                        <label for="approve-device-dashboard-timeout">Display Timeout (minutes)</label>
+                        <input type="number" id="approve-device-dashboard-timeout" step="1" min="1" placeholder="Default: 2">
+                        <p style="font-size: 11px; color: #888; margin-top: 4px;">How long to show someone on the dashboard after their last detection</p>
+                    </div>
+                </div>
                 <div style="display: flex; gap: 10px;">
                     <button type="submit" class="btn btn-success">Approve Device</button>
                     <button type="button" class="btn btn-secondary" onclick="closeModal('approve-device-modal')">Cancel</button>
@@ -835,6 +844,15 @@
                             <label for="edit-device-cooldown">Detection Cooldown (seconds)</label>
                             <input type="number" id="edit-device-cooldown" step="1" min="1" placeholder="Default: 10">
                         </div>
+                    </div>
+                </div>
+                <div class="form-group" id="edit-device-dashboard-settings" style="display: none;">
+                    <h4 style="margin-bottom: 10px; color: #667eea;">Dashboard Display Settings</h4>
+                    <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Leave blank to use system defaults</p>
+                    <div>
+                        <label for="edit-device-dashboard-timeout">Display Timeout (minutes)</label>
+                        <input type="number" id="edit-device-dashboard-timeout" step="1" min="1" placeholder="Default: 2">
+                        <p style="font-size: 11px; color: #888; margin-top: 4px;">How long to show someone on the dashboard after their last detection</p>
                     </div>
                 </div>
                 <div style="display: flex; gap: 10px;">

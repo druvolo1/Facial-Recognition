@@ -56,6 +56,7 @@ SCAN_RETENTION_MINUTES = int(os.getenv("SCAN_RETENTION_MINUTES", "60"))
 DEFAULT_CONFIDENCE_THRESHOLD = float(os.getenv("DEFAULT_CONFIDENCE_THRESHOLD", "0.6"))
 DEFAULT_PRESENCE_TIMEOUT_MINUTES = int(os.getenv("DEFAULT_PRESENCE_TIMEOUT_MINUTES", "2"))
 DEFAULT_DETECTION_COOLDOWN_SECONDS = int(os.getenv("DEFAULT_DETECTION_COOLDOWN_SECONDS", "10"))
+DEFAULT_DASHBOARD_DISPLAY_TIMEOUT_MINUTES = int(os.getenv("DEFAULT_DASHBOARD_DISPLAY_TIMEOUT_MINUTES", "2"))
 
 # Get the application directory
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -215,6 +216,8 @@ class Device(Base):
     detection_cooldown_seconds: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     # Processing mode for image recognition: 'direct' (device calls CodeProject.AI directly) or 'server' (device -> flask -> CodeProject.AI)
     processing_mode: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, default='server')
+    # Dashboard-specific display timeout (how long to show someone after last detection)
+    dashboard_display_timeout_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
 
 class Detection(Base):
@@ -493,6 +496,8 @@ class ApproveDeviceRequest(BaseModel):
     confidence_threshold: Optional[float] = None
     presence_timeout_minutes: Optional[int] = None
     detection_cooldown_seconds: Optional[int] = None
+    # Dashboard display timeout (optional, defaults to .env value)
+    dashboard_display_timeout_minutes: Optional[int] = None
 
 
 class UpdateDeviceRequest(BaseModel):
@@ -506,6 +511,8 @@ class UpdateDeviceRequest(BaseModel):
     confidence_threshold: Optional[float] = None
     presence_timeout_minutes: Optional[int] = None
     detection_cooldown_seconds: Optional[int] = None
+    # Dashboard display timeout
+    dashboard_display_timeout_minutes: Optional[int] = None
 
 
 class CreateLocationRequest(BaseModel):
@@ -2902,7 +2909,9 @@ async def device_heartbeat(
         # Detection settings (use device-specific or fall back to .env defaults)
         "confidence_threshold": float(device.confidence_threshold) if device.confidence_threshold is not None else DEFAULT_CONFIDENCE_THRESHOLD,
         "presence_timeout_minutes": device.presence_timeout_minutes if device.presence_timeout_minutes is not None else DEFAULT_PRESENCE_TIMEOUT_MINUTES,
-        "detection_cooldown_seconds": device.detection_cooldown_seconds if device.detection_cooldown_seconds is not None else DEFAULT_DETECTION_COOLDOWN_SECONDS
+        "detection_cooldown_seconds": device.detection_cooldown_seconds if device.detection_cooldown_seconds is not None else DEFAULT_DETECTION_COOLDOWN_SECONDS,
+        # Dashboard display timeout (use device-specific or fall back to .env default)
+        "dashboard_display_timeout_minutes": device.dashboard_display_timeout_minutes if device.dashboard_display_timeout_minutes is not None else DEFAULT_DASHBOARD_DISPLAY_TIMEOUT_MINUTES
     }
 
     # If token was rotated, send the new token
@@ -3232,6 +3241,10 @@ async def approve_device(
     if data.detection_cooldown_seconds is not None:
         device.detection_cooldown_seconds = data.detection_cooldown_seconds
 
+    # Set dashboard display timeout if provided
+    if data.dashboard_display_timeout_minutes is not None:
+        device.dashboard_display_timeout_minutes = data.dashboard_display_timeout_minutes
+
     # Set processing mode (default to 'server' if not specified)
     device.processing_mode = data.processing_mode or 'server'
 
@@ -3258,6 +3271,8 @@ async def approve_device(
             device.presence_timeout_minutes = data.presence_timeout_minutes
         if data.detection_cooldown_seconds is not None:
             device.detection_cooldown_seconds = data.detection_cooldown_seconds
+        if data.dashboard_display_timeout_minutes is not None:
+            device.dashboard_display_timeout_minutes = data.dashboard_display_timeout_minutes
         device.processing_mode = data.processing_mode or 'server'
         await session.commit()
 
@@ -3403,7 +3418,9 @@ async def list_devices(
             # Scanner detection settings
             "confidence_threshold": float(device.confidence_threshold) if device.confidence_threshold is not None else None,
             "presence_timeout_minutes": device.presence_timeout_minutes,
-            "detection_cooldown_seconds": device.detection_cooldown_seconds
+            "detection_cooldown_seconds": device.detection_cooldown_seconds,
+            # Dashboard display timeout
+            "dashboard_display_timeout_minutes": device.dashboard_display_timeout_minutes
         })
 
     return {
@@ -3490,6 +3507,10 @@ async def update_device(
     if data.detection_cooldown_seconds is not None:
         device.detection_cooldown_seconds = data.detection_cooldown_seconds
 
+    # Update dashboard display timeout
+    if data.dashboard_display_timeout_minutes is not None:
+        device.dashboard_display_timeout_minutes = data.dashboard_display_timeout_minutes
+
     # Update processing mode
     if data.processing_mode is not None:
         device.processing_mode = data.processing_mode
@@ -3518,6 +3539,8 @@ async def update_device(
             device.presence_timeout_minutes = data.presence_timeout_minutes
         if data.detection_cooldown_seconds is not None:
             device.detection_cooldown_seconds = data.detection_cooldown_seconds
+        if data.dashboard_display_timeout_minutes is not None:
+            device.dashboard_display_timeout_minutes = data.dashboard_display_timeout_minutes
         if data.processing_mode is not None:
             device.processing_mode = data.processing_mode
         await session.commit()
