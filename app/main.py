@@ -109,6 +109,8 @@ class RegisteredFace(Base):
     file_path: Mapped[str] = mapped_column(String(512), nullable=False)
     # CodeProject.AI endpoint URL where this face was registered
     codeproject_endpoint: Mapped[str] = mapped_column(String(512), nullable=False)
+    # Location where this face was registered
+    location_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("location.id"), nullable=True)
     # When it was registered
     registered_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     # User who registered this face
@@ -932,6 +934,58 @@ async def get_selected_location(
             pass
 
     return {"selected_location_id": None}
+
+
+async def get_user_selected_location_and_role(user: User, session: AsyncSession):
+    """Helper function to get user's selected location and their role for it"""
+    # Superusers can access all locations
+    if user.is_superuser:
+        # Get selected location if set, otherwise return None
+        selected_location_id = None
+        if user.dashboard_preferences:
+            try:
+                prefs = json.loads(user.dashboard_preferences)
+                selected_location_id = prefs.get("selected_location_id")
+            except:
+                pass
+
+        return {
+            "location_id": selected_location_id,
+            "role": "superadmin",
+            "is_superuser": True
+        }
+
+    # Get user's selected location from preferences
+    selected_location_id = None
+    if user.dashboard_preferences:
+        try:
+            prefs = json.loads(user.dashboard_preferences)
+            selected_location_id = prefs.get("selected_location_id")
+        except:
+            pass
+
+    # If no location selected, return None
+    if not selected_location_id:
+        return None
+
+    # Check user's role for this location
+    result = await session.execute(
+        select(UserLocationRole).where(
+            UserLocationRole.user_id == user.id,
+            UserLocationRole.location_id == selected_location_id
+        )
+    )
+    role_assignment = result.scalar_one_or_none()
+
+    if not role_assignment:
+        # User doesn't have access to this location
+        return None
+
+    return {
+        "location_id": selected_location_id,
+        "role": role_assignment.role,  # 'location_admin' or 'location_user'
+        "is_superuser": False
+    }
 
 
 class SetLocationRequest(BaseModel):
@@ -2387,6 +2441,56 @@ async def approve_device(
     }
 
 
+@app.get("/api/my-devices")
+async def get_my_location_devices(
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Get devices for the user's currently selected location"""
+    # Get user's selected location and role
+    location_context = await get_user_selected_location_and_role(user, session)
+
+    if not location_context:
+        return {"success": True, "devices": [], "message": "No location selected"}
+
+    location_id = location_context.get("location_id")
+    role = location_context.get("role")
+    is_superuser = location_context.get("is_superuser", False)
+
+    # Get devices for the selected location
+    if is_superuser and not location_id:
+        # Superuser with no location selected - show all devices
+        result = await session.execute(select(Device).where(Device.is_approved == True))
+    else:
+        # Show devices for selected location
+        result = await session.execute(
+            select(Device).where(
+                Device.location_id == location_id,
+                Device.is_approved == True
+            )
+        )
+
+    devices = result.scalars().all()
+
+    return {
+        "success": True,
+        "devices": [
+            {
+                "id": device.id,
+                "device_id": device.device_id,
+                "device_name": device.device_name,
+                "device_type": device.device_type,
+                "location_id": device.location_id,
+                "registration_code": device.registration_code,
+                "created_at": device.created_at.isoformat() if device.created_at else None
+            }
+            for device in devices
+        ],
+        "role": role,
+        "can_manage_users": role in ["superadmin", "location_admin"]
+    }
+
+
 @app.get("/api/devices")
 async def list_devices(
     location_id: int = None,
@@ -2806,12 +2910,36 @@ async def get_registered_faces(
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session)
 ):
-    """Get all registered faces and their photos from database"""
+    """Get registered faces filtered by user's selected location"""
     try:
         from collections import defaultdict
 
-        # Get all registered faces from database
-        result = await session.execute(select(RegisteredFace))
+        # Get user's selected location and role
+        location_context = await get_user_selected_location_and_role(user, session)
+
+        # Build query based on permissions
+        if not location_context:
+            # No location selected or no access - return empty
+            return {
+                "success": True,
+                "faces": [],
+                "total": 0,
+                "message": "Please select a location to view registered faces"
+            }
+
+        location_id = location_context.get("location_id")
+        is_superuser = location_context.get("is_superuser", False)
+
+        # Filter by location unless superuser with no location selected
+        if is_superuser and not location_id:
+            # Superuser with no location selected - show all faces
+            result = await session.execute(select(RegisteredFace))
+        else:
+            # Filter by selected location
+            result = await session.execute(
+                select(RegisteredFace).where(RegisteredFace.location_id == location_id)
+            )
+
         all_face_records = result.scalars().all()
 
         # Group by person name
@@ -2912,17 +3040,22 @@ async def register_face(
                         successful_registrations += 1
                         print(f"[REGISTER]   ✓ Photo {idx+1} registered successfully")
 
+                        # Get user's selected location
+                        location_context = await get_user_selected_location_and_role(user, session)
+                        location_id = location_context.get("location_id") if location_context else None
+
                         # Save to database
                         registered_face = RegisteredFace(
                             person_name=data.name,
                             codeproject_user_id=data.name,
                             file_path=filepath,
                             codeproject_endpoint=CODEPROJECT_BASE_URL,
+                            location_id=location_id,
                             registered_by_user_id=user.id
                         )
                         session.add(registered_face)
                         await session.commit()
-                        print(f"[REGISTER]   ✓ Saved to database")
+                        print(f"[REGISTER]   ✓ Saved to database (location_id: {location_id})")
                     else:
                         error_msg = result.get('error', 'Unknown error')
                         errors.append(f"Photo {idx+1}: {error_msg}")
