@@ -1,2 +1,2 @@
 manage:1 [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) <input type=​"password" id=​"user-password" required minlength=​"6">​
-manage:1 Uncaught SyntaxError: Invalid or unexpected token (at manage:1:158)
+manage:1 Uncaught SyntaxError: missing ) after argument list (at manage:1:30)

@@ -1087,7 +1087,7 @@ async function manageUserLocations(userId, email) {
                                 <td><span class="badge ${loc.role === 'location_admin' ? 'badge-danger' : 'badge-info'}">${escapeHtml(loc.role)}</span></td>
                                 <td>
                                     <button class="btn btn-danger btn-sm"
-                                            onclick="removeUserFromLocation(${userId}, ${loc.location_id}, '${escapeHtml(loc.location_name)}')">Remove</button>
+                                            onclick="removeUserFromLocation(${userId}, ${loc.location_id})">Remove</button>
                                 </td>
                             </tr>
                         `).join('')}
@@ -1140,8 +1140,8 @@ document.getElementById('assign-location-form').addEventListener('submit', async
     }
 });
 
-async function removeUserFromLocation(userId, locationId, locationName) {
-    if (!confirm(`Remove user from ${locationName}?`)) return;
+async function removeUserFromLocation(userId, locationId) {
+    if (!confirm('Remove user from this location?')) return;
 
     try {
         const response = await fetch(`/api/locations/${locationId}/users/${userId}`, {
