@@ -874,13 +874,18 @@ async function editDeviceById(deviceId) {
     const serverSelect = document.getElementById('edit-device-server');
     const processingMode = document.getElementById('edit-device-processing-mode');
     const scannerSettings = document.getElementById('edit-device-scanner-settings');
+    const dashboardSettings = document.getElementById('edit-device-dashboard-settings');
 
     if (device.device_type === 'location_dashboard') {
         serverGroup.style.display = 'none';
         serverSelect.removeAttribute('required');
         processingMode.style.display = 'none';
         scannerSettings.style.display = 'none';
+        dashboardSettings.style.display = 'block';
+        // Populate dashboard settings
+        document.getElementById('edit-device-dashboard-timeout').value = device.dashboard_display_timeout_minutes || '';
     } else {
+        dashboardSettings.style.display = 'none';
         serverGroup.style.display = 'block';
         serverSelect.setAttribute('required', 'required');
 
