@@ -2907,10 +2907,10 @@ async def update_device(
 @app.delete("/api/devices/{device_id}")
 async def delete_device(
     device_id: str,
-    user: User = Depends(current_superuser),
+    user: User = Depends(require_any_admin_access),
     session: AsyncSession = Depends(get_async_session)
 ):
-    """Delete a device (superadmin only)"""
+    """Delete a device (superadmin or location admin)"""
     result = await session.execute(
         select(Device).where(Device.device_id == device_id)
     )
@@ -2918,6 +2918,25 @@ async def delete_device(
 
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
+
+    # Check permissions for location admins
+    if not user.is_superuser:
+        # Get admin locations for this user
+        admin_result = await session.execute(
+            select(UserLocationRole).where(
+                UserLocationRole.user_id == user.id,
+                UserLocationRole.role == 'location_admin'
+            )
+        )
+        admin_locations = admin_result.scalars().all()
+        admin_location_ids = [loc.location_id for loc in admin_locations]
+
+        # Check if device belongs to one of their admin locations
+        if device.location_id not in admin_location_ids:
+            raise HTTPException(
+                status_code=403,
+                detail="You can only delete devices from locations you manage"
+            )
 
     await session.delete(device)
     await session.commit()
