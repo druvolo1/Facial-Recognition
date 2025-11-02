@@ -2499,6 +2499,7 @@ async def register_device(
             "device_id": existing_device.device_id,
             "registration_code": existing_device.registration_code,
             "is_approved": existing_device.is_approved,
+            "device_name": existing_device.device_name,
             "device_type": existing_device.device_type,
             "location_id": existing_device.location_id,
             "codeproject_endpoint": existing_device.codeproject_endpoint
