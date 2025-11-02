@@ -402,6 +402,10 @@ class UpdateDeviceRequest(BaseModel):
     location_id: Optional[int] = None
     device_type: Optional[str] = None
     codeproject_endpoint: Optional[str] = None
+    # Scanner detection settings
+    confidence_threshold: Optional[float] = None
+    presence_timeout_minutes: Optional[int] = None
+    detection_cooldown_seconds: Optional[int] = None
 
 
 class CreateLocationRequest(BaseModel):
@@ -2860,8 +2864,23 @@ async def log_scan(
 
         await session.commit()
 
-        # Broadcast to dashboards for this location via WebSocket
+        # Get profile photos for detected people
         if detection_records:
+            person_names = [det["person_name"] for det in detection_records]
+            face_result = await session.execute(
+                select(RegisteredFace.person_name, RegisteredFace.profile_photo)
+                .where(RegisteredFace.location_id == device.location_id)
+                .where(RegisteredFace.person_name.in_(person_names))
+                .distinct(RegisteredFace.person_name)
+            )
+            profile_photos = {row.person_name: row.profile_photo for row in face_result.all()}
+
+            # Add profile photos to detection records
+            for det in detection_records:
+                det["profile_photo"] = profile_photos.get(det["person_name"])
+                det["device_id"] = device.device_id
+
+            # Broadcast to dashboards for this location via WebSocket
             await manager.broadcast_to_location(device.location_id, {
                 "type": "new_detections",
                 "detections": detection_records
@@ -2921,9 +2940,18 @@ async def websocket_dashboard(
         )
         devices = {d.device_id: d.device_name for d in device_result.scalars().all()}
 
-        # Add device names to detections
+        # Get profile photos from registered_face table
+        face_result = await session.execute(
+            select(RegisteredFace.person_name, RegisteredFace.profile_photo)
+            .where(RegisteredFace.location_id == location_id)
+            .distinct(RegisteredFace.person_name)
+        )
+        profile_photos = {row.person_name: row.profile_photo for row in face_result.all()}
+
+        # Add device names and profile photos to detections
         for detection in person_latest.values():
             detection["device_name"] = devices.get(detection["device_id"], detection["device_id"][:8])
+            detection["profile_photo"] = profile_photos.get(detection["person_name"])
 
         await websocket.send_json({
             "type": "initial_data",
@@ -3282,6 +3310,14 @@ async def update_device(
     elif data.device_type == 'location_dashboard':
         # Explicitly clear codeproject_endpoint when switching to dashboard
         device.codeproject_endpoint = None
+
+    # Update scanner detection settings
+    if data.confidence_threshold is not None:
+        device.confidence_threshold = data.confidence_threshold
+    if data.presence_timeout_minutes is not None:
+        device.presence_timeout_minutes = data.presence_timeout_minutes
+    if data.detection_cooldown_seconds is not None:
+        device.detection_cooldown_seconds = data.detection_cooldown_seconds
 
     await session.commit()
 

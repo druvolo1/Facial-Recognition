@@ -1,0 +1,21 @@
+dashboard.html:419 WebSocket connection to 'wss://nrf.ruvolo.loseyourip.com/ws/dashboard/2' failed: 
+connectWebSocket @ dashboard.html:419
+(anonymous) @ dashboard.html:461
+dashboard.html:447 [WEBSOCKET] Error: Event {isTrusted: true, type: 'error', target: WebSocket, currentTarget: WebSocket, eventPhase: 2, …}
+websocket.onerror @ dashboard.html:447
+dashboard.html:453 [WEBSOCKET] Disconnected - reconnecting in 5s...
+dashboard.html:419 WebSocket connection to 'wss://nrf.ruvolo.loseyourip.com/ws/dashboard/2' failed: 
+connectWebSocket @ dashboard.html:419
+dashboard.html:447 [WEBSOCKET] Error: Event {isTrusted: true, type: 'error', target: WebSocket, currentTarget: WebSocket, eventPhase: 2, …}
+websocket.onerror @ dashboard.html:447
+dashboard.html:453 [WEBSOCKET] Disconnected - reconnecting in 5s...
+dashboard.html:419 WebSocket connection to 'wss://nrf.ruvolo.loseyourip.com/ws/dashboard/2' failed: 
+connectWebSocket @ dashboard.html:419
+dashboard.html:447 [WEBSOCKET] Error: Event {isTrusted: true, type: 'error', target: WebSocket, currentTarget: WebSocket, eventPhase: 2, …}
+websocket.onerror @ dashboard.html:447
+dashboard.html:453 [WEBSOCKET] Disconnected - reconnecting in 5s...
+dashboard.html:419 WebSocket connection to 'wss://nrf.ruvolo.loseyourip.com/ws/dashboard/2' failed: 
+connectWebSocket @ dashboard.html:419
+dashboard.html:447 [WEBSOCKET] Error: Event {isTrusted: true, type: 'error', target: WebSocket, currentTarget: WebSocket, eventPhase: 2, …}
+websocket.onerror @ dashboard.html:447
+dashboard.html:453 [WEBSOCKET] Disconnected - reconnecting in 5s...

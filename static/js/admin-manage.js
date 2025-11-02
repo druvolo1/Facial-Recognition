@@ -828,28 +828,51 @@ async function editDeviceById(deviceId) {
     // Show/hide server dropdown based on device type
     const serverGroup = document.getElementById('edit-device-server-group');
     const serverSelect = document.getElementById('edit-device-server');
+    const scannerSettings = document.getElementById('edit-device-scanner-settings');
+
     if (device.device_type === 'location_dashboard') {
         serverGroup.style.display = 'none';
         serverSelect.removeAttribute('required');
+        scannerSettings.style.display = 'none';
     } else {
         serverGroup.style.display = 'block';
         serverSelect.setAttribute('required', 'required');
+
+        // Show scanner settings only for people_scanner
+        if (device.device_type === 'people_scanner') {
+            scannerSettings.style.display = 'block';
+            // Populate scanner settings
+            document.getElementById('edit-device-confidence').value = device.confidence_threshold || '';
+            document.getElementById('edit-device-presence').value = device.presence_timeout_minutes || '';
+            document.getElementById('edit-device-cooldown').value = device.detection_cooldown_seconds || '';
+        } else {
+            scannerSettings.style.display = 'none';
+        }
     }
 
     openModal('edit-device-modal');
 }
 
-// Handle edit device type change to show/hide CodeProject server selection
+// Handle edit device type change to show/hide CodeProject server selection and scanner settings
 document.getElementById('edit-device-type').addEventListener('change', (e) => {
     const serverGroup = document.getElementById('edit-device-server-group');
     const serverSelect = document.getElementById('edit-device-server');
+    const scannerSettings = document.getElementById('edit-device-scanner-settings');
 
     if (e.target.value === 'location_dashboard') {
         serverGroup.style.display = 'none';
         serverSelect.removeAttribute('required');
+        scannerSettings.style.display = 'none';
     } else {
         serverGroup.style.display = 'block';
         serverSelect.setAttribute('required', 'required');
+
+        // Show scanner settings only for people_scanner
+        if (e.target.value === 'people_scanner') {
+            scannerSettings.style.display = 'block';
+        } else {
+            scannerSettings.style.display = 'none';
+        }
     }
 });
 
@@ -867,6 +890,17 @@ document.getElementById('edit-device-form').addEventListener('submit', async (e)
         device_type: deviceType,
         codeproject_endpoint: deviceType === 'location_dashboard' ? null : (server ? server.endpoint_url : '')
     };
+
+    // Add scanner settings if device is a people_scanner
+    if (deviceType === 'people_scanner') {
+        const confidence = document.getElementById('edit-device-confidence').value;
+        const presence = document.getElementById('edit-device-presence').value;
+        const cooldown = document.getElementById('edit-device-cooldown').value;
+
+        if (confidence) data.confidence_threshold = parseFloat(confidence);
+        if (presence) data.presence_timeout_minutes = parseInt(presence);
+        if (cooldown) data.detection_cooldown_seconds = parseInt(cooldown);
+    }
 
     try {
         const response = await fetch(`/api/devices/${deviceId}`, {
