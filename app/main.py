@@ -1836,7 +1836,7 @@ async def test_codeproject_server(
 
     try:
         # Try to ping the server with a simple status check
-        response = requests.get(
+        response = requests.post(
             f"{server.endpoint_url}/vision/face/list",
             timeout=5
         )
