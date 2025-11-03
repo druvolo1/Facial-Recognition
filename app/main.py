@@ -5596,14 +5596,17 @@ async def delete_registered_face(
                 endpoints[endpoint] = []
             endpoints[endpoint].append(face_record)
 
+        # Get person_name for logging
+        person_name = face_records[0].person_name if face_records else "Unknown"
+
         # Delete from each CodeProject.AI server
-        print(f"[DELETE] Removing from {len(endpoints)} CodeProject.AI server(s)...")
+        print(f"[DELETE] Removing {person_name} (person_id: {person_id}) from {len(endpoints)} CodeProject.AI server(s)...")
         for endpoint, records in endpoints.items():
             try:
                 print(f"[DELETE]   Deleting from {endpoint}...")
                 response = requests.post(
                     f"{endpoint}/vision/face/delete",
-                    data={'userid': person_name},
+                    data={'userid': person_id},  # Use person_id (UUID) not person_name
                     timeout=30
                 )
 
@@ -5700,7 +5703,11 @@ async def update_employee_status(
             face_record.is_employee = is_employee
 
         await session.commit()
-        print(f"[UPDATE-EMPLOYEE] ✓ Updated {len(face_records)} record(s)")
+
+        # Get person_name for response message
+        person_name = face_records[0].person_name if face_records else "Person"
+
+        print(f"[UPDATE-EMPLOYEE] ✓ Updated {len(face_records)} record(s) for {person_name}")
         print(f"{'='*60}\n")
 
         return {
