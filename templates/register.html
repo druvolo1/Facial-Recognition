@@ -290,6 +290,66 @@
             cursor: not-allowed;
         }
 
+        .method-choice-btn {
+            background: white;
+            border: 2px solid #e2e8f0;
+            padding: 30px 20px;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .method-choice-btn:hover {
+            border-color: #667eea;
+            background: #f7fafc;
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2);
+        }
+
+        .upload-photo-card {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+        }
+
+        .upload-photo-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+
+        .upload-photo-preview {
+            width: 100%;
+            max-height: 400px;
+            object-fit: contain;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            background: #f5f5f5;
+        }
+
+        .upload-photo-controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .upload-photo-controls button {
+            padding: 8px 12px;
+            font-size: 14px;
+        }
+
+        .upload-photo-controls .btn-sm {
+            padding: 6px 10px;
+            font-size: 13px;
+        }
+
         .success-message {
             background: #d4edda;
             border: 1px solid #c3e6cb;
@@ -463,7 +523,44 @@
             </select>
         </div>
 
-        <div class="camera-section">
+        <!-- Method Selection -->
+        <div id="method-selection" style="margin: 30px 0;">
+            <h3 style="text-align: center; margin-bottom: 20px; color: #333;">How would you like to add photos?</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 600px; margin: 0 auto;">
+                <button id="choose-camera" class="method-choice-btn">
+                    <span style="font-size: 64px;">📷</span>
+                    <span style="font-size: 18px; font-weight: 600;">Use Camera</span>
+                    <span style="font-size: 14px; opacity: 0.8;">Capture live photos</span>
+                </button>
+                <button id="choose-upload" class="method-choice-btn">
+                    <span style="font-size: 64px;">📁</span>
+                    <span style="font-size: 18px; font-weight: 600;">Upload Files</span>
+                    <span style="font-size: 14px; opacity: 0.8;">Select from device</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Upload Section -->
+        <div id="upload-section" style="display: none; margin: 30px 0;">
+            <h3 style="margin-bottom: 15px;">Upload Photos</h3>
+            <p style="color: #666; margin-bottom: 20px;">Upload 3-5 photos of yourself. You can crop and rotate each image.</p>
+
+            <div class="form-group">
+                <label class="btn-primary" for="photo-upload-input" style="cursor: pointer; text-align: center; display: inline-block; width: 100%;">
+                    📁 Select Photos (3-5 recommended)
+                </label>
+                <input type="file" id="photo-upload-input" accept="image/jpeg,image/jpg,image/png,image/heic,image/webp" multiple style="display: none;">
+            </div>
+
+            <div id="upload-photos-preview"></div>
+
+            <div class="button-group" style="margin-top: 20px;">
+                <button id="change-method-upload" class="btn-secondary">← Change Method</button>
+                <button id="submit-upload" class="btn-primary" disabled>Submit Registration</button>
+            </div>
+        </div>
+
+        <div class="camera-section" id="camera-section" style="display: none;">
             <div class="video-overlay">
                 <div class="guidance-indicator" id="guidanceIndicator"></div>
             </div>
@@ -477,6 +574,7 @@
             </div>
 
             <div class="button-group">
+                <button id="change-method-camera" class="btn-secondary">← Change Method</button>
                 <button id="startCamera" class="btn-primary">Start Camera</button>
                 <button id="startCapture" class="btn-secondary" disabled>Begin Video Capture</button>
                 <button id="stopCamera" class="btn-danger" disabled>Stop Camera</button>
@@ -500,6 +598,38 @@
 
         <div class="success-message" id="successMessage"></div>
         <div class="error-message" id="errorMessage"></div>
+        </div>
+    </div>
+
+    <!-- Crop Photo Modal -->
+    <div id="crop-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 12px; padding: 30px; max-width: 900px; width: 90%; max-height: 90vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">Crop Photo</h2>
+                <button onclick="closeCropModal()" style="background: none; border: none; font-size: 28px; cursor: pointer; color: #666;">&times;</button>
+            </div>
+
+            <p style="color: #666; margin-bottom: 20px;">Drag the corners to adjust the crop area.</p>
+
+            <div style="position: relative; display: inline-block; max-width: 100%; margin-bottom: 20px;">
+                <canvas id="user-crop-source-canvas" style="max-width: 100%; display: block; background: #f5f5f5; border-radius: 8px;"></canvas>
+                <div id="user-crop-box" style="position: absolute; border: 3px solid #667eea; background: rgba(102, 126, 234, 0.1); cursor: move;">
+                    <div class="crop-handle" data-handle="nw" style="position: absolute; top: -6px; left: -6px; width: 12px; height: 12px; background: #667eea; border: 2px solid white; border-radius: 50%; cursor: nw-resize;"></div>
+                    <div class="crop-handle" data-handle="ne" style="position: absolute; top: -6px; right: -6px; width: 12px; height: 12px; background: #667eea; border: 2px solid white; border-radius: 50%; cursor: ne-resize;"></div>
+                    <div class="crop-handle" data-handle="sw" style="position: absolute; bottom: -6px; left: -6px; width: 12px; height: 12px; background: #667eea; border: 2px solid white; border-radius: 50%; cursor: sw-resize;"></div>
+                    <div class="crop-handle" data-handle="se" style="position: absolute; bottom: -6px; right: -6px; width: 12px; height: 12px; background: #667eea; border: 2px solid white; border-radius: 50%; cursor: se-resize;"></div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <h4 style="margin-bottom: 10px;">Preview:</h4>
+                <canvas id="user-crop-preview-canvas" style="max-width: 300px; max-height: 300px; border: 2px solid #e0e0e0; border-radius: 8px; background: #f5f5f5;"></canvas>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button onclick="closeCropModal()" class="btn-secondary" style="flex: 1;">Cancel</button>
+                <button onclick="applyUserCrop()" class="btn-primary" style="flex: 1;">Apply Crop</button>
+            </div>
         </div>
     </div>
 
@@ -957,6 +1087,416 @@
             errorMessage.style.display = 'none';
             loading.classList.remove('active');
         }
+
+        // ============================================================================
+        // UPLOAD, CROP, AND ROTATE FUNCTIONALITY
+        // ============================================================================
+
+        let uploadedPhotos = []; // Array of {file, dataUrl, rotation, cropData}
+        let currentCropPhotoIndex = null;
+        let cropBox = null;
+        let cropBoxData = { x: 0, y: 0, width: 200, height: 200 };
+        let isDraggingCrop = false;
+        let isResizingCrop = false;
+        let resizeHandle = null;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let originalCropData = {};
+
+        // Method selection
+        document.getElementById('choose-camera').addEventListener('click', () => {
+            document.getElementById('method-selection').style.display = 'none';
+            document.getElementById('camera-section').style.display = 'block';
+        });
+
+        document.getElementById('choose-upload').addEventListener('click', () => {
+            document.getElementById('method-selection').style.display = 'none';
+            document.getElementById('upload-section').style.display = 'block';
+            uploadedPhotos = [];
+            renderUploadedPhotos();
+        });
+
+        document.getElementById('change-method-camera').addEventListener('click', () => {
+            document.getElementById('camera-section').style.display = 'none';
+            document.getElementById('method-selection').style.display = 'block';
+            stopCamera();
+            capturedPhotos = [];
+            photoGrid.innerHTML = '';
+        });
+
+        document.getElementById('change-method-upload').addEventListener('click', () => {
+            document.getElementById('upload-section').style.display = 'none';
+            document.getElementById('method-selection').style.display = 'block';
+            uploadedPhotos = [];
+        });
+
+        // File upload handling
+        document.getElementById('photo-upload-input').addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            for (const file of files) {
+                const dataUrl = await readFileAsDataURL(file);
+                uploadedPhotos.push({
+                    file: file,
+                    dataUrl: dataUrl,
+                    rotation: 0,
+                    cropData: null
+                });
+            }
+            renderUploadedPhotos();
+            e.target.value = '';
+        });
+
+        function readFileAsDataURL(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function renderUploadedPhotos() {
+            const container = document.getElementById('upload-photos-preview');
+            const submitBtn = document.getElementById('submit-upload');
+
+            if (uploadedPhotos.length === 0) {
+                container.innerHTML = '<p style="color: #999; text-align: center;">No photos uploaded yet</p>';
+                submitBtn.disabled = true;
+                return;
+            }
+
+            container.innerHTML = uploadedPhotos.map((photo, index) => {
+                const cropBadge = photo.cropData ? '<span style="background: #667eea; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px;">✂️ Cropped</span>' : '';
+                return `
+                    <div class="upload-photo-card" data-index="${index}">
+                        <canvas id="upload-canvas-${index}" class="upload-photo-preview"></canvas>
+                        <div class="upload-photo-controls">
+                            <button class="btn-secondary btn-sm" onclick="openUserCropModal(${index})">✂️ Crop</button>
+                            <button class="btn-secondary btn-sm" onclick="rotateUserPhoto(${index}, -90)">↶ Left</button>
+                            <button class="btn-secondary btn-sm" onclick="rotateUserPhoto(${index}, 90)">↷ Right</button>
+                            <button class="btn-danger btn-sm" onclick="removeUserPhoto(${index})">🗑 Remove</button>
+                            <span style="margin-left: auto; color: #666; font-size: 13px;">${photo.file.name}${cropBadge}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            uploadedPhotos.forEach((photo, index) => {
+                drawUserRotatedImage(index);
+            });
+
+            submitBtn.disabled = uploadedPhotos.length === 0;
+        }
+
+        function drawUserRotatedImage(index) {
+            const photo = uploadedPhotos[index];
+            const canvas = document.getElementById(`upload-canvas-${index}`);
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+
+            img.onload = () => {
+                const rotation = photo.rotation || 0;
+                const isRotated90 = Math.abs(rotation % 180) === 90;
+
+                const tempCanvas = document.createElement('canvas');
+                const tempCtx = tempCanvas.getContext('2d');
+
+                if (isRotated90) {
+                    tempCanvas.width = img.height;
+                    tempCanvas.height = img.width;
+                } else {
+                    tempCanvas.width = img.width;
+                    tempCanvas.height = img.height;
+                }
+
+                tempCtx.save();
+                tempCtx.translate(tempCanvas.width / 2, tempCanvas.height / 2);
+                tempCtx.rotate(rotation * Math.PI / 180);
+                tempCtx.drawImage(img, -img.width / 2, -img.height / 2);
+                tempCtx.restore();
+
+                if (photo.cropData) {
+                    const crop = photo.cropData;
+                    canvas.width = crop.width;
+                    canvas.height = crop.height;
+                    ctx.drawImage(tempCanvas, crop.x, crop.y, crop.width, crop.height, 0, 0, crop.width, crop.height);
+                } else {
+                    canvas.width = tempCanvas.width;
+                    canvas.height = tempCanvas.height;
+                    ctx.drawImage(tempCanvas, 0, 0);
+                }
+            };
+
+            img.src = photo.dataUrl;
+        }
+
+        function rotateUserPhoto(index, degrees) {
+            uploadedPhotos[index].rotation = (uploadedPhotos[index].rotation + degrees) % 360;
+            uploadedPhotos[index].cropData = null;
+            drawUserRotatedImage(index);
+        }
+
+        function removeUserPhoto(index) {
+            uploadedPhotos.splice(index, 1);
+            renderUploadedPhotos();
+        }
+
+        function openUserCropModal(index) {
+            currentCropPhotoIndex = index;
+            const photo = uploadedPhotos[index];
+
+            const canvas = document.getElementById('user-crop-source-canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+
+            img.onload = () => {
+                const rotation = photo.rotation || 0;
+                const isRotated90 = Math.abs(rotation % 180) === 90;
+
+                if (isRotated90) {
+                    canvas.width = img.height;
+                    canvas.height = img.width;
+                } else {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                }
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.save();
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.rotate(rotation * Math.PI / 180);
+                ctx.drawImage(img, -img.width / 2, -img.height / 2);
+                ctx.restore();
+
+                if (photo.cropData) {
+                    cropBoxData = { ...photo.cropData };
+                } else {
+                    const margin = 0.1;
+                    cropBoxData = {
+                        x: canvas.width * margin,
+                        y: canvas.height * margin,
+                        width: canvas.width * 0.8,
+                        height: canvas.height * 0.8
+                    };
+                }
+
+                updateUserCropBox();
+                updateUserCropPreview();
+
+                document.getElementById('crop-modal').style.display = 'flex';
+                setupUserCropDragHandlers();
+            };
+
+            img.src = photo.dataUrl;
+        }
+
+        function setupUserCropDragHandlers() {
+            cropBox = document.getElementById('user-crop-box');
+            const handles = cropBox.querySelectorAll('.crop-handle');
+
+            cropBox.addEventListener('mousedown', startDragUserCropBox);
+
+            handles.forEach(handle => {
+                handle.addEventListener('mousedown', (e) => {
+                    e.stopPropagation();
+                    startResizeUserCropBox(e);
+                });
+            });
+
+            document.addEventListener('mousemove', onUserCropMouseMove);
+            document.addEventListener('mouseup', stopUserCropDrag);
+        }
+
+        function startDragUserCropBox(e) {
+            if (e.target.classList.contains('crop-handle')) return;
+            isDraggingCrop = true;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            originalCropData = { ...cropBoxData };
+            e.preventDefault();
+        }
+
+        function startResizeUserCropBox(e) {
+            isResizingCrop = true;
+            resizeHandle = e.target.dataset.handle;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            originalCropData = { ...cropBoxData };
+            e.preventDefault();
+        }
+
+        function onUserCropMouseMove(e) {
+            if (!isDraggingCrop && !isResizingCrop) return;
+
+            const canvas = document.getElementById('user-crop-source-canvas');
+            const rect = canvas.getBoundingClientRect();
+            const scale = canvas.width / rect.width;
+
+            const deltaX = (e.clientX - dragStartX) * scale;
+            const deltaY = (e.clientY - dragStartY) * scale;
+
+            if (isDraggingCrop) {
+                cropBoxData.x = Math.max(0, Math.min(canvas.width - cropBoxData.width, originalCropData.x + deltaX));
+                cropBoxData.y = Math.max(0, Math.min(canvas.height - cropBoxData.height, originalCropData.y + deltaY));
+            } else if (isResizingCrop) {
+                switch (resizeHandle) {
+                    case 'nw':
+                        cropBoxData.x = Math.max(0, originalCropData.x + deltaX);
+                        cropBoxData.y = Math.max(0, originalCropData.y + deltaY);
+                        cropBoxData.width = originalCropData.width - deltaX;
+                        cropBoxData.height = originalCropData.height - deltaY;
+                        break;
+                    case 'ne':
+                        cropBoxData.y = Math.max(0, originalCropData.y + deltaY);
+                        cropBoxData.width = originalCropData.width + deltaX;
+                        cropBoxData.height = originalCropData.height - deltaY;
+                        break;
+                    case 'sw':
+                        cropBoxData.x = Math.max(0, originalCropData.x + deltaX);
+                        cropBoxData.width = originalCropData.width - deltaX;
+                        cropBoxData.height = originalCropData.height + deltaY;
+                        break;
+                    case 'se':
+                        cropBoxData.width = originalCropData.width + deltaX;
+                        cropBoxData.height = originalCropData.height + deltaY;
+                        break;
+                }
+
+                cropBoxData.width = Math.max(50, cropBoxData.width);
+                cropBoxData.height = Math.max(50, cropBoxData.height);
+
+                if (cropBoxData.x + cropBoxData.width > canvas.width) {
+                    cropBoxData.width = canvas.width - cropBoxData.x;
+                }
+                if (cropBoxData.y + cropBoxData.height > canvas.height) {
+                    cropBoxData.height = canvas.height - cropBoxData.y;
+                }
+            }
+
+            updateUserCropBox();
+            updateUserCropPreview();
+        }
+
+        function stopUserCropDrag() {
+            isDraggingCrop = false;
+            isResizingCrop = false;
+            resizeHandle = null;
+        }
+
+        function updateUserCropBox() {
+            const canvas = document.getElementById('user-crop-source-canvas');
+            const rect = canvas.getBoundingClientRect();
+            const scale = rect.width / canvas.width;
+
+            cropBox.style.left = (cropBoxData.x * scale) + 'px';
+            cropBox.style.top = (cropBoxData.y * scale) + 'px';
+            cropBox.style.width = (cropBoxData.width * scale) + 'px';
+            cropBox.style.height = (cropBoxData.height * scale) + 'px';
+        }
+
+        function updateUserCropPreview() {
+            const sourceCanvas = document.getElementById('user-crop-source-canvas');
+            const previewCanvas = document.getElementById('user-crop-preview-canvas');
+            const ctx = previewCanvas.getContext('2d');
+
+            previewCanvas.width = cropBoxData.width;
+            previewCanvas.height = cropBoxData.height;
+
+            ctx.drawImage(sourceCanvas, cropBoxData.x, cropBoxData.y, cropBoxData.width, cropBoxData.height, 0, 0, cropBoxData.width, cropBoxData.height);
+        }
+
+        function applyUserCrop() {
+            if (currentCropPhotoIndex !== null) {
+                uploadedPhotos[currentCropPhotoIndex].cropData = { ...cropBoxData };
+                renderUploadedPhotos();
+            }
+            closeCropModal();
+        }
+
+        function closeCropModal() {
+            document.removeEventListener('mousemove', onUserCropMouseMove);
+            document.removeEventListener('mouseup', stopUserCropDrag);
+            cropBox = null;
+            currentCropPhotoIndex = null;
+            isDraggingCrop = false;
+            isResizingCrop = false;
+            document.getElementById('crop-modal').style.display = 'none';
+        }
+
+        // Submit uploaded photos
+        document.getElementById('submit-upload').addEventListener('click', async () => {
+            const userName = document.getElementById('userName').value.trim();
+            const locationId = selectedLocationId;
+
+            if (!userName) {
+                document.getElementById('errorMessage').textContent = 'Please enter your name.';
+                document.getElementById('errorMessage').style.display = 'block';
+                return;
+            }
+
+            if (!locationId) {
+                document.getElementById('errorMessage').textContent = 'Please select a location.';
+                document.getElementById('errorMessage').style.display = 'block';
+                return;
+            }
+
+            if (uploadedPhotos.length === 0) {
+                document.getElementById('errorMessage').textContent = 'Please upload at least one photo.';
+                document.getElementById('errorMessage').style.display = 'block';
+                return;
+            }
+
+            // Convert canvases to data URLs
+            const photos = [];
+            for (let i = 0; i < uploadedPhotos.length; i++) {
+                const canvas = document.getElementById(`upload-canvas-${i}`);
+                if (canvas) {
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                    photos.push(dataUrl);
+                }
+            }
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('submit-upload').disabled = true;
+
+            try {
+                const response = await fetch('/api/register-face', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        person_name: userName,
+                        location_id: locationId,
+                        photos: photos
+                    })
+                });
+
+                const data = await response.json();
+
+                document.getElementById('loading').style.display = 'none';
+
+                if (response.ok && data.success) {
+                    document.getElementById('successMessage').textContent = `Successfully registered ${data.faces_registered || photos.length} face(s) for ${userName}!`;
+                    document.getElementById('successMessage').style.display = 'block';
+
+                    // Reset
+                    uploadedPhotos = [];
+                    renderUploadedPhotos();
+                    document.getElementById('userName').value = '';
+                    document.getElementById('upload-section').style.display = 'none';
+                    document.getElementById('method-selection').style.display = 'block';
+                } else {
+                    throw new Error(data.detail || 'Failed to register faces');
+                }
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('submit-upload').disabled = false;
+                document.getElementById('errorMessage').textContent = error.message || 'Error submitting registration';
+                document.getElementById('errorMessage').style.display = 'block';
+            }
+        });
 
         // Cleanup on page unload
         window.addEventListener('beforeunload', () => {
