@@ -3171,18 +3171,14 @@ async function autoDetectFace() {
             const data = await detectResponse.json();
             if (data.success && data.faces && data.faces.length > 0) {
                 const face = data.faces[0]; // Use first detected face
-                const imageData = currentEditPhotos.cropper.getImageData();
 
-                // Convert face coordinates to cropper coordinates
-                // face bounds are relative to image, need to adjust for displayed size
-                const scaleX = imageData.naturalWidth / imageData.width;
-                const scaleY = imageData.naturalHeight / imageData.height;
-
+                // Cropper.js setData() expects coordinates in the original image's coordinate system
+                // CodeProject.AI returns face bounds in original image coordinates, so use them directly
                 currentEditPhotos.cropper.setData({
-                    x: face.x_min / scaleX,
-                    y: face.y_min / scaleY,
-                    width: (face.x_max - face.x_min) / scaleX,
-                    height: (face.y_max - face.y_min) / scaleY
+                    x: face.x_min,
+                    y: face.y_min,
+                    width: face.x_max - face.x_min,
+                    height: face.y_max - face.y_min
                 });
 
                 showAlert('Face detected and cropped!', 'success');
