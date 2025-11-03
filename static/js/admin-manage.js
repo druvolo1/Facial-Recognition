@@ -3176,9 +3176,9 @@ async function autoDetectFace() {
                 const faceWidth = face.x_max - face.x_min;
                 const faceHeight = face.y_max - face.y_min;
 
-                // Add 50% padding on all sides to capture whole head
-                const paddingX = faceWidth * 0.5;
-                const paddingY = faceHeight * 0.5;
+                // Add padding to capture whole head (more horizontal for ears, less vertical to avoid too much background)
+                const paddingX = faceWidth * 0.4;  // 40% horizontal padding for ears
+                const paddingY = faceHeight * 0.3; // 30% vertical padding for hair/neck
 
                 // Get image dimensions to ensure we don't go out of bounds
                 const imageData = currentEditPhotos.cropper.getImageData();
