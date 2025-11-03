@@ -60,6 +60,9 @@ DEFAULT_PRESENCE_TIMEOUT_MINUTES = int(os.getenv("DEFAULT_PRESENCE_TIMEOUT_MINUT
 DEFAULT_DETECTION_COOLDOWN_SECONDS = int(os.getenv("DEFAULT_DETECTION_COOLDOWN_SECONDS", "10"))
 DEFAULT_DASHBOARD_DISPLAY_TIMEOUT_MINUTES = int(os.getenv("DEFAULT_DASHBOARD_DISPLAY_TIMEOUT_MINUTES", "2"))
 
+# User expiration configuration
+DEFAULT_EXPIRATION_DAYS = int(os.getenv("DEFAULT_EXPIRATION_DAYS", "1"))  # Number of days until visitor expires
+
 # Get the application directory
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = os.path.dirname(APP_DIR)
@@ -5191,8 +5194,8 @@ async def get_registered_faces(
                 "location_id": face_record.location_id if face_record else None,
                 "location_name": location_name,
                 "is_employee": face_record.is_employee if face_record else False,
-                "registered_at": face_record.registered_at.isoformat() if face_record and face_record.registered_at else None,
-                "user_expiration": face_record.user_expiration if face_record else None
+                "registered_at": face_record.registered_at.isoformat() if face_record and hasattr(face_record, 'registered_at') and face_record.registered_at else None,
+                "user_expiration": getattr(face_record, 'user_expiration', None) if face_record else None
             })
 
         print(f"[GET-REGISTERED-FACES] Returning {len(registered_faces)} unique people")
@@ -5436,6 +5439,10 @@ async def admin_register_face(
                         successful_registrations += 1
                         print(f"[ADMIN-REGISTER]   ✓ Photo {idx+1} registered successfully")
 
+                        # Calculate expiration date (today + DEFAULT_EXPIRATION_DAYS)
+                        from datetime import date
+                        expiration_date = date.today() + timedelta(days=DEFAULT_EXPIRATION_DAYS)
+
                         # Save to database
                         registered_face = RegisteredFace(
                             person_id=person_id,
@@ -5447,7 +5454,7 @@ async def admin_register_face(
                             registered_by_user_id=user.id,
                             profile_photo=profile_photo_path if idx == len(data.photos) - 1 else None,
                             is_employee=False,  # Default to visitor
-                            user_expiration=datetime.utcnow().date().isoformat()  # Default to today's date
+                            user_expiration=expiration_date.isoformat()  # Default expiration
                         )
                         session.add(registered_face)
                         await session.commit()
@@ -5704,13 +5711,15 @@ async def update_employee_status(
                     )
 
         # Update all records for this person
+        from datetime import date
         for face_record in face_records:
             face_record.is_employee = is_employee
-            # Update expiration: "never" for employees, today's date for visitors
+            # Update expiration: "never" for employees, today + DEFAULT_EXPIRATION_DAYS for visitors
             if is_employee:
                 face_record.user_expiration = "never"
             else:
-                face_record.user_expiration = datetime.utcnow().date().isoformat()
+                expiration_date = date.today() + timedelta(days=DEFAULT_EXPIRATION_DAYS)
+                face_record.user_expiration = expiration_date.isoformat()
 
         await session.commit()
 

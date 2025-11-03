@@ -513,8 +513,8 @@ async function loadRegisteredFaces() {
                         <h4>${escapeHtml(face.person_name)}</h4>
                         <p>Photos: ${face.photo_count}</p>
                         ${face.location_name ? `<p><span class="badge badge-info">${escapeHtml(face.location_name)}</span></p>` : ''}
-                        ${face.registered_at ? `<p style="font-size: 12px; color: #666; margin-top: 5px;">Registered: ${new Date(face.registered_at).toLocaleDateString()}</p>` : ''}
-                        ${face.user_expiration ? `<p style="font-size: 12px; color: ${face.user_expiration === 'never' ? '#28a745' : '#666'}; margin-top: 2px;">Expires: ${face.user_expiration === 'never' ? 'Never' : new Date(face.user_expiration).toLocaleDateString()} <button onclick="showEditExpirationModal('${escapeHtml(face.person_id)}', '${escapeHtml(face.person_name)}', '${escapeHtml(face.user_expiration)}')" style="background: none; border: none; color: #667eea; cursor: pointer; font-size: 12px; padding: 0; margin-left: 5px;">✏️</button></p>` : ''}
+                        ${face.registered_at ? `<p style="font-size: 12px; color: #666; margin-top: 5px;">Registered: ${formatDateLocal(face.registered_at)}</p>` : ''}
+                        ${face.user_expiration ? `<p style="font-size: 12px; color: ${face.user_expiration === 'never' ? '#28a745' : '#666'}; margin-top: 2px;">Expires: ${face.user_expiration === 'never' ? 'Never' : formatDateLocal(face.user_expiration)} <button onclick="showEditExpirationModal('${escapeHtml(face.person_id)}', '${escapeHtml(face.person_name)}', '${escapeHtml(face.user_expiration)}')" style="background: none; border: none; color: #667eea; cursor: pointer; font-size: 12px; padding: 0; margin-left: 5px;">✏️</button></p>` : ''}
                         <p style="margin-top: 8px;">
                             <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
                                 <input type="checkbox"
@@ -1763,6 +1763,18 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = String(text);
     return div.innerHTML;
+}
+
+// Format date string without timezone issues
+function formatDateLocal(dateString) {
+    if (!dateString) return '';
+    // Parse ISO date string (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss)
+    const parts = dateString.split('T')[0].split('-');
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]) - 1; // Month is 0-indexed
+    const day = parseInt(parts[2]);
+    const date = new Date(year, month, day);
+    return date.toLocaleDateString();
 }
 
 async function logout() {
