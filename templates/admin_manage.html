@@ -1013,6 +1013,13 @@
                     <label for="location-contact">Contact Info</label>
                     <input type="text" id="location-contact">
                 </div>
+                <div class="form-group">
+                    <label for="location-server">CodeProject.AI Server</label>
+                    <select id="location-server">
+                        <option value="">None (will use first available)</option>
+                    </select>
+                    <small style="color: #666;">Select which server this location should use for face recognition</small>
+                </div>
                 <div style="display: flex; gap: 10px;">
                     <button type="submit" class="btn btn-primary">Create Location</button>
                     <button type="button" class="btn btn-secondary" onclick="closeModal('create-location-modal')">Cancel</button>

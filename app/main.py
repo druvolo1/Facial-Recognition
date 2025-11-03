@@ -136,8 +136,8 @@ class RegisteredFace(Base):
     codeproject_user_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     # Path to the image file
     file_path: Mapped[str] = mapped_column(String(512), nullable=False)
-    # CodeProject.AI endpoint URL where this face was registered
-    codeproject_endpoint: Mapped[str] = mapped_column(String(512), nullable=False)
+    # CodeProject.AI server where this face was registered
+    codeproject_server_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("codeproject_server.id"), nullable=True)
     # Location where this face was registered
     location_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("location.id"), nullable=True)
     # When it was registered
@@ -162,6 +162,7 @@ class Location(Base):
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     timezone: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, default='UTC')
     contact_info: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    codeproject_server_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("codeproject_server.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     created_by_user_id: Mapped[int] = mapped_column(Integer, ForeignKey("user.id"), nullable=False)
 
@@ -265,7 +266,7 @@ class Device(Base):
     area_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("area.id", ondelete="SET NULL"), nullable=True)
     # Device type: 'registration_kiosk' or 'people_scanner'
     device_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    codeproject_endpoint: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    codeproject_server_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("codeproject_server.id"), nullable=True)
     is_approved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     registered_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
@@ -598,7 +599,7 @@ class ApproveDeviceRequest(BaseModel):
     location_id: int
     area_id: Optional[int] = None
     device_type: str  # 'registration_kiosk', 'people_scanner', or 'location_dashboard'
-    codeproject_endpoint: Optional[str] = None  # Not required for location_dashboard
+    codeproject_server_id: Optional[int] = None  # Not required for location_dashboard
     # Processing mode: 'direct' (device -> CodeProject.AI) or 'server' (device -> flask -> CodeProject.AI)
     processing_mode: Optional[str] = 'server'  # Default to 'server'
     # Scanner detection settings (optional, defaults to .env values)
@@ -614,7 +615,7 @@ class UpdateDeviceRequest(BaseModel):
     location_id: Optional[int] = None
     area_id: Optional[int] = None
     device_type: Optional[str] = None
-    codeproject_endpoint: Optional[str] = None
+    codeproject_server_id: Optional[int] = None
     # Processing mode: 'direct' or 'server'
     processing_mode: Optional[str] = None
     # Scanner detection settings
@@ -631,6 +632,7 @@ class CreateLocationRequest(BaseModel):
     description: Optional[str] = None
     timezone: Optional[str] = 'UTC'
     contact_info: Optional[str] = None
+    codeproject_server_id: Optional[int] = None
 
 
 class UpdateLocationRequest(BaseModel):
@@ -639,6 +641,7 @@ class UpdateLocationRequest(BaseModel):
     description: Optional[str] = None
     timezone: Optional[str] = None
     contact_info: Optional[str] = None
+    codeproject_server_id: Optional[int] = None
 
 
 class CreateAreaRequest(BaseModel):
@@ -2219,6 +2222,7 @@ async def create_location(
             description=location_data.description,
             timezone=location_data.timezone,
             contact_info=location_data.contact_info,
+            codeproject_server_id=location_data.codeproject_server_id,
             created_by_user_id=admin.id
         )
 
@@ -2273,6 +2277,16 @@ async def list_locations(
         # Get approved devices for each location
         location_list = []
         for loc in locations:
+            # Get server name for this location
+            server_name = None
+            if loc.codeproject_server_id:
+                server_result = await session.execute(
+                    select(CodeProjectServer).where(CodeProjectServer.id == loc.codeproject_server_id)
+                )
+                server = server_result.scalar_one_or_none()
+                if server:
+                    server_name = server.friendly_name
+
             devices_result = await session.execute(
                 select(Device).where(
                     Device.location_id == loc.id,
@@ -2288,13 +2302,15 @@ async def list_locations(
                 "description": loc.description,
                 "timezone": loc.timezone,
                 "contact_info": loc.contact_info,
+                "codeproject_server_id": loc.codeproject_server_id,
+                "codeproject_server_name": server_name,
                 "created_at": loc.created_at.isoformat(),
                 "approved_devices": [
                     {
                         "device_id": d.device_id,
                         "device_name": d.device_name,
                         "device_type": d.device_type,
-                        "codeproject_endpoint": d.codeproject_endpoint,
+                        "codeproject_server_id": d.codeproject_server_id,
                         "location_id": d.location_id,
                         "last_seen": d.last_seen.isoformat() if d.last_seen else None
                     }
@@ -2414,6 +2430,8 @@ async def update_location(
         location.timezone = location_data.timezone
     if location_data.contact_info is not None:
         location.contact_info = location_data.contact_info
+    if location_data.codeproject_server_id is not None:
+        location.codeproject_server_id = location_data.codeproject_server_id
 
     await session.commit()
 
@@ -3588,7 +3606,7 @@ async def delete_codeproject_server(
 
     # Check if any devices are using this server
     devices_result = await session.execute(
-        select(Device).where(Device.codeproject_endpoint == server.endpoint_url)
+        select(Device).where(Device.codeproject_server_id == server_id)
     )
     devices = devices_result.scalars().all()
 
@@ -3709,7 +3727,7 @@ async def get_server_faces(
             db_result = await session.execute(
                 select(RegisteredFace).where(
                     RegisteredFace.codeproject_user_id == userid,
-                    RegisteredFace.codeproject_endpoint == server.endpoint_url
+                    RegisteredFace.codeproject_server_id == server_id
                 )
             )
             db_records = db_result.scalars().all()
@@ -3776,7 +3794,7 @@ async def delete_server_face(
     db_result = await session.execute(
         select(RegisteredFace).where(
             RegisteredFace.codeproject_user_id == userid,
-            RegisteredFace.codeproject_endpoint == server.endpoint_url
+            RegisteredFace.codeproject_server_id == server_id
         )
     )
     face_records = db_result.scalars().all()
@@ -4338,16 +4356,41 @@ async def approve_device(
     if not location_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Location not found")
 
-    # Validate device type and codeproject_endpoint requirements
+    # Validate device type and determine CodeProject server
     if data.device_type in ['registration_kiosk', 'people_scanner']:
-        if not data.codeproject_endpoint:
-            raise HTTPException(
-                status_code=400,
-                detail=f"CodeProject endpoint is required for {data.device_type}"
+        # These devices need a CodeProject server
+        server_id = data.codeproject_server_id
+
+        if not server_id:
+            # Default to location's server
+            location = location_result.scalar_one()
+            server_id = location.codeproject_server_id
+
+        if not server_id:
+            # Default to first available server
+            first_server_result = await session.execute(
+                select(CodeProjectServer).order_by(CodeProjectServer.id).limit(1)
             )
+            first_server = first_server_result.scalar_one_or_none()
+            if first_server:
+                server_id = first_server.id
+            else:
+                raise HTTPException(
+                    status_code=400,
+                    detail="No CodeProject servers available. Please add a CodeProject server first."
+                )
+
+        # Verify the server exists
+        server_check = await session.execute(
+            select(CodeProjectServer).where(CodeProjectServer.id == server_id)
+        )
+        if not server_check.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail="CodeProject server not found")
+
+        data.codeproject_server_id = server_id
     elif data.device_type == 'location_dashboard':
-        # Dashboard doesn't need CodeProject endpoint
-        data.codeproject_endpoint = None
+        # Dashboard doesn't need CodeProject server
+        data.codeproject_server_id = None
     else:
         raise HTTPException(
             status_code=400,
@@ -4363,7 +4406,7 @@ async def approve_device(
     device.location_id = data.location_id
     device.area_id = data.area_id
     device.device_type = data.device_type
-    device.codeproject_endpoint = data.codeproject_endpoint
+    device.codeproject_server_id = data.codeproject_server_id
     device.approved_at = datetime.utcnow()
     device.approved_by_user_id = user.id
     device.device_token = device_token
@@ -4539,6 +4582,16 @@ async def list_devices(
             if area:
                 area_name = area.area_name
 
+        # Get server name
+        server_name = None
+        if device.codeproject_server_id:
+            server_result = await session.execute(
+                select(CodeProjectServer).where(CodeProjectServer.id == device.codeproject_server_id)
+            )
+            server = server_result.scalar_one_or_none()
+            if server:
+                server_name = server.friendly_name
+
         # Calculate token status
         has_token = device.device_token is not None
         token_status = "active" if has_token else "missing"
@@ -4556,7 +4609,8 @@ async def list_devices(
             "location_name": location_name,
             "area_id": device.area_id,
             "area_name": area_name,
-            "codeproject_endpoint": device.codeproject_endpoint,
+            "codeproject_server_id": device.codeproject_server_id,
+            "codeproject_server_name": server_name,
             "processing_mode": device.processing_mode or 'server',
             "registered_at": device.registered_at.isoformat(),
             "last_seen": device.last_seen.isoformat() if device.last_seen else None,
@@ -4618,21 +4672,28 @@ async def update_device(
         if not has_permission:
             raise HTTPException(status_code=403, detail="Access denied")
 
-    # Validate device type and codeproject_endpoint compatibility
+    # Validate device type and codeproject_server_id compatibility
     target_device_type = data.device_type if data.device_type is not None else device.device_type
 
     if target_device_type in ['registration_kiosk', 'people_scanner']:
-        # These types require a CodeProject endpoint
-        target_endpoint = data.codeproject_endpoint if data.codeproject_endpoint is not None else device.codeproject_endpoint
-        if not target_endpoint:
+        # These types require a CodeProject server
+        target_server_id = data.codeproject_server_id if data.codeproject_server_id is not None else device.codeproject_server_id
+        if not target_server_id:
             raise HTTPException(
                 status_code=400,
-                detail=f"CodeProject endpoint is required for {target_device_type}"
+                detail=f"CodeProject server is required for {target_device_type}"
             )
+        # Verify server exists if being updated
+        if data.codeproject_server_id is not None:
+            server_check = await session.execute(
+                select(CodeProjectServer).where(CodeProjectServer.id == data.codeproject_server_id)
+            )
+            if not server_check.scalar_one_or_none():
+                raise HTTPException(status_code=404, detail="CodeProject server not found")
     elif target_device_type == 'location_dashboard':
         # Dashboard doesn't use CodeProject, clear it if changing to this type
         if data.device_type == 'location_dashboard':
-            data.codeproject_endpoint = None
+            data.codeproject_server_id = None
 
     # Update device
     if data.device_name is not None:
@@ -4643,11 +4704,11 @@ async def update_device(
         device.area_id = data.area_id
     if data.device_type is not None:
         device.device_type = data.device_type
-    if data.codeproject_endpoint is not None:
-        device.codeproject_endpoint = data.codeproject_endpoint
+    if data.codeproject_server_id is not None:
+        device.codeproject_server_id = data.codeproject_server_id
     elif data.device_type == 'location_dashboard':
-        # Explicitly clear codeproject_endpoint when switching to dashboard
-        device.codeproject_endpoint = None
+        # Explicitly clear codeproject_server_id when switching to dashboard
+        device.codeproject_server_id = None
 
     # Update scanner detection settings
     if data.confidence_threshold is not None:
@@ -4679,10 +4740,10 @@ async def update_device(
             device.location_id = data.location_id
         if data.device_type is not None:
             device.device_type = data.device_type
-        if data.codeproject_endpoint is not None:
-            device.codeproject_endpoint = data.codeproject_endpoint
+        if data.codeproject_server_id is not None:
+            device.codeproject_server_id = data.codeproject_server_id
         elif data.device_type == 'location_dashboard':
-            device.codeproject_endpoint = None
+            device.codeproject_server_id = None
         if data.confidence_threshold is not None:
             device.confidence_threshold = data.confidence_threshold
         if data.presence_timeout_minutes is not None:
@@ -4838,13 +4899,24 @@ async def device_register_face(
         print(f"[DEVICE-REGISTER] Person: {data.name}")
         print(f"[DEVICE-REGISTER] Photos: {len(data.photos)}")
 
-        # Get the device's CodeProject endpoint
-        codeproject_url = device.codeproject_endpoint
-        if not codeproject_url:
+        # Get the device's CodeProject endpoint from server
+        if not device.codeproject_server_id:
             raise HTTPException(
                 status_code=400,
-                detail="Device has no CodeProject endpoint configured"
+                detail="Device has no CodeProject server configured"
             )
+
+        server_result = await session.execute(
+            select(CodeProjectServer).where(CodeProjectServer.id == device.codeproject_server_id)
+        )
+        server = server_result.scalar_one_or_none()
+        if not server:
+            raise HTTPException(
+                status_code=500,
+                detail="CodeProject server not found"
+            )
+
+        codeproject_url = server.endpoint_url
 
         successful_registrations = 0
         errors = []
@@ -4922,7 +4994,7 @@ async def device_register_face(
                             person_name=data.name,
                             codeproject_user_id=data.name,
                             file_path=filepath,
-                            codeproject_endpoint=codeproject_url,
+                            codeproject_server_id=device.codeproject_server_id,
                             location_id=device.location_id,  # Tag with device's location
                             registered_by_user_id=None,  # Device registration
                             profile_photo=profile_photo_path if idx == 0 and profile_photo_path else None,
@@ -4989,13 +5061,24 @@ async def device_recognize_face(
         print(f"[DEVICE-RECOGNIZE] Device: {device.device_name} ({device.device_id[:8]}...)")
         print(f"[DEVICE-RECOGNIZE] Location: {device.location_id}")
 
-        # Get the device's CodeProject endpoint
-        codeproject_url = device.codeproject_endpoint
-        if not codeproject_url:
+        # Get the device's CodeProject endpoint from server
+        if not device.codeproject_server_id:
             raise HTTPException(
                 status_code=400,
-                detail="Device has no CodeProject endpoint configured"
+                detail="Device has no CodeProject server configured"
             )
+
+        server_result = await session.execute(
+            select(CodeProjectServer).where(CodeProjectServer.id == device.codeproject_server_id)
+        )
+        server = server_result.scalar_one_or_none()
+        if not server:
+            raise HTTPException(
+                status_code=500,
+                detail="CodeProject server not found"
+            )
+
+        codeproject_url = server.endpoint_url
 
         # Extract base64 data from data URL
         image_data = data.image
@@ -5280,6 +5363,43 @@ async def register_face(
         print(f"[REGISTER] User: {data.name}")
         print(f"[REGISTER] Photos to register: {len(data.photos)}")
 
+        # Get user's location and its CodeProject server
+        location_context = await get_user_selected_location_and_role(user, session)
+        location_id = location_context.get("location_id") if location_context else None
+
+        if not location_id:
+            raise HTTPException(
+                status_code=400,
+                detail="No location selected. Please select a location first."
+            )
+
+        # Get location's CodeProject server
+        location_result = await session.execute(
+            select(Location).where(Location.id == location_id)
+        )
+        location = location_result.scalar_one_or_none()
+
+        if not location or not location.codeproject_server_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Location has no CodeProject server configured. Please configure a server for this location."
+            )
+
+        # Get the server endpoint
+        server_result = await session.execute(
+            select(CodeProjectServer).where(CodeProjectServer.id == location.codeproject_server_id)
+        )
+        server = server_result.scalar_one_or_none()
+
+        if not server:
+            raise HTTPException(
+                status_code=500,
+                detail="CodeProject server not found"
+            )
+
+        codeproject_url = server.endpoint_url
+        print(f"[REGISTER] Using CodeProject server: {server.friendly_name} ({codeproject_url})")
+
         successful_registrations = 0
         errors = []
 
@@ -5315,7 +5435,7 @@ async def register_face(
                 print(f"[REGISTER]   Sending to CodeProject.AI...")
 
                 response = requests.post(
-                    f"{CODEPROJECT_BASE_URL}/vision/face/register",
+                    f"{codeproject_url}/vision/face/register",
                     files=files,
                     data=params,
                     timeout=60
@@ -5327,16 +5447,12 @@ async def register_face(
                         successful_registrations += 1
                         print(f"[REGISTER]   ✓ Photo {idx+1} registered successfully")
 
-                        # Get user's selected location
-                        location_context = await get_user_selected_location_and_role(user, session)
-                        location_id = location_context.get("location_id") if location_context else None
-
                         # Save to database
                         registered_face = RegisteredFace(
                             person_name=data.name,
                             codeproject_user_id=data.name,
                             file_path=filepath,
-                            codeproject_endpoint=CODEPROJECT_BASE_URL,
+                            codeproject_server_id=location.codeproject_server_id,
                             location_id=location_id,
                             registered_by_user_id=user.id,
                             is_employee=False  # Default to visitor
@@ -5403,7 +5519,7 @@ async def admin_register_face(
             if not result.scalar_one_or_none():
                 raise HTTPException(status_code=403, detail="Access denied to this location")
 
-        # Get location's CodeProject endpoint
+        # Get location's CodeProject server
         location_result = await session.execute(
             select(Location).where(Location.id == data.location_id)
         )
@@ -5411,13 +5527,20 @@ async def admin_register_face(
         if not location:
             raise HTTPException(status_code=404, detail="Location not found")
 
-        # Get a server for this location (use first available)
-        server_result = await session.execute(select(CodeProjectServer).limit(1))
+        # Get the location's server, or use first available if not set
+        if location.codeproject_server_id:
+            server_result = await session.execute(
+                select(CodeProjectServer).where(CodeProjectServer.id == location.codeproject_server_id)
+            )
+        else:
+            server_result = await session.execute(select(CodeProjectServer).limit(1))
+
         server = server_result.scalar_one_or_none()
         if not server:
             raise HTTPException(status_code=500, detail="No CodeProject.AI server configured")
 
         codeproject_endpoint = server.endpoint_url
+        server_id = server.id
 
         # Check if person already exists at this location, and get or create person_id
         existing_face_result = await session.execute(
@@ -5503,7 +5626,7 @@ async def admin_register_face(
                             person_name=data.person_name,
                             codeproject_user_id=person_id,  # Store person_id as codeproject_user_id
                             file_path=filepath,
-                            codeproject_endpoint=codeproject_endpoint,
+                            codeproject_server_id=server_id,
                             location_id=data.location_id,
                             registered_by_user_id=user.id,
                             profile_photo=profile_photo_path if idx == len(data.photos) - 1 else None,
@@ -5645,9 +5768,22 @@ async def replace_photos(
 
         # Save metadata from old records BEFORE deleting anything
         location_id = face_records[0].location_id
-        codeproject_endpoint = face_records[0].codeproject_endpoint
+        codeproject_server_id = face_records[0].codeproject_server_id
         is_employee = face_records[0].is_employee
         user_expiration = face_records[0].user_expiration
+
+        # Get the server endpoint for CodeProject operations
+        if codeproject_server_id:
+            server_result = await session.execute(
+                select(CodeProjectServer).where(CodeProjectServer.id == codeproject_server_id)
+            )
+            server = server_result.scalar_one_or_none()
+            if server:
+                codeproject_endpoint = server.endpoint_url
+            else:
+                raise HTTPException(status_code=500, detail="CodeProject server not found")
+        else:
+            raise HTTPException(status_code=500, detail="No CodeProject server configured for this face")
 
         # Collect old file paths for deletion later
         old_file_paths = [record.file_path for record in face_records if record.file_path]
@@ -5688,7 +5824,7 @@ async def replace_photos(
                 person_name=person_name,
                 codeproject_user_id=person_id,
                 file_path=photo['filepath'],
-                codeproject_endpoint=codeproject_endpoint,
+                codeproject_server_id=codeproject_server_id,
                 location_id=location_id,
                 registered_by_user_id=user.id,
                 profile_photo=profile_photo_path if idx == len(saved_photos) - 1 else None,
@@ -6565,7 +6701,7 @@ async def register_via_public_link(
                 person_name=data.person_name,
                 codeproject_user_id=person_id,
                 file_path=photo['filepath'],
-                codeproject_endpoint=codeproject_endpoint,
+                codeproject_server_id=server.id,
                 location_id=link.location_id,
                 registered_by_user_id=link.created_by_user_id,
                 profile_photo=profile_photo_path if idx == len(saved_photos) - 1 else None,

@@ -764,13 +764,20 @@ function updateLocationDropdowns() {
 function updateServerDropdowns() {
     const selects = [
         document.getElementById('approve-device-server'),
-        document.getElementById('edit-device-server')
+        document.getElementById('edit-device-server'),
+        document.getElementById('location-server')
     ];
 
     selects.forEach(select => {
         if (select) {
             const currentValue = select.value;
-            select.innerHTML = '<option value="">Select a server...</option>' +
+            // Location server allows "None" option
+            const isLocationServer = select.id === 'location-server';
+            const defaultOption = isLocationServer
+                ? '<option value="">None (will use first available)</option>'
+                : '<option value="">Select a server...</option>';
+
+            select.innerHTML = defaultOption +
                 allServers.map(srv => `<option value="${srv.id}">${escapeHtml(srv.friendly_name)}</option>`).join('');
             if (currentValue) select.value = currentValue;
         }
@@ -861,7 +868,6 @@ document.getElementById('approve-device-form').addEventListener('submit', async 
     const deviceId = document.getElementById('approve-device-id').value;
     const deviceType = document.getElementById('approve-device-type').value;
     const serverId = document.getElementById('approve-device-server').value;
-    const server = allServers.find(s => s.id == serverId);
 
     const areaId = document.getElementById('approve-device-area').value;
 
@@ -870,7 +876,7 @@ document.getElementById('approve-device-form').addEventListener('submit', async 
         location_id: parseInt(document.getElementById('approve-device-location').value),
         area_id: areaId ? parseInt(areaId) : null,
         device_type: deviceType,
-        codeproject_endpoint: deviceType === 'location_dashboard' ? null : (server ? server.endpoint_url : '')
+        codeproject_server_id: deviceType === 'location_dashboard' ? null : (serverId ? parseInt(serverId) : null)
     };
 
     // Add processing mode for devices that process images
@@ -1113,7 +1119,6 @@ document.getElementById('edit-device-form').addEventListener('submit', async (e)
     const deviceId = document.getElementById('edit-device-id').value;
     const deviceType = document.getElementById('edit-device-type').value;
     const serverId = document.getElementById('edit-device-server').value;
-    const server = allServers.find(s => s.id == serverId);
     const areaId = document.getElementById('edit-device-area').value;
 
     const data = {
@@ -1121,7 +1126,7 @@ document.getElementById('edit-device-form').addEventListener('submit', async (e)
         location_id: parseInt(document.getElementById('edit-device-location').value),
         area_id: areaId ? parseInt(areaId) : null,
         device_type: deviceType,
-        codeproject_endpoint: deviceType === 'location_dashboard' ? null : (server ? server.endpoint_url : '')
+        codeproject_server_id: deviceType === 'location_dashboard' ? null : (serverId ? parseInt(serverId) : null)
     };
 
     // Add processing mode for devices that process images
@@ -1359,12 +1364,14 @@ function showCreateLocationModal() {
 document.getElementById('create-location-form').addEventListener('submit', async (e) => {
     e.preventDefault();
 
+    const serverValue = document.getElementById('location-server').value;
     const data = {
         name: document.getElementById('location-name').value,
         address: document.getElementById('location-address').value || null,
         description: document.getElementById('location-description').value || null,
         timezone: document.getElementById('location-timezone').value || 'UTC',
-        contact_info: document.getElementById('location-contact').value || null
+        contact_info: document.getElementById('location-contact').value || null,
+        codeproject_server_id: serverValue ? parseInt(serverValue) : null
     };
 
     try {
