@@ -1817,6 +1817,7 @@ let registerCurrentPositionIndex = 0;
 let registerCapturing = false;
 let registerPersonName = '';
 let registerLocationId = null;
+let registerUploadedPhotos = []; // Array of {file, dataUrl, rotation, cropData}
 
 const registerPositions = [
     { name: 'Center', instruction: 'Look straight ahead' },
@@ -1829,6 +1830,7 @@ const registerPositions = [
 function showRegisterFaceModal() {
     // Reset state
     registerCapturedPhotos = [];
+    registerUploadedPhotos = [];
     registerCurrentPositionIndex = 0;
     registerCapturing = false;
     registerPersonName = '';
@@ -1841,7 +1843,9 @@ function showRegisterFaceModal() {
     document.getElementById('register-progress-fill').style.width = '0%';
     document.getElementById('register-begin-btn').disabled = false;
     document.getElementById('register-submit-btn').disabled = true;
+    document.getElementById('upload-submit-btn').disabled = true;
     document.getElementById('register-guidance-indicator').textContent = '';
+    document.getElementById('upload-preview-container').innerHTML = '';
 
     // Show step 1
     document.querySelectorAll('.register-step').forEach(step => step.classList.remove('active'));
@@ -1879,11 +1883,393 @@ document.getElementById('register-name-continue').addEventListener('click', () =
         return;
     }
 
-    // Go to camera step
+    // Go to method selection step
+    goToRegisterStep('method');
+});
+
+// Helper function to navigate between register steps
+function goToRegisterStep(stepName) {
     document.querySelectorAll('.register-step').forEach(step => step.classList.remove('active'));
-    document.getElementById('register-step-camera').classList.add('active');
+    document.getElementById(`register-step-${stepName}`).classList.add('active');
+
+    // Clean up based on step
+    if (stepName !== 'camera') {
+        stopRegisterCamera();
+    }
+}
+
+// Choose camera method
+document.getElementById('choose-camera-btn').addEventListener('click', () => {
+    goToRegisterStep('camera');
     startRegisterCamera();
 });
+
+// Choose upload method
+document.getElementById('choose-upload-btn').addEventListener('click', () => {
+    goToRegisterStep('upload');
+    // Reset uploaded photos
+    registerUploadedPhotos = [];
+    renderUploadedPhotos();
+});
+
+// Handle file upload
+document.getElementById('upload-photos-input').addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files);
+
+    for (const file of files) {
+        // Read file as data URL
+        const dataUrl = await readFileAsDataURL(file);
+
+        // Add to uploaded photos with default settings
+        registerUploadedPhotos.push({
+            file: file,
+            dataUrl: dataUrl,
+            rotation: 0,
+            cropData: null  // Will store crop coordinates if user crops
+        });
+    }
+
+    renderUploadedPhotos();
+
+    // Clear file input so same files can be selected again
+    e.target.value = '';
+});
+
+// Read file as data URL
+function readFileAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+// Render uploaded photos with preview and controls
+function renderUploadedPhotos() {
+    const container = document.getElementById('upload-preview-container');
+    const submitBtn = document.getElementById('upload-submit-btn');
+
+    if (registerUploadedPhotos.length === 0) {
+        container.innerHTML = '<p style="color: #999; text-align: center;">No photos uploaded yet</p>';
+        submitBtn.disabled = true;
+        return;
+    }
+
+    container.innerHTML = registerUploadedPhotos.map((photo, index) => {
+        const cropBadge = photo.cropData ? '<span style="background: #667eea; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px;">✂️ Cropped</span>' : '';
+        return `
+            <div class="upload-photo-card" data-index="${index}">
+                <canvas id="upload-canvas-${index}" class="upload-photo-preview"></canvas>
+                <div class="upload-photo-controls">
+                    <button class="btn btn-secondary btn-sm" onclick="openCropModal(${index})">✂️ Crop</button>
+                    <button class="btn btn-secondary btn-sm" onclick="rotateUploadPhoto(${index}, -90)">↶ Rotate Left</button>
+                    <button class="btn btn-secondary btn-sm" onclick="rotateUploadPhoto(${index}, 90)">↷ Rotate Right</button>
+                    <button class="btn btn-danger btn-sm" onclick="removeUploadPhoto(${index})">🗑 Remove</button>
+                    <span style="margin-left: auto; color: #666; font-size: 14px;">${escapeHtml(photo.file.name)}${cropBadge}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // Draw canvases with current rotation
+    registerUploadedPhotos.forEach((photo, index) => {
+        drawRotatedImage(index);
+    });
+
+    // Enable submit if we have photos
+    submitBtn.disabled = registerUploadedPhotos.length === 0;
+}
+
+// Draw image on canvas with rotation and crop
+function drawRotatedImage(index) {
+    const photo = registerUploadedPhotos[index];
+    const canvas = document.getElementById(`upload-canvas-${index}`);
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+
+    img.onload = () => {
+        const rotation = photo.rotation || 0;
+        const isRotated90 = Math.abs(rotation % 180) === 90;
+
+        // Create temporary canvas for rotation
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+
+        if (isRotated90) {
+            tempCanvas.width = img.height;
+            tempCanvas.height = img.width;
+        } else {
+            tempCanvas.width = img.width;
+            tempCanvas.height = img.height;
+        }
+
+        // Draw rotated image to temp canvas
+        tempCtx.save();
+        tempCtx.translate(tempCanvas.width / 2, tempCanvas.height / 2);
+        tempCtx.rotate(rotation * Math.PI / 180);
+        tempCtx.drawImage(img, -img.width / 2, -img.height / 2);
+        tempCtx.restore();
+
+        // Apply crop if exists
+        if (photo.cropData) {
+            const crop = photo.cropData;
+            canvas.width = crop.width;
+            canvas.height = crop.height;
+            ctx.drawImage(
+                tempCanvas,
+                crop.x, crop.y, crop.width, crop.height,
+                0, 0, crop.width, crop.height
+            );
+        } else {
+            // No crop - just display rotated image
+            canvas.width = tempCanvas.width;
+            canvas.height = tempCanvas.height;
+            ctx.drawImage(tempCanvas, 0, 0);
+        }
+    };
+
+    img.src = photo.dataUrl;
+}
+
+// Rotate uploaded photo
+function rotateUploadPhoto(index, degrees) {
+    registerUploadedPhotos[index].rotation = (registerUploadedPhotos[index].rotation + degrees) % 360;
+    // Clear crop data when rotating since coordinates become invalid
+    registerUploadedPhotos[index].cropData = null;
+    drawRotatedImage(index);
+}
+
+// Remove uploaded photo
+function removeUploadPhoto(index) {
+    registerUploadedPhotos.splice(index, 1);
+    renderUploadedPhotos();
+}
+
+// Cropping functionality
+let currentCropPhotoIndex = null;
+let cropBox = null;
+let cropBoxData = { x: 0, y: 0, width: 200, height: 200 };
+let isDraggingCrop = false;
+let isResizingCrop = false;
+let resizeHandle = null;
+let dragStartX = 0;
+let dragStartY = 0;
+let originalCropData = {};
+
+function openCropModal(index) {
+    currentCropPhotoIndex = index;
+    const photo = registerUploadedPhotos[index];
+
+    // Load image onto crop source canvas
+    const canvas = document.getElementById('crop-source-canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+
+    img.onload = () => {
+        // Set canvas size to image size (with rotation applied)
+        const rotation = photo.rotation || 0;
+        const isRotated90 = Math.abs(rotation % 180) === 90;
+
+        if (isRotated90) {
+            canvas.width = img.height;
+            canvas.height = img.width;
+        } else {
+            canvas.width = img.width;
+            canvas.height = img.height;
+        }
+
+        // Draw rotated image
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate(rotation * Math.PI / 180);
+        ctx.drawImage(img, -img.width / 2, -img.height / 2);
+        ctx.restore();
+
+        // Initialize crop box
+        if (photo.cropData) {
+            // Use existing crop data
+            cropBoxData = { ...photo.cropData };
+        } else {
+            // Default to center 80% of image
+            const margin = 0.1;
+            cropBoxData = {
+                x: canvas.width * margin,
+                y: canvas.height * margin,
+                width: canvas.width * 0.8,
+                height: canvas.height * 0.8
+            };
+        }
+
+        updateCropBox();
+        updateCropPreview();
+
+        // Open modal
+        openModal('crop-photo-modal');
+
+        // Setup drag handlers
+        setupCropDragHandlers();
+    };
+
+    img.src = photo.dataUrl;
+}
+
+function setupCropDragHandlers() {
+    cropBox = document.getElementById('crop-box');
+    const handles = cropBox.querySelectorAll('.crop-handle');
+
+    // Crop box drag
+    cropBox.addEventListener('mousedown', startDragCropBox);
+
+    // Handle resize
+    handles.forEach(handle => {
+        handle.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+            startResizeCropBox(e);
+        });
+    });
+
+    // Global mouse handlers
+    document.addEventListener('mousemove', onCropMouseMove);
+    document.addEventListener('mouseup', stopCropDrag);
+}
+
+function startDragCropBox(e) {
+    if (e.target.classList.contains('crop-handle')) return;
+
+    isDraggingCrop = true;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    originalCropData = { ...cropBoxData };
+    e.preventDefault();
+}
+
+function startResizeCropBox(e) {
+    isResizingCrop = true;
+    resizeHandle = e.target.dataset.handle;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    originalCropData = { ...cropBoxData };
+    e.preventDefault();
+}
+
+function onCropMouseMove(e) {
+    if (!isDraggingCrop && !isResizingCrop) return;
+
+    const canvas = document.getElementById('crop-source-canvas');
+    const rect = canvas.getBoundingClientRect();
+    const scale = canvas.width / rect.width;
+
+    const deltaX = (e.clientX - dragStartX) * scale;
+    const deltaY = (e.clientY - dragStartY) * scale;
+
+    if (isDraggingCrop) {
+        // Move crop box
+        cropBoxData.x = Math.max(0, Math.min(canvas.width - cropBoxData.width, originalCropData.x + deltaX));
+        cropBoxData.y = Math.max(0, Math.min(canvas.height - cropBoxData.height, originalCropData.y + deltaY));
+    } else if (isResizingCrop) {
+        // Resize crop box based on handle
+        switch (resizeHandle) {
+            case 'nw':
+                cropBoxData.x = Math.max(0, originalCropData.x + deltaX);
+                cropBoxData.y = Math.max(0, originalCropData.y + deltaY);
+                cropBoxData.width = originalCropData.width - deltaX;
+                cropBoxData.height = originalCropData.height - deltaY;
+                break;
+            case 'ne':
+                cropBoxData.y = Math.max(0, originalCropData.y + deltaY);
+                cropBoxData.width = originalCropData.width + deltaX;
+                cropBoxData.height = originalCropData.height - deltaY;
+                break;
+            case 'sw':
+                cropBoxData.x = Math.max(0, originalCropData.x + deltaX);
+                cropBoxData.width = originalCropData.width - deltaX;
+                cropBoxData.height = originalCropData.height + deltaY;
+                break;
+            case 'se':
+                cropBoxData.width = originalCropData.width + deltaX;
+                cropBoxData.height = originalCropData.height + deltaY;
+                break;
+        }
+
+        // Ensure minimum size
+        cropBoxData.width = Math.max(50, cropBoxData.width);
+        cropBoxData.height = Math.max(50, cropBoxData.height);
+
+        // Ensure within canvas bounds
+        if (cropBoxData.x + cropBoxData.width > canvas.width) {
+            cropBoxData.width = canvas.width - cropBoxData.x;
+        }
+        if (cropBoxData.y + cropBoxData.height > canvas.height) {
+            cropBoxData.height = canvas.height - cropBoxData.y;
+        }
+    }
+
+    updateCropBox();
+    updateCropPreview();
+}
+
+function stopCropDrag() {
+    isDraggingCrop = false;
+    isResizingCrop = false;
+    resizeHandle = null;
+}
+
+function updateCropBox() {
+    const canvas = document.getElementById('crop-source-canvas');
+    const rect = canvas.getBoundingClientRect();
+    const scale = rect.width / canvas.width;
+
+    cropBox.style.left = (cropBoxData.x * scale) + 'px';
+    cropBox.style.top = (cropBoxData.y * scale) + 'px';
+    cropBox.style.width = (cropBoxData.width * scale) + 'px';
+    cropBox.style.height = (cropBoxData.height * scale) + 'px';
+}
+
+function updateCropPreview() {
+    const sourceCanvas = document.getElementById('crop-source-canvas');
+    const previewCanvas = document.getElementById('crop-preview-canvas');
+    const ctx = previewCanvas.getContext('2d');
+
+    // Set preview canvas size
+    previewCanvas.width = cropBoxData.width;
+    previewCanvas.height = cropBoxData.height;
+
+    // Draw cropped region
+    ctx.drawImage(
+        sourceCanvas,
+        cropBoxData.x, cropBoxData.y, cropBoxData.width, cropBoxData.height,
+        0, 0, cropBoxData.width, cropBoxData.height
+    );
+}
+
+function applyCrop() {
+    if (currentCropPhotoIndex !== null) {
+        // Save crop data to photo
+        registerUploadedPhotos[currentCropPhotoIndex].cropData = { ...cropBoxData };
+
+        // Re-render to show cropped version
+        renderUploadedPhotos();
+    }
+
+    closeCropModal();
+}
+
+function closeCropModal() {
+    // Clean up event listeners
+    document.removeEventListener('mousemove', onCropMouseMove);
+    document.removeEventListener('mouseup', stopCropDrag);
+
+    cropBox = null;
+    currentCropPhotoIndex = null;
+    isDraggingCrop = false;
+    isResizingCrop = false;
+
+    closeModal('crop-photo-modal');
+}
 
 async function startRegisterCamera() {
     try {
@@ -1907,12 +2293,19 @@ function stopRegisterCamera() {
 }
 
 function showRegisterAlert(message, type = 'info') {
-    const container = document.getElementById('register-alert-container');
+    // Show alert in both camera and upload containers
+    const containers = ['register-alert-container', 'upload-alert-container'];
     const alertClass = type === 'error' ? 'alert-error' : type === 'success' ? 'alert-success' : 'alert-info';
-    container.innerHTML = `<div class="alert ${alertClass}" style="margin-bottom: 15px;">${message}</div>`;
-    setTimeout(() => {
-        container.innerHTML = '';
-    }, 3000);
+
+    containers.forEach(containerId => {
+        const container = document.getElementById(containerId);
+        if (container) {
+            container.innerHTML = `<div class="alert ${alertClass}" style="margin-bottom: 15px;">${message}</div>`;
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 3000);
+        }
+    });
 }
 
 document.getElementById('register-begin-btn').addEventListener('click', async () => {
@@ -1982,6 +2375,62 @@ document.getElementById('register-submit-btn').addEventListener('click', async (
     document.getElementById('register-submit-btn').disabled = true;
     await submitRegisterRegistration();
 });
+
+// Handle upload submit
+document.getElementById('upload-submit-btn').addEventListener('click', async () => {
+    document.getElementById('upload-submit-btn').disabled = true;
+    await submitUploadRegistration();
+});
+
+async function submitUploadRegistration() {
+    try {
+        showRegisterAlert('Processing and uploading photos...', 'info');
+
+        // Convert canvases to data URLs (includes rotation)
+        const photos = [];
+        for (let i = 0; i < registerUploadedPhotos.length; i++) {
+            const canvas = document.getElementById(`upload-canvas-${i}`);
+            if (canvas) {
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                photos.push(dataUrl);
+            }
+        }
+
+        if (photos.length === 0) {
+            showRegisterAlert('No photos to upload', 'error');
+            document.getElementById('upload-submit-btn').disabled = false;
+            return;
+        }
+
+        const response = await fetch('/api/admin/register-face', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                person_name: registerPersonName,
+                location_id: registerLocationId,
+                photos: photos
+            })
+        });
+
+        if (response.ok) {
+            document.getElementById('register-success-name').textContent = registerPersonName;
+            document.querySelectorAll('.register-step').forEach(step => step.classList.remove('active'));
+            document.getElementById('register-step-success').classList.add('active');
+
+            // Reload faces list
+            await loadRegisteredFaces();
+        } else {
+            const error = await response.json();
+            showRegisterAlert(error.detail || 'Registration failed', 'error');
+            document.getElementById('upload-submit-btn').disabled = false;
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showRegisterAlert('Error submitting registration', 'error');
+        document.getElementById('upload-submit-btn').disabled = false;
+    }
+}
 
 async function submitRegisterRegistration() {
     try {
