@@ -513,6 +513,8 @@ async function loadRegisteredFaces() {
                         <h4>${escapeHtml(face.person_name)}</h4>
                         <p>Photos: ${face.photo_count}</p>
                         ${face.location_name ? `<p><span class="badge badge-info">${escapeHtml(face.location_name)}</span></p>` : ''}
+                        ${face.registered_at ? `<p style="font-size: 12px; color: #666; margin-top: 5px;">Registered: ${new Date(face.registered_at).toLocaleDateString()}</p>` : ''}
+                        ${face.user_expiration ? `<p style="font-size: 12px; color: ${face.user_expiration === 'never' ? '#28a745' : '#666'}; margin-top: 2px;">Expires: ${face.user_expiration === 'never' ? 'Never' : new Date(face.user_expiration).toLocaleDateString()}</p>` : ''}
                         <p style="margin-top: 8px;">
                             <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
                                 <input type="checkbox"

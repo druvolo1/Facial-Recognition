@@ -143,6 +143,8 @@ class RegisteredFace(Base):
     profile_photo: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     # Whether this person is an employee or visitor
     is_employee: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    # User expiration date (ISO date string or "never")
+    user_expiration: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
 
 class Location(Base):
@@ -5188,7 +5190,9 @@ async def get_registered_faces(
                 "codeproject_user_id": face_record.codeproject_user_id if face_record else name,
                 "location_id": face_record.location_id if face_record else None,
                 "location_name": location_name,
-                "is_employee": face_record.is_employee if face_record else False
+                "is_employee": face_record.is_employee if face_record else False,
+                "registered_at": face_record.registered_at.isoformat() if face_record and face_record.registered_at else None,
+                "user_expiration": face_record.user_expiration if face_record else None
             })
 
         print(f"[GET-REGISTERED-FACES] Returning {len(registered_faces)} unique people")
@@ -5442,7 +5446,8 @@ async def admin_register_face(
                             location_id=data.location_id,
                             registered_by_user_id=user.id,
                             profile_photo=profile_photo_path if idx == len(data.photos) - 1 else None,
-                            is_employee=False  # Default to visitor
+                            is_employee=False,  # Default to visitor
+                            user_expiration=datetime.utcnow().date().isoformat()  # Default to today's date
                         )
                         session.add(registered_face)
                         await session.commit()
@@ -5701,6 +5706,11 @@ async def update_employee_status(
         # Update all records for this person
         for face_record in face_records:
             face_record.is_employee = is_employee
+            # Update expiration: "never" for employees, today's date for visitors
+            if is_employee:
+                face_record.user_expiration = "never"
+            else:
+                face_record.user_expiration = datetime.utcnow().date().isoformat()
 
         await session.commit()
 

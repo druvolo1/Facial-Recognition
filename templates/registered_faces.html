@@ -552,10 +552,12 @@
                                         <span>Click to view all</span>
                                         <span class="photo-count">${face.photo_count} photo${face.photo_count !== 1 ? 's' : ''}</span>
                                     </div>
+                                    ${face.registered_at ? `<div style="font-size: 12px; color: #666; margin-top: 8px;">Registered: ${new Date(face.registered_at).toLocaleDateString()}</div>` : ''}
+                                    ${face.user_expiration ? `<div style="font-size: 12px; color: ${face.user_expiration === 'never' ? '#28a745' : '#666'}; margin-top: 3px;">Expires: ${face.user_expiration === 'never' ? 'Never' : new Date(face.user_expiration).toLocaleDateString()}</div>` : ''}
                                 </div>
                             </div>
                             <div style="padding: 0 20px 20px 20px;">
-                                <button class="delete-btn" onclick="deleteFace('${face.person_name}', event)">Delete ${face.person_name}</button>
+                                <button class="delete-btn" onclick="deleteFace('${face.person_id}', '${face.person_name}', event)">Delete ${face.person_name}</button>
                             </div>
                             <div class="codeproject-id">
                                 <strong>CodeProject ID:</strong> ${face.codeproject_user_id}
@@ -611,7 +613,7 @@
         }
 
         // Delete a registered face
-        async function deleteFace(personName, event) {
+        async function deleteFace(personId, personName, event) {
             event.stopPropagation(); // Prevent triggering parent click events
 
             if (!confirm(`Are you sure you want to delete all photos and data for "${personName}"?\n\nThis will:\n- Remove the person from CodeProject.AI\n- Delete all photo files\n- Remove all database records\n\nThis action cannot be undone.`)) {
@@ -619,9 +621,9 @@
             }
 
             try {
-                console.log(`Deleting face: ${personName}`);
+                console.log(`Deleting face: ${personName} (${personId})`);
 
-                const response = await fetch(`/api/registered-faces/${encodeURIComponent(personName)}`, {
+                const response = await fetch(`/api/registered-faces/${encodeURIComponent(personId)}`, {
                     method: 'DELETE'
                 });
 
