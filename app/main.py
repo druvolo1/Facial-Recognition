@@ -2365,6 +2365,10 @@ async def get_location(
     )
     devices = devices_result.scalars().all()
 
+    # Get all servers for lookup
+    servers_result = await session.execute(select(CodeProjectServer))
+    servers_dict = {s.id: s.endpoint_url for s in servers_result.scalars().all()}
+
     return {
         "success": True,
         "location": {
@@ -2380,7 +2384,7 @@ async def get_location(
                     "device_id": d.device_id,
                     "device_name": d.device_name,
                     "device_type": d.device_type,
-                    "codeproject_endpoint": d.codeproject_endpoint,
+                    "codeproject_endpoint": servers_dict.get(d.codeproject_server_id) if d.codeproject_server_id else None,
                     "location_id": d.location_id,
                     "last_seen": d.last_seen.isoformat() if d.last_seen else None
                 }
@@ -3851,6 +3855,16 @@ async def register_device(
     existing_device = result.scalar_one_or_none()
 
     if existing_device:
+        # Get CodeProject endpoint from server
+        codeproject_endpoint = None
+        if existing_device.codeproject_server_id:
+            server_result = await session.execute(
+                select(CodeProjectServer).where(CodeProjectServer.id == existing_device.codeproject_server_id)
+            )
+            server = server_result.scalar_one_or_none()
+            if server:
+                codeproject_endpoint = server.endpoint_url
+
         # Device already registered, return existing registration code
         return {
             "success": True,
@@ -3860,7 +3874,7 @@ async def register_device(
             "device_name": existing_device.device_name,
             "device_type": existing_device.device_type,
             "location_id": existing_device.location_id,
-            "codeproject_endpoint": existing_device.codeproject_endpoint
+            "codeproject_endpoint": codeproject_endpoint
         }
 
     # Generate unique 6-digit registration code
@@ -3911,6 +3925,16 @@ async def get_device_status(
     device.last_seen = datetime.utcnow()
     await session.commit()
 
+    # Get CodeProject endpoint from server
+    codeproject_endpoint = None
+    if device.codeproject_server_id:
+        server_result = await session.execute(
+            select(CodeProjectServer).where(CodeProjectServer.id == device.codeproject_server_id)
+        )
+        server = server_result.scalar_one_or_none()
+        if server:
+            codeproject_endpoint = server.endpoint_url
+
     response_data = {
         "device_id": device.device_id,
         "registration_code": device.registration_code,
@@ -3918,7 +3942,7 @@ async def get_device_status(
         "device_name": device.device_name,
         "device_type": device.device_type,
         "location_id": device.location_id,
-        "codeproject_endpoint": device.codeproject_endpoint
+        "codeproject_endpoint": codeproject_endpoint
     }
 
     # Add token if device is approved (only sent once during first status check after approval)
@@ -3964,6 +3988,16 @@ async def device_heartbeat(
         if area:
             area_name = area.area_name
 
+    # Get CodeProject endpoint from server
+    codeproject_endpoint = None
+    if device.codeproject_server_id:
+        server_result = await session.execute(
+            select(CodeProjectServer).where(CodeProjectServer.id == device.codeproject_server_id)
+        )
+        server = server_result.scalar_one_or_none()
+        if server:
+            codeproject_endpoint = server.endpoint_url
+
     # Return current device configuration
     response_data = {
         "status": "ok",
@@ -3973,7 +4007,7 @@ async def device_heartbeat(
         "location_id": device.location_id,
         "area_id": device.area_id,
         "area_name": area_name,
-        "codeproject_endpoint": device.codeproject_endpoint,
+        "codeproject_endpoint": codeproject_endpoint,
         "is_approved": device.is_approved,
         # Processing mode (default to 'server' if not set)
         "processing_mode": device.processing_mode or 'server',
@@ -4439,7 +4473,7 @@ async def approve_device(
         device.location_id = data.location_id
         device.area_id = data.area_id
         device.device_type = data.device_type
-        device.codeproject_endpoint = data.codeproject_endpoint
+        device.codeproject_server_id = data.codeproject_server_id
         device.is_approved = True
         device.approved_at = datetime.utcnow()
         device.approved_by_user_id = user.id
@@ -4822,7 +4856,7 @@ async def revoke_device_token(
     # Clear device configuration - will be set again on re-approval
     device.device_name = None
     device.device_type = None
-    device.codeproject_endpoint = None
+    device.codeproject_server_id = None
     await session.commit()
 
     print(f"[TOKEN] Token revoked for device {device.device_id[:8]} by {user.email}. New code: {new_registration_code}")
@@ -6014,20 +6048,28 @@ async def delete_registered_face(
 
         print(f"[DELETE] Found {len(face_records)} file(s) to delete")
 
-        # Group face records by CodeProject endpoint
-        endpoints = {}
+        # Get all servers for lookup
+        servers_result = await session.execute(select(CodeProjectServer))
+        servers_dict = {s.id: s.endpoint_url for s in servers_result.scalars().all()}
+
+        # Group face records by CodeProject server
+        server_groups = {}
         for face_record in face_records:
-            endpoint = face_record.codeproject_endpoint
-            if endpoint not in endpoints:
-                endpoints[endpoint] = []
-            endpoints[endpoint].append(face_record)
+            server_id = face_record.codeproject_server_id
+            if server_id not in server_groups:
+                server_groups[server_id] = []
+            server_groups[server_id].append(face_record)
 
         # Get person_name for logging
         person_name = face_records[0].person_name if face_records else "Unknown"
 
         # Delete from each CodeProject.AI server
-        print(f"[DELETE] Removing {person_name} (person_id: {person_id}) from {len(endpoints)} CodeProject.AI server(s)...")
-        for endpoint, records in endpoints.items():
+        print(f"[DELETE] Removing {person_name} (person_id: {person_id}) from {len(server_groups)} CodeProject.AI server(s)...")
+        for server_id, records in server_groups.items():
+            endpoint = servers_dict.get(server_id)
+            if not endpoint:
+                print(f"[DELETE]   ⚠ Server ID {server_id} not found, skipping...")
+                continue
             try:
                 print(f"[DELETE]   Deleting from {endpoint}...")
                 response = requests.post(

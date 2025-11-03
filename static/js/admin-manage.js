@@ -993,10 +993,9 @@ async function editDeviceById(deviceId) {
         }
     }
 
-    // Find and select the server
-    const server = allServers.find(s => s.endpoint_url === device.codeproject_endpoint);
-    if (server) {
-        document.getElementById('edit-device-server').value = server.id;
+    // Select the server if device has one
+    if (device.codeproject_server_id) {
+        document.getElementById('edit-device-server').value = device.codeproject_server_id;
     }
 
     // Show/hide server dropdown and processing mode based on device type
