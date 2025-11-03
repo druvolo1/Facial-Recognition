@@ -357,7 +357,7 @@
 </head>
 <body>
     <div class="navbar">
-        <h1>🔐 Facial Recognition</h1>
+        <img src="/static/biometric-logo.svg" alt="BiometriX" style="height: 45px;">
         <div class="nav-links">
             <div style="display: flex; gap: 20px; align-items: center;">
                 <a href="/dashboard" style="color: white; text-decoration: none; font-weight: 500;">Dashboard</a>
@@ -411,6 +411,32 @@
                 <button class="close-btn" onclick="closeModal()">Close</button>
             </div>
             <div class="photos-grid" id="modalPhotos"></div>
+        </div>
+    </div>
+
+    <!-- Edit Expiration Modal -->
+    <div id="edit-expiration-modal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>Edit Expiration for <span id="expiration-person-name"></span></h2>
+                <button class="close-btn" onclick="closeExpirationModal()">Close</button>
+            </div>
+            <div style="padding: 20px;">
+                <div style="margin-bottom: 15px;">
+                    <label for="expiration-date" style="display: block; margin-bottom: 5px; font-weight: 600;">Expiration Date</label>
+                    <input type="date" id="expiration-date" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                </div>
+                <div style="margin-top: 15px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="expiration-never" onchange="toggleExpirationNever()" style="cursor: pointer;">
+                        <span>Never expires (Employee)</span>
+                    </label>
+                </div>
+            </div>
+            <div style="padding: 15px 20px; border-top: 1px solid #ddd; display: flex; gap: 10px; justify-content: flex-end;">
+                <button onclick="closeExpirationModal()" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+                <button onclick="saveExpiration()" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer;">Save</button>
+            </div>
         </div>
     </div>
 
@@ -553,7 +579,7 @@
                                         <span class="photo-count">${face.photo_count} photo${face.photo_count !== 1 ? 's' : ''}</span>
                                     </div>
                                     ${face.registered_at ? `<div style="font-size: 12px; color: #666; margin-top: 8px;">Registered: ${new Date(face.registered_at).toLocaleDateString()}</div>` : ''}
-                                    ${face.user_expiration ? `<div style="font-size: 12px; color: ${face.user_expiration === 'never' ? '#28a745' : '#666'}; margin-top: 3px;">Expires: ${face.user_expiration === 'never' ? 'Never' : new Date(face.user_expiration).toLocaleDateString()}</div>` : ''}
+                                    ${face.user_expiration ? `<div style="font-size: 12px; color: ${face.user_expiration === 'never' ? '#28a745' : '#666'}; margin-top: 3px;">Expires: ${face.user_expiration === 'never' ? 'Never' : new Date(face.user_expiration).toLocaleDateString()} <button onclick="showEditExpirationModal('${face.person_id}', '${face.person_name}', '${face.user_expiration}', event)" style="background: none; border: none; color: #667eea; cursor: pointer; font-size: 12px; padding: 0; margin-left: 5px;">✏️</button></div>` : ''}
                                 </div>
                             </div>
                             <div style="padding: 0 20px 20px 20px;">
@@ -640,6 +666,85 @@
                 console.error('Delete error:', error);
                 alert(`Error deleting ${personName}: ${error.message}`);
             }
+        }
+
+        // Edit Expiration Modal
+        let currentExpirationPersonId = null;
+        let currentExpirationPersonName = null;
+
+        function showEditExpirationModal(personId, personName, currentExpiration, event) {
+            event.stopPropagation();
+            currentExpirationPersonId = personId;
+            currentExpirationPersonName = personName;
+
+            document.getElementById('expiration-person-name').textContent = personName;
+
+            // Set current value
+            const expirationInput = document.getElementById('expiration-date');
+            const neverCheckbox = document.getElementById('expiration-never');
+
+            if (currentExpiration === 'never') {
+                neverCheckbox.checked = true;
+                expirationInput.disabled = true;
+                expirationInput.value = '';
+            } else {
+                neverCheckbox.checked = false;
+                expirationInput.disabled = false;
+                expirationInput.value = currentExpiration || '';
+            }
+
+            document.getElementById('edit-expiration-modal').style.display = 'flex';
+        }
+
+        function toggleExpirationNever() {
+            const expirationInput = document.getElementById('expiration-date');
+            const neverCheckbox = document.getElementById('expiration-never');
+
+            if (neverCheckbox.checked) {
+                expirationInput.disabled = true;
+                expirationInput.value = '';
+            } else {
+                expirationInput.disabled = false;
+            }
+        }
+
+        async function saveExpiration() {
+            const neverCheckbox = document.getElementById('expiration-never');
+            const expirationInput = document.getElementById('expiration-date');
+
+            let expiration;
+            if (neverCheckbox.checked) {
+                expiration = 'never';
+            } else {
+                expiration = expirationInput.value;
+                if (!expiration) {
+                    alert('Please select an expiration date or check "Never expires"');
+                    return;
+                }
+            }
+
+            try {
+                const response = await fetch(`/api/registered-faces/${encodeURIComponent(currentExpirationPersonId)}/expiration?expiration=${encodeURIComponent(expiration)}`, {
+                    method: 'PUT',
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    alert(`Updated expiration for ${currentExpirationPersonName}`);
+                    closeExpirationModal();
+                    await loadFaces();
+                } else {
+                    const error = await response.json();
+                    alert(error.detail || 'Failed to update expiration');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error updating expiration');
+            }
+        }
+
+        function closeExpirationModal() {
+            document.getElementById('edit-expiration-modal').style.display = 'none';
         }
 
         // Logout function

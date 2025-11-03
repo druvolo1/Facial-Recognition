@@ -514,7 +514,7 @@ async function loadRegisteredFaces() {
                         <p>Photos: ${face.photo_count}</p>
                         ${face.location_name ? `<p><span class="badge badge-info">${escapeHtml(face.location_name)}</span></p>` : ''}
                         ${face.registered_at ? `<p style="font-size: 12px; color: #666; margin-top: 5px;">Registered: ${new Date(face.registered_at).toLocaleDateString()}</p>` : ''}
-                        ${face.user_expiration ? `<p style="font-size: 12px; color: ${face.user_expiration === 'never' ? '#28a745' : '#666'}; margin-top: 2px;">Expires: ${face.user_expiration === 'never' ? 'Never' : new Date(face.user_expiration).toLocaleDateString()}</p>` : ''}
+                        ${face.user_expiration ? `<p style="font-size: 12px; color: ${face.user_expiration === 'never' ? '#28a745' : '#666'}; margin-top: 2px;">Expires: ${face.user_expiration === 'never' ? 'Never' : new Date(face.user_expiration).toLocaleDateString()} <button onclick="showEditExpirationModal('${escapeHtml(face.person_id)}', '${escapeHtml(face.person_name)}', '${escapeHtml(face.user_expiration)}')" style="background: none; border: none; color: #667eea; cursor: pointer; font-size: 12px; padding: 0; margin-left: 5px;">✏️</button></p>` : ''}
                         <p style="margin-top: 8px;">
                             <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
                                 <input type="checkbox"
@@ -1682,6 +1682,80 @@ function showAlert(message, type = 'success') {
     setTimeout(() => {
         alert.remove();
     }, 5000);
+}
+
+// Edit Expiration Modal
+let currentExpirationPersonId = null;
+let currentExpirationPersonName = null;
+
+function showEditExpirationModal(personId, personName, currentExpiration) {
+    currentExpirationPersonId = personId;
+    currentExpirationPersonName = personName;
+
+    document.getElementById('expiration-person-name').textContent = personName;
+
+    // Set current value
+    const expirationInput = document.getElementById('expiration-date');
+    const neverCheckbox = document.getElementById('expiration-never');
+
+    if (currentExpiration === 'never') {
+        neverCheckbox.checked = true;
+        expirationInput.disabled = true;
+        expirationInput.value = '';
+    } else {
+        neverCheckbox.checked = false;
+        expirationInput.disabled = false;
+        expirationInput.value = currentExpiration || '';
+    }
+
+    openModal('edit-expiration-modal');
+}
+
+function toggleExpirationNever() {
+    const expirationInput = document.getElementById('expiration-date');
+    const neverCheckbox = document.getElementById('expiration-never');
+
+    if (neverCheckbox.checked) {
+        expirationInput.disabled = true;
+        expirationInput.value = '';
+    } else {
+        expirationInput.disabled = false;
+    }
+}
+
+async function saveExpiration() {
+    const neverCheckbox = document.getElementById('expiration-never');
+    const expirationInput = document.getElementById('expiration-date');
+
+    let expiration;
+    if (neverCheckbox.checked) {
+        expiration = 'never';
+    } else {
+        expiration = expirationInput.value;
+        if (!expiration) {
+            showAlert('Please select an expiration date or check "Never expires"', 'error');
+            return;
+        }
+    }
+
+    try {
+        const response = await fetch(`/api/registered-faces/${encodeURIComponent(currentExpirationPersonId)}/expiration?expiration=${encodeURIComponent(expiration)}`, {
+            method: 'PUT',
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            showAlert(`Updated expiration for ${currentExpirationPersonName}`, 'success');
+            closeModal('edit-expiration-modal');
+            await loadRegisteredFaces();
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Failed to update expiration', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error updating expiration', 'error');
+    }
 }
 
 function escapeHtml(text) {

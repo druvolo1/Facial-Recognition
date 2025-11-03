@@ -5733,6 +5733,80 @@ async def update_employee_status(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.put("/api/registered-faces/{person_id}/expiration")
+async def update_user_expiration(
+    person_id: str,
+    expiration: str,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Update user expiration date for a registered face"""
+    try:
+        print(f"\n{'='*60}")
+        print(f"[UPDATE-EXPIRATION] Updating person_id {person_id} to expiration={expiration}")
+
+        # Validate expiration format (must be ISO date or "never")
+        if expiration != "never":
+            try:
+                # Try to parse as ISO date
+                from datetime import date
+                date.fromisoformat(expiration)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Expiration must be ISO date (YYYY-MM-DD) or 'never'")
+
+        # Get all registered face records for this person
+        result = await session.execute(
+            select(RegisteredFace).where(RegisteredFace.person_id == person_id)
+        )
+        face_records = result.scalars().all()
+
+        if not face_records:
+            raise HTTPException(status_code=404, detail=f"No registered faces found for person_id {person_id}")
+
+        # Check permissions - location admins can only edit faces from their locations
+        if not user.is_superuser:
+            # Get user's admin locations
+            admin_result = await session.execute(
+                select(UserLocationRole).where(
+                    UserLocationRole.user_id == user.id,
+                    UserLocationRole.role == 'location_admin'
+                )
+            )
+            admin_location_ids = [ulr.location_id for ulr in admin_result.scalars().all()]
+
+            # Check if all face records belong to locations the user manages
+            for face_record in face_records:
+                if face_record.location_id not in admin_location_ids:
+                    raise HTTPException(
+                        status_code=403,
+                        detail=f"You don't have permission to edit this face (belongs to another location)"
+                    )
+
+        # Update all records for this person
+        for face_record in face_records:
+            face_record.user_expiration = expiration
+
+        await session.commit()
+
+        # Get person_name for response message
+        person_name = face_records[0].person_name if face_records else "Person"
+
+        print(f"[UPDATE-EXPIRATION] ✓ Updated {len(face_records)} record(s) for {person_name}")
+        print(f"{'='*60}\n")
+
+        return {
+            "success": True,
+            "message": f"Updated expiration for {person_name}",
+            "records_updated": len(face_records)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[UPDATE-EXPIRATION] ✗ EXCEPTION: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ============================================================================
 # RUN SERVER
 # ============================================================================
