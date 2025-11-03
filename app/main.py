@@ -22,6 +22,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 
 from sqlalchemy import Boolean, Integer, String, Text, Column, ForeignKey, select, DateTime, func, Numeric, or_, and_, delete
+from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.exc import IntegrityError
@@ -144,7 +145,7 @@ class RegisteredFace(Base):
     # User who registered this face
     registered_by_user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("user.id"), nullable=True)
     # Profile photo (base64 encoded image for dashboard thumbnails)
-    profile_photo: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    profile_photo: Mapped[Optional[str]] = mapped_column(LONGTEXT, nullable=True)
     # Whether this person is an employee or visitor
     is_employee: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
     # User expiration date (ISO date string or "never")
