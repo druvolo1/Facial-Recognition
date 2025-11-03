@@ -994,6 +994,36 @@
         </div>
     </div>
 
+    <!-- Edit Server Modal -->
+    <div id="edit-server-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit CodeProject.AI Server</h2>
+                <button class="close-modal" onclick="closeModal('edit-server-modal')">&times;</button>
+            </div>
+            <form id="edit-server-form">
+                <input type="hidden" id="edit-server-id">
+                <div class="form-group">
+                    <label for="edit-server-name">Friendly Name *</label>
+                    <input type="text" id="edit-server-name" required placeholder="e.g., Main Office Server">
+                </div>
+                <div class="form-group">
+                    <label for="edit-server-url">Endpoint URL *</label>
+                    <input type="text" id="edit-server-url" required placeholder="http://192.168.1.100:32168/v1">
+                    <small style="color: #666;">Include the full URL with /v1 suffix</small>
+                </div>
+                <div class="form-group">
+                    <label for="edit-server-description">Description</label>
+                    <textarea id="edit-server-description" placeholder="Optional notes about this server"></textarea>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" class="btn btn-primary">Update Server</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('edit-server-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Manage User Locations Modal (Superadmin only) -->
     <div id="manage-user-locations-modal" class="modal">
         <div class="modal-content" style="max-width: 700px;">

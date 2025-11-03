@@ -1,4 +1,5 @@
 manage?location_id=2:1 [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) <input type=​"password" id=​"user-password" required minlength=​"6">​
+favicon.ico:1  GET https://nrf.ruvolo.loseyourip.com/favicon.ico 404 (Not Found)
 manage?location_id=2:1 Uncaught ReferenceError: showEditServerModal is not defined
     at HTMLButtonElement.onclick (manage?location_id=2:1:1)
 onclick @ manage?location_id=2:1

@@ -1425,6 +1425,56 @@ document.getElementById('create-server-form').addEventListener('submit', async (
     }
 });
 
+function showEditServerModal(serverId) {
+    // Find the server in the allServers array
+    const server = allServers.find(s => s.id === serverId);
+
+    if (!server) {
+        showAlert('Server not found', 'error');
+        return;
+    }
+
+    // Populate the form fields
+    document.getElementById('edit-server-id').value = server.id;
+    document.getElementById('edit-server-name').value = server.friendly_name;
+    document.getElementById('edit-server-url').value = server.endpoint_url;
+    document.getElementById('edit-server-description').value = server.description || '';
+
+    openModal('edit-server-modal');
+}
+
+document.getElementById('edit-server-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const serverId = document.getElementById('edit-server-id').value;
+    const data = {
+        friendly_name: document.getElementById('edit-server-name').value,
+        endpoint_url: document.getElementById('edit-server-url').value,
+        description: document.getElementById('edit-server-description').value || null
+    };
+
+    try {
+        const response = await fetch(`/api/codeproject-servers/${serverId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            showAlert('Server updated successfully', 'success');
+            closeModal('edit-server-modal');
+            await loadServers();
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Failed to update server', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error updating server', 'error');
+    }
+});
+
 async function deleteServer(serverId, name) {
     if (!confirm(`Delete server "${name}"?`)) return;
 
