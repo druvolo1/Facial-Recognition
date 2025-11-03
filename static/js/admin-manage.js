@@ -2062,9 +2062,14 @@ function displayCategories() {
 }
 
 // Show create category modal
-function showCreateCategoryModal() {
+async function showCreateCategoryModal() {
     document.getElementById('create-category-form').reset();
     document.getElementById('category-location-group').style.display = 'none';
+
+    // Load locations if not already loaded
+    if (allLocations.length === 0) {
+        await loadLocations();
+    }
 
     // Populate locations
     const locationSelect = document.getElementById('category-location');
