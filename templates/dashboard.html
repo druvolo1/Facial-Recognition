@@ -811,10 +811,14 @@
         // Switch tabs
         function switchTab(tabName) {
             // Update tab buttons
-            document.querySelectorAll('.tab-button').forEach(btn => {
+            const tabButtons = document.querySelectorAll('.tab-button');
+            tabButtons.forEach((btn, index) => {
                 btn.classList.remove('active');
+                // Activate the correct button based on tab name
+                if ((tabName === 'create' && index === 0) || (tabName === 'manage' && index === 1)) {
+                    btn.classList.add('active');
+                }
             });
-            event.target.classList.add('active');
 
             // Update tab content
             document.querySelectorAll('.tab-content').forEach(content => {
@@ -903,8 +907,6 @@
 
                     // Switch to manage tab and reload
                     switchTab('manage');
-                    document.querySelectorAll('.tab-button')[1].classList.add('active');
-                    document.querySelectorAll('.tab-button')[0].classList.remove('active');
                 } else {
                     showLinksAlert(data.detail || 'Failed to create link', 'error');
                 }
