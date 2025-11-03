@@ -1028,6 +1028,50 @@
         </div>
     </div>
 
+    <!-- Edit Location Modal (Superadmin only) -->
+    <div id="edit-location-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Location</h2>
+                <button class="close-modal" onclick="closeModal('edit-location-modal')">&times;</button>
+            </div>
+            <form id="edit-location-form">
+                <input type="hidden" id="edit-location-id">
+                <div class="form-group">
+                    <label for="edit-location-name">Name *</label>
+                    <input type="text" id="edit-location-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-location-address">Address</label>
+                    <input type="text" id="edit-location-address">
+                </div>
+                <div class="form-group">
+                    <label for="edit-location-description">Description</label>
+                    <textarea id="edit-location-description"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="edit-location-timezone">Timezone</label>
+                    <input type="text" id="edit-location-timezone">
+                </div>
+                <div class="form-group">
+                    <label for="edit-location-contact">Contact Info</label>
+                    <input type="text" id="edit-location-contact">
+                </div>
+                <div class="form-group">
+                    <label for="edit-location-server">CodeProject.AI Server</label>
+                    <select id="edit-location-server">
+                        <option value="">None (will use first available)</option>
+                    </select>
+                    <small style="color: #666;">Select which server this location should use for face recognition</small>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" class="btn btn-primary">Update Location</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('edit-location-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Create CodeProject Server Modal (Superadmin only) -->
     <div id="create-server-modal" class="modal">
         <div class="modal-content">

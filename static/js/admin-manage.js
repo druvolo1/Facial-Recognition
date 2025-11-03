@@ -670,6 +670,7 @@ async function loadLocations() {
                             <td>${escapeHtml(location.address || 'N/A')}</td>
                             <td>${escapeHtml(location.description || 'N/A')}</td>
                             <td>
+                                <button class="btn btn-secondary btn-sm" onclick="showEditLocationModal(${location.id})">Edit</button>
                                 <button class="btn btn-primary btn-sm" onclick="manageAreas(${location.id}, '${jsEscapedName}')">Areas</button>
                                 <button class="btn btn-danger btn-sm" onclick="deleteLocation(${location.id}, '${jsEscapedName}')">Delete</button>
                             </td>
@@ -765,14 +766,15 @@ function updateServerDropdowns() {
     const selects = [
         document.getElementById('approve-device-server'),
         document.getElementById('edit-device-server'),
-        document.getElementById('location-server')
+        document.getElementById('location-server'),
+        document.getElementById('edit-location-server')
     ];
 
     selects.forEach(select => {
         if (select) {
             const currentValue = select.value;
-            // Location server allows "None" option
-            const isLocationServer = select.id === 'location-server';
+            // Location server selects allow "None" option
+            const isLocationServer = select.id === 'location-server' || select.id === 'edit-location-server';
             const defaultOption = isLocationServer
                 ? '<option value="">None (will use first available)</option>'
                 : '<option value="">Select a server...</option>';
@@ -1360,6 +1362,33 @@ function showCreateLocationModal() {
     openModal('create-location-modal');
 }
 
+async function showEditLocationModal(locationId) {
+    // Find the location in allLocations
+    const location = allLocations.find(loc => loc.id === locationId);
+    if (!location) {
+        showAlert('Location not found', 'error');
+        return;
+    }
+
+    // Populate the form
+    document.getElementById('edit-location-id').value = location.id;
+    document.getElementById('edit-location-name').value = location.name;
+    document.getElementById('edit-location-address').value = location.address || '';
+    document.getElementById('edit-location-description').value = location.description || '';
+    document.getElementById('edit-location-timezone').value = location.timezone || 'UTC';
+    document.getElementById('edit-location-contact').value = location.contact_info || '';
+
+    // Set the server dropdown
+    const serverSelect = document.getElementById('edit-location-server');
+    if (location.codeproject_server_id) {
+        serverSelect.value = location.codeproject_server_id;
+    } else {
+        serverSelect.value = '';
+    }
+
+    openModal('edit-location-modal');
+}
+
 document.getElementById('create-location-form').addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -1418,6 +1447,43 @@ async function deleteLocation(locationId, name) {
         showAlert('Error deleting location', 'error');
     }
 }
+
+document.getElementById('edit-location-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const locationId = document.getElementById('edit-location-id').value;
+    const serverValue = document.getElementById('edit-location-server').value;
+    const data = {
+        name: document.getElementById('edit-location-name').value,
+        address: document.getElementById('edit-location-address').value || null,
+        description: document.getElementById('edit-location-description').value || null,
+        timezone: document.getElementById('edit-location-timezone').value || 'UTC',
+        contact_info: document.getElementById('edit-location-contact').value || null,
+        codeproject_server_id: serverValue ? parseInt(serverValue) : null
+    };
+
+    try {
+        const response = await fetch(`/api/locations/${locationId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            showAlert('Location updated successfully', 'success');
+            closeModal('edit-location-modal');
+            await loadOverview();
+            await loadLocations();
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Failed to update location', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error updating location', 'error');
+    }
+});
 
 // Server management (superadmin only)
 function showCreateServerModal() {
