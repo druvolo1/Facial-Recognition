@@ -572,25 +572,25 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <div>
-                <div style="margin-bottom: 15px;">
-                    <img src="/static/biometric-logo.svg" alt="BiometriX" style="height: 90px; background: white; padding: 6px 8px; border-radius: 10px; border: 2px solid #ddd;">
-                </div>
-                <h1>
-                    ⚙️ Management Dashboard
-                    <span class="role-badge" id="roleBadge">Loading...</span>
-                </h1>
-                <div class="user-info">
-                    Logged in as: <strong>{{ user.email }}</strong>
-                </div>
-                <div class="location-context" id="locationContext" style="display: block;">
-                    <label>Filter by Location: </label>
-                    <select id="managedLocationSelect" onchange="changeManagementLocation()">
-                        <option value="">All Locations</option>
-                    </select>
+            <div style="display: flex; align-items: center; gap: 20px; flex: 1;">
+                <img src="/static/biometric-logo.svg" alt="BiometriX" style="height: 80px; background: white; padding: 6px 8px; border-radius: 10px; border: 2px solid #ddd; flex-shrink: 0;">
+                <div>
+                    <h1 style="margin-bottom: 5px;">
+                        ⚙️ Management Dashboard
+                        <span class="role-badge" id="roleBadge">Loading...</span>
+                    </h1>
+                    <div class="user-info">
+                        Logged in as: <strong>{{ user.email }}</strong>
+                    </div>
+                    <div class="location-context" id="locationContext" style="display: block; margin-top: 10px;">
+                        <label>Filter by Location: </label>
+                        <select id="managedLocationSelect" onchange="changeManagementLocation()">
+                            <option value="">All Locations</option>
+                        </select>
+                    </div>
                 </div>
             </div>
-            <div>
+            <div style="flex-shrink: 0;">
                 <button onclick="window.location.href='/dashboard'" class="dashboard-btn">Dashboard</button>
                 <button onclick="logout()" class="logout-btn">Logout</button>
             </div>
