@@ -3172,13 +3172,27 @@ async function autoDetectFace() {
             if (data.success && data.faces && data.faces.length > 0) {
                 const face = data.faces[0]; // Use first detected face
 
-                // Cropper.js setData() expects coordinates in the original image's coordinate system
-                // CodeProject.AI returns face bounds in original image coordinates, so use them directly
+                // Add padding around the face to include whole head
+                const faceWidth = face.x_max - face.x_min;
+                const faceHeight = face.y_max - face.y_min;
+
+                // Add 50% padding on all sides to capture whole head
+                const paddingX = faceWidth * 0.5;
+                const paddingY = faceHeight * 0.5;
+
+                // Get image dimensions to ensure we don't go out of bounds
+                const imageData = currentEditPhotos.cropper.getImageData();
+
+                const x = Math.max(0, face.x_min - paddingX);
+                const y = Math.max(0, face.y_min - paddingY);
+                const width = Math.min(imageData.naturalWidth - x, faceWidth + (paddingX * 2));
+                const height = Math.min(imageData.naturalHeight - y, faceHeight + (paddingY * 2));
+
                 currentEditPhotos.cropper.setData({
-                    x: face.x_min,
-                    y: face.y_min,
-                    width: face.x_max - face.x_min,
-                    height: face.y_max - face.y_min
+                    x: x,
+                    y: y,
+                    width: width,
+                    height: height
                 });
 
                 showAlert('Face detected and cropped!', 'success');
