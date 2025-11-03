@@ -527,7 +527,10 @@ async function loadRegisteredFaces() {
                         <button class="btn btn-secondary btn-sm" style="margin-top: 10px; width: 100%;"
                                 onclick="showAssignTagsModal('${escapeHtml(face.person_id)}', '${escapeHtml(face.person_name)}', ${face.location_id})">🏷️ Assign Tags</button>
                         <button class="btn btn-primary btn-sm" style="margin-top: 5px; width: 100%;"
-                                onclick="showEditPhotosModal('${escapeHtml(face.person_id)}', '${escapeHtml(face.person_name)}', ${JSON.stringify(face.all_photos).replace(/'/g, '&#39;')})">✂️ Edit Photos</button>
+                                data-person-id="${escapeHtml(face.person_id)}"
+                                data-person-name="${escapeHtml(face.person_name)}"
+                                data-photos='${JSON.stringify(face.all_photos)}'
+                                onclick="showEditPhotosModalFromButton(this)">✂️ Edit Photos</button>
                         <button class="btn btn-danger btn-sm" style="margin-top: 5px; width: 100%;"
                                 onclick="deleteFaceFromDatabase('${escapeHtml(face.person_id)}', '${escapeHtml(face.person_name)}')">Delete</button>
                     </div>
@@ -3056,6 +3059,14 @@ let currentEditPhotos = {
     cropper: null,
     croppedImages: []
 };
+
+// Wrapper to read data from button and show edit photos modal
+function showEditPhotosModalFromButton(button) {
+    const personId = button.getAttribute('data-person-id');
+    const personName = button.getAttribute('data-person-name');
+    const photosJson = button.getAttribute('data-photos');
+    showEditPhotosModal(personId, personName, photosJson);
+}
 
 // Show edit photos modal
 function showEditPhotosModal(personId, personName, photosJson) {
