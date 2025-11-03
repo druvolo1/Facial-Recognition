@@ -837,15 +837,15 @@ document.getElementById('approve-device-type').addEventListener('change', (e) =>
     const scannerSettings = document.getElementById('approve-device-scanner-settings');
     const dashboardSettings = document.getElementById('approve-device-dashboard-settings');
 
+    // Server is always hidden in approve modal - auto-assigned based on location
+    serverGroup.style.display = 'none';
+    serverSelect.removeAttribute('required');
+
     if (e.target.value === 'location_dashboard') {
-        serverGroup.style.display = 'none';
-        serverSelect.removeAttribute('required');
         processingMode.style.display = 'none';
         scannerSettings.style.display = 'none';
         dashboardSettings.style.display = 'block';
     } else {
-        serverGroup.style.display = 'block';
-        serverSelect.setAttribute('required', 'required');
         dashboardSettings.style.display = 'none';
 
         // Show processing mode for devices that process images (kiosk and scanner)
@@ -869,7 +869,6 @@ document.getElementById('approve-device-form').addEventListener('submit', async 
 
     const deviceId = document.getElementById('approve-device-id').value;
     const deviceType = document.getElementById('approve-device-type').value;
-    const serverId = document.getElementById('approve-device-server').value;
 
     const areaId = document.getElementById('approve-device-area').value;
 
@@ -878,7 +877,8 @@ document.getElementById('approve-device-form').addEventListener('submit', async 
         location_id: parseInt(document.getElementById('approve-device-location').value),
         area_id: areaId ? parseInt(areaId) : null,
         device_type: deviceType,
-        codeproject_server_id: deviceType === 'location_dashboard' ? null : (serverId ? parseInt(serverId) : null)
+        // Server will be auto-assigned based on location's server or first available
+        codeproject_server_id: null
     };
 
     // Add processing mode for devices that process images
