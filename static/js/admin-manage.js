@@ -3243,21 +3243,17 @@ async function applyCroppedPhoto() {
         const formData = new FormData();
         formData.append('person_id', currentEditPhotos.personId);
         formData.append('person_name', currentEditPhotos.personName);
-        formData.append('cropped_photo_index', currentEditPhotos.selectedPhotoIndex);
 
-        // Add cropped photo
-        formData.append('cropped_photo', blob, `photo_${currentEditPhotos.selectedPhotoIndex}.jpg`);
-
-        // Add all original photos
+        // Add all photos (with cropped photo in the correct position)
         for (let i = 0; i < currentEditPhotos.photos.length; i++) {
-            if (i !== currentEditPhotos.selectedPhotoIndex) {
+            if (i === currentEditPhotos.selectedPhotoIndex) {
+                // Add cropped version
+                formData.append('photos', blob, `photo_${i}.jpg`);
+            } else {
                 // Fetch and add original photos
                 const photoResponse = await fetch(currentEditPhotos.photos[i]);
                 const photoBlob = await photoResponse.blob();
                 formData.append('photos', photoBlob, `photo_${i}.jpg`);
-            } else {
-                // Add cropped version
-                formData.append('photos', blob, `photo_${i}.jpg`);
             }
         }
 

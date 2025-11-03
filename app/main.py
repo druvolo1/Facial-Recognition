@@ -4,7 +4,7 @@ Based on plant_logs_server authentication system
 """
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import Optional, AsyncGenerator, List
 import secrets
 import base64
@@ -5500,8 +5500,7 @@ async def admin_register_face(
 @app.post("/api/detect-face-bounds")
 async def detect_face_bounds(
     image: UploadFile = File(...),
-    user: User = Depends(current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    user: User = Depends(current_active_user)
 ):
     """Detect face boundaries in an image for cropping suggestions"""
     try:
@@ -5511,22 +5510,11 @@ async def detect_face_bounds(
         # Read image
         image_data = await image.read()
 
-        # Use first available CodeProject server
-        result = await session.execute(
-            select(CodeProjectServer)
-            .where(CodeProjectServer.is_active == True)
-            .limit(1)
-        )
-        server = result.scalar_one_or_none()
-
-        if not server:
-            raise HTTPException(status_code=500, detail="No active CodeProject.AI server available")
-
-        # Call CodeProject.AI face detection
+        # Call CodeProject.AI face detection using default server
         files = {'image': ('image.jpg', image_data, 'image/jpeg')}
 
         response = requests.post(
-            f"{server.endpoint_url}/vision/face/detect",
+            f"{CODEPROJECT_BASE_URL}/vision/face/detect",
             files=files,
             timeout=30
         )
@@ -5558,7 +5546,9 @@ async def detect_face_bounds(
         raise
     except Exception as e:
         print(f"[DETECT-FACE] ✗ EXCEPTION: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[DETECT-FACE] ✗ Exception type: {type(e).__name__}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
 
 
 @app.post("/api/admin/replace-photos")
@@ -5735,9 +5725,10 @@ async def replace_photos(
         raise
     except Exception as e:
         print(f"[REPLACE-PHOTOS] ✗ EXCEPTION: {e}")
+        print(f"[REPLACE-PHOTOS] ✗ Exception type: {type(e).__name__}")
         traceback.print_exc()
         await session.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
 
 
 @app.post("/api/recognize")

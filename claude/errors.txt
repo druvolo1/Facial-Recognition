@@ -1,16 +1,20 @@
-
-[CONFIG] Base directory: /home/dave/Facial-Recognition
-[CONFIG] Upload folder: /home/dave/Facial-Recognition/uploads
-[CONFIG] CodeProject.AI: http://172.16.1.150:32168/v1
-/home/dave/Facial-Recognition/app/main.py:913: DeprecationWarning:
-        on_event is deprecated, use lifespan event handlers instead.
-
-        Read more about it in the
-        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
-
-  @app.on_event("startup")
-Traceback (most recent call last):
-  File "/home/dave/Facial-Recognition/app/main.py", line 5501, in <module>
-    image: UploadFile = File(...),
-                        ^^^^
-NameError: name 'File' is not defined. Did you mean: 'False'?
+manage:1 [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) <input type=​"password" id=​"user-password" required minlength=​"6">​
+favicon.ico:1  GET https://nrf.ruvolo.loseyourip.com/favicon.ico 404 (Not Found)
+admin-manage.js:3164  POST https://nrf.ruvolo.loseyourip.com/api/detect-face-bounds 500 (Internal Server Error)
+autoDetectFace @ admin-manage.js:3164
+await in autoDetectFace
+(anonymous) @ admin-manage.js:3140
+setTimeout
+ready @ admin-manage.js:3140
+y @ cropper.min.js:10
+value @ cropper.min.js:10
+t @ cropper.min.js:10
+value @ cropper.min.js:10
+admin-manage.js:3164  POST https://nrf.ruvolo.loseyourip.com/api/detect-face-bounds 500 (Internal Server Error)
+autoDetectFace @ admin-manage.js:3164
+await in autoDetectFace
+onclick @ manage:1487
+admin-manage.js:3265  POST https://nrf.ruvolo.loseyourip.com/api/admin/replace-photos 500 (Internal Server Error)
+applyCroppedPhoto @ admin-manage.js:3265
+await in applyCroppedPhoto
+onclick @ manage:1488
