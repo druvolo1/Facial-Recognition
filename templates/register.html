@@ -587,13 +587,13 @@
             <div class="photo-grid" id="photoGrid"></div>
 
             <div class="button-group">
-                <button id="submitRegistration" class="btn-primary" disabled>Submit to CodeProject.AI</button>
+                <button id="submitRegistration" class="btn-primary" disabled>Submit to BiometriX</button>
                 <button id="resetForm" class="btn-danger">Reset</button>
             </div>
         </div>
 
         <div class="loading" id="loading">
-            <p>Registering faces with CodeProject.AI...</p>
+            <p>Registering faces with BiometriX...</p>
         </div>
 
         <div class="success-message" id="successMessage"></div>
@@ -852,7 +852,7 @@
 
             if (capturedPhotos.length > 0) {
                 submitRegistrationBtn.disabled = false;
-                showSuccess(`Successfully captured ${capturedPhotos.length} images! Click "Submit" to register with CodeProject.AI.`);
+                showSuccess(`Successfully captured ${capturedPhotos.length} images! Click "Submit" to register with BiometriX.`);
             }
         });
 
@@ -1489,7 +1489,7 @@
                 document.getElementById('loading').style.display = 'none';
 
                 if (response.ok && data.success) {
-                    document.getElementById('successMessage').textContent = `Successfully registered ${data.faces_registered || photos.length} face(s) for ${userName}!`;
+                    document.getElementById('successMessage').textContent = `Successfully submitted ${data.registered_count || photos.length} photo(s) to BiometriX for ${userName}!`;
                     document.getElementById('successMessage').style.display = 'block';
 
                     // Reset
