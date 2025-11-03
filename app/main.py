@@ -5608,7 +5608,7 @@ async def replace_photos(
             # Save to disk
             timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
             filename = f"{person_id}_{timestamp}_{idx}.jpg"
-            filepath = os.path.join(UPLOAD_DIR, filename)
+            filepath = os.path.join(UPLOAD_FOLDER, filename)
 
             with open(filepath, "wb") as f:
                 f.write(photo_data)
