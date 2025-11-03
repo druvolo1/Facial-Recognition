@@ -5496,6 +5496,249 @@ async def admin_register_face(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/detect-face-bounds")
+async def detect_face_bounds(
+    image: UploadFile = File(...),
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Detect face boundaries in an image for cropping suggestions"""
+    try:
+        print(f"\n{'='*60}")
+        print(f"[DETECT-FACE] Detecting face bounds for cropping")
+
+        # Read image
+        image_data = await image.read()
+
+        # Use first available CodeProject server
+        result = await session.execute(
+            select(CodeProjectServer)
+            .where(CodeProjectServer.is_active == True)
+            .limit(1)
+        )
+        server = result.scalar_one_or_none()
+
+        if not server:
+            raise HTTPException(status_code=500, detail="No active CodeProject.AI server available")
+
+        # Call CodeProject.AI face detection
+        files = {'image': ('image.jpg', image_data, 'image/jpeg')}
+
+        response = requests.post(
+            f"{server.endpoint_url}/vision/face/detect",
+            files=files,
+            timeout=30
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success') and data.get('predictions'):
+                # Extract face bounds
+                faces = []
+                for prediction in data['predictions']:
+                    faces.append({
+                        'x_min': prediction['x_min'],
+                        'y_min': prediction['y_min'],
+                        'x_max': prediction['x_max'],
+                        'y_max': prediction['y_max'],
+                        'confidence': prediction.get('confidence', 0)
+                    })
+
+                print(f"[DETECT-FACE] ✓ Detected {len(faces)} face(s)")
+                return {"success": True, "faces": faces}
+            else:
+                print(f"[DETECT-FACE] No faces detected")
+                return {"success": True, "faces": []}
+        else:
+            print(f"[DETECT-FACE] ✗ Detection failed: {response.status_code}")
+            raise HTTPException(status_code=500, detail="Face detection failed")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[DETECT-FACE] ✗ EXCEPTION: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/admin/replace-photos")
+async def replace_photos(
+    person_id: str = Form(...),
+    person_name: str = Form(...),
+    photos: List[UploadFile] = File(...),
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Replace photos for a registered person (deletes from CodeProject and re-registers)"""
+    try:
+        print(f"\n{'='*60}")
+        print(f"[REPLACE-PHOTOS] Replacing photos for {person_name} (person_id: {person_id})")
+
+        # Get all registered face records for this person
+        result = await session.execute(
+            select(RegisteredFace).where(RegisteredFace.person_id == person_id)
+        )
+        face_records = result.scalars().all()
+
+        if not face_records:
+            raise HTTPException(status_code=404, detail=f"No registered faces found for person_id {person_id}")
+
+        # Check permissions
+        if not user.is_superuser:
+            admin_result = await session.execute(
+                select(UserLocationRole).where(
+                    UserLocationRole.user_id == user.id,
+                    UserLocationRole.role == 'location_admin'
+                )
+            )
+            admin_location_ids = [ulr.location_id for ulr in admin_result.scalars().all()]
+
+            for face_record in face_records:
+                if face_record.location_id not in admin_location_ids:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="You don't have permission to edit photos for this person"
+                    )
+
+        # Get unique endpoints
+        endpoints = {}
+        for record in face_records:
+            if record.codeproject_endpoint not in endpoints:
+                endpoints[record.codeproject_endpoint] = []
+            endpoints[record.codeproject_endpoint].append(record)
+
+        # Delete from CodeProject.AI servers
+        print(f"[REPLACE-PHOTOS] Deleting {person_name} from {len(endpoints)} CodeProject.AI server(s)...")
+        for endpoint in endpoints.keys():
+            try:
+                print(f"[REPLACE-PHOTOS]   Deleting from {endpoint}...")
+                response = requests.post(
+                    f"{endpoint}/vision/face/delete",
+                    data={'userid': person_id},
+                    timeout=30
+                )
+
+                if response.status_code == 200:
+                    print(f"[REPLACE-PHOTOS]   ✓ Deleted from {endpoint}")
+                else:
+                    print(f"[REPLACE-PHOTOS]   ⚠ Delete returned {response.status_code}")
+
+            except Exception as e:
+                print(f"[REPLACE-PHOTOS]   ✗ Error deleting from {endpoint}: {e}")
+
+        # Delete old photo files from disk
+        deleted_files = []
+        for record in face_records:
+            if record.file_path and os.path.exists(record.file_path):
+                try:
+                    os.remove(record.file_path)
+                    deleted_files.append(record.file_path)
+                    print(f"[REPLACE-PHOTOS] Deleted old file: {record.file_path}")
+                except Exception as e:
+                    print(f"[REPLACE-PHOTOS] Error deleting {record.file_path}: {e}")
+
+        # Delete records from database
+        for record in face_records:
+            await session.delete(record)
+        await session.commit()
+
+        print(f"[REPLACE-PHOTOS] Deleted {len(face_records)} old records")
+
+        # Save new photos and re-register
+        location_id = face_records[0].location_id
+        codeproject_endpoint = face_records[0].codeproject_endpoint
+        is_employee = face_records[0].is_employee
+        user_expiration = face_records[0].user_expiration
+
+        # Save new photos to disk
+        saved_photos = []
+        for idx, photo_file in enumerate(photos):
+            # Read photo data
+            photo_data = await photo_file.read()
+
+            # Save to disk
+            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            filename = f"{person_id}_{timestamp}_{idx}.jpg"
+            filepath = os.path.join(UPLOAD_DIR, filename)
+
+            with open(filepath, "wb") as f:
+                f.write(photo_data)
+
+            saved_photos.append({
+                'filepath': filepath,
+                'data': photo_data,
+                'filename': filename
+            })
+
+        print(f"[REPLACE-PHOTOS] Saved {len(saved_photos)} new photos to disk")
+
+        # Re-register with CodeProject.AI
+        print(f"[REPLACE-PHOTOS] Re-registering with CodeProject.AI...")
+
+        files = []
+        for idx, photo in enumerate(saved_photos):
+            files.append(('images', (photo['filename'], photo['data'], 'image/jpeg')))
+
+        params = {'userid': person_id}
+
+        response = requests.post(
+            f"{codeproject_endpoint}/vision/face/register",
+            files=files,
+            data=params,
+            timeout=60
+        )
+
+        if response.status_code != 200:
+            # Cleanup saved files
+            for photo in saved_photos:
+                if os.path.exists(photo['filepath']):
+                    os.remove(photo['filepath'])
+            raise HTTPException(status_code=500, detail="Failed to re-register with CodeProject.AI")
+
+        print(f"[REPLACE-PHOTOS] ✓ Re-registered with CodeProject.AI")
+
+        # Create new database records
+        profile_photo_path = None
+        for idx, photo in enumerate(saved_photos):
+            # Extract base64 for profile photo (last image)
+            if idx == len(saved_photos) - 1:
+                with open(photo['filepath'], 'rb') as f:
+                    photo_bytes = f.read()
+                    profile_photo_path = base64.b64encode(photo_bytes).decode('utf-8')
+
+            registered_face = RegisteredFace(
+                person_id=person_id,
+                person_name=person_name,
+                codeproject_user_id=person_id,
+                file_path=photo['filepath'],
+                codeproject_endpoint=codeproject_endpoint,
+                location_id=location_id,
+                registered_by_user_id=user.id,
+                profile_photo=profile_photo_path if idx == len(saved_photos) - 1 else None,
+                is_employee=is_employee,
+                user_expiration=user_expiration
+            )
+            session.add(registered_face)
+
+        await session.commit()
+
+        print(f"[REPLACE-PHOTOS] ✓ Created {len(saved_photos)} new database records")
+        print(f"{'='*60}\n")
+
+        return {
+            "success": True,
+            "message": f"Successfully replaced {len(saved_photos)} photo(s) for {person_name}",
+            "photos_replaced": len(saved_photos)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[REPLACE-PHOTOS] ✗ EXCEPTION: {e}")
+        traceback.print_exc()
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/recognize")
 async def recognize_face(
     data: RecognizeRequest,

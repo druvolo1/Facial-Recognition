@@ -571,7 +571,55 @@
             font-weight: 600;
             margin-left: 10px;
         }
+
+        /* Cropper.js styles */
+        .cropper-container {
+            max-width: 100%;
+            max-height: 70vh;
+        }
+
+        .crop-preview-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .crop-preview-item {
+            position: relative;
+            cursor: pointer;
+            border: 3px solid transparent;
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .crop-preview-item:hover {
+            border-color: #667eea;
+        }
+
+        .crop-preview-item.selected {
+            border-color: #667eea;
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
+        }
+
+        .crop-preview-item img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+        }
+
+        .cropper-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            justify-content: center;
+        }
     </style>
+
+    <!-- Cropper.js -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -1408,6 +1456,47 @@
             <div class="modal-actions">
                 <button type="button" class="btn btn-secondary" onclick="closeModal('edit-expiration-modal')">Cancel</button>
                 <button type="button" class="btn btn-primary" onclick="saveExpiration()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Photos Modal -->
+    <div id="edit-photos-modal" class="modal">
+        <div class="modal-content" style="max-width: 1000px;">
+            <div class="modal-header">
+                <h2>Edit Photos for <span id="edit-photos-person-name"></span></h2>
+                <button class="close-modal" onclick="closeEditPhotosModal()">&times;</button>
+            </div>
+            <div style="padding: 20px;">
+                <div id="edit-photos-step-select" class="edit-photos-step">
+                    <h3 style="margin-bottom: 15px;">Select a photo to crop:</h3>
+                    <div id="edit-photos-list" class="crop-preview-list"></div>
+                </div>
+
+                <div id="edit-photos-step-crop" class="edit-photos-step" style="display: none;">
+                    <div style="margin-bottom: 15px;">
+                        <button class="btn btn-secondary btn-sm" onclick="backToPhotoSelection()">← Back to Photo Selection</button>
+                    </div>
+                    <h3 style="margin-bottom: 10px;">Crop Photo</h3>
+                    <p style="color: #666; margin-bottom: 15px;">Adjust the crop area to focus on the face. The system will auto-detect the face initially.</p>
+                    <div style="max-height: 60vh; overflow: hidden; margin-bottom: 15px;">
+                        <img id="crop-target-image" style="max-width: 100%;">
+                    </div>
+                    <div class="cropper-buttons">
+                        <button class="btn btn-secondary" onclick="resetCrop()">Reset</button>
+                        <button class="btn btn-info" onclick="autoDetectFace()">Auto-Detect Face</button>
+                        <button class="btn btn-primary" onclick="applyCroppedPhoto()">Apply & Save</button>
+                    </div>
+                </div>
+
+                <div id="edit-photos-step-saving" class="edit-photos-step" style="display: none; text-align: center; padding: 40px;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">⏳</div>
+                    <h3>Saving Changes...</h3>
+                    <p style="color: #666;">Re-registering photos with CodeProject.AI</p>
+                </div>
+            </div>
+            <div class="modal-actions" id="edit-photos-close-btn">
+                <button type="button" class="btn btn-secondary" onclick="closeEditPhotosModal()">Close</button>
             </div>
         </div>
     </div>

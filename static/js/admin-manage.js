@@ -526,6 +526,8 @@ async function loadRegisteredFaces() {
                         </p>
                         <button class="btn btn-secondary btn-sm" style="margin-top: 10px; width: 100%;"
                                 onclick="showAssignTagsModal('${escapeHtml(face.person_id)}', '${escapeHtml(face.person_name)}', ${face.location_id})">🏷️ Assign Tags</button>
+                        <button class="btn btn-primary btn-sm" style="margin-top: 5px; width: 100%;"
+                                onclick="showEditPhotosModal('${escapeHtml(face.person_id)}', '${escapeHtml(face.person_name)}', ${JSON.stringify(face.all_photos).replace(/'/g, '&#39;')})">✂️ Edit Photos</button>
                         <button class="btn btn-danger btn-sm" style="margin-top: 5px; width: 100%;"
                                 onclick="deleteFaceFromDatabase('${escapeHtml(face.person_id)}', '${escapeHtml(face.person_name)}')">Delete</button>
                     </div>
@@ -3040,6 +3042,258 @@ async function savePersonTags() {
         console.error('Error:', error);
         showAlert('Error updating tags', 'error');
     }
+}
+
+// ============================================================================
+// EDIT PHOTOS / CROPPING
+// ============================================================================
+
+let currentEditPhotos = {
+    personId: null,
+    personName: null,
+    photos: [],
+    selectedPhotoIndex: null,
+    cropper: null,
+    croppedImages: []
+};
+
+// Show edit photos modal
+function showEditPhotosModal(personId, personName, photosJson) {
+    try {
+        // Parse photos (they come as JSON string from the onclick attribute)
+        const photos = typeof photosJson === 'string' ? JSON.parse(photosJson) : photosJson;
+
+        currentEditPhotos.personId = personId;
+        currentEditPhotos.personName = personName;
+        currentEditPhotos.photos = photos;
+        currentEditPhotos.selectedPhotoIndex = null;
+        currentEditPhotos.croppedImages = [];
+
+        // Update modal title
+        document.getElementById('edit-photos-person-name').textContent = personName;
+
+        // Display photos in selection grid
+        const photosList = document.getElementById('edit-photos-list');
+        photosList.innerHTML = photos.map((photo, index) => `
+            <div class="crop-preview-item" onclick="selectPhotoForCrop(${index})">
+                <img src="${photo}" alt="Photo ${index + 1}">
+                <div style="text-align: center; padding: 5px; font-size: 12px; background: rgba(255,255,255,0.9);">
+                    Photo ${index + 1}
+                </div>
+            </div>
+        `).join('');
+
+        // Show selection step
+        document.getElementById('edit-photos-step-select').style.display = 'block';
+        document.getElementById('edit-photos-step-crop').style.display = 'none';
+        document.getElementById('edit-photos-step-saving').style.display = 'none';
+        document.getElementById('edit-photos-close-btn').style.display = 'flex';
+
+        // Open modal
+        openModal('edit-photos-modal');
+    } catch (error) {
+        console.error('Error showing edit photos modal:', error);
+        showAlert('Error loading photos', 'error');
+    }
+}
+
+// Select a photo for cropping
+function selectPhotoForCrop(photoIndex) {
+    currentEditPhotos.selectedPhotoIndex = photoIndex;
+    const photoUrl = currentEditPhotos.photos[photoIndex];
+
+    // Hide selection, show crop step
+    document.getElementById('edit-photos-step-select').style.display = 'none';
+    document.getElementById('edit-photos-step-crop').style.display = 'block';
+    document.getElementById('edit-photos-close-btn').style.display = 'none';
+
+    // Set image source
+    const image = document.getElementById('crop-target-image');
+    image.src = photoUrl;
+
+    // Destroy existing cropper if any
+    if (currentEditPhotos.cropper) {
+        currentEditPhotos.cropper.destroy();
+    }
+
+    // Initialize Cropper.js when image loads
+    image.onload = function() {
+        currentEditPhotos.cropper = new Cropper(image, {
+            aspectRatio: NaN, // Free aspect ratio
+            viewMode: 1,
+            autoCropArea: 0.8,
+            responsive: true,
+            background: false,
+            ready: function() {
+                // Auto-detect face after cropper is ready
+                setTimeout(() => autoDetectFace(), 500);
+            }
+        });
+    };
+}
+
+// Auto-detect face and set crop area
+async function autoDetectFace() {
+    if (!currentEditPhotos.cropper) return;
+
+    try {
+        const photoUrl = currentEditPhotos.photos[currentEditPhotos.selectedPhotoIndex];
+
+        // Show loading indicator
+        showAlert('Detecting face...', 'info');
+
+        // Call CodeProject.AI face detection
+        const response = await fetch(photoUrl);
+        const blob = await response.blob();
+
+        const formData = new FormData();
+        formData.append('image', blob, 'photo.jpg');
+
+        // Get CodeProject endpoint from first server (we'll use the person's registered server)
+        const detectResponse = await fetch('/api/detect-face-bounds', {
+            method: 'POST',
+            credentials: 'include',
+            body: formData
+        });
+
+        if (detectResponse.ok) {
+            const data = await detectResponse.json();
+            if (data.success && data.faces && data.faces.length > 0) {
+                const face = data.faces[0]; // Use first detected face
+                const imageData = currentEditPhotos.cropper.getImageData();
+
+                // Convert face coordinates to cropper coordinates
+                // face bounds are relative to image, need to adjust for displayed size
+                const scaleX = imageData.naturalWidth / imageData.width;
+                const scaleY = imageData.naturalHeight / imageData.height;
+
+                currentEditPhotos.cropper.setData({
+                    x: face.x_min / scaleX,
+                    y: face.y_min / scaleY,
+                    width: (face.x_max - face.x_min) / scaleX,
+                    height: (face.y_max - face.y_min) / scaleY
+                });
+
+                showAlert('Face detected and cropped!', 'success');
+            } else {
+                showAlert('No face detected. Please crop manually.', 'warning');
+            }
+        } else {
+            showAlert('Face detection unavailable. Please crop manually.', 'warning');
+        }
+    } catch (error) {
+        console.error('Error detecting face:', error);
+        showAlert('Face detection error. Please crop manually.', 'warning');
+    }
+}
+
+// Reset crop to original
+function resetCrop() {
+    if (currentEditPhotos.cropper) {
+        currentEditPhotos.cropper.reset();
+    }
+}
+
+// Back to photo selection
+function backToPhotoSelection() {
+    // Destroy cropper
+    if (currentEditPhotos.cropper) {
+        currentEditPhotos.cropper.destroy();
+        currentEditPhotos.cropper = null;
+    }
+
+    // Show selection step
+    document.getElementById('edit-photos-step-select').style.display = 'block';
+    document.getElementById('edit-photos-step-crop').style.display = 'none';
+    document.getElementById('edit-photos-close-btn').style.display = 'flex';
+}
+
+// Apply cropped photo and save
+async function applyCroppedPhoto() {
+    if (!currentEditPhotos.cropper) return;
+
+    try {
+        // Show saving step
+        document.getElementById('edit-photos-step-crop').style.display = 'none';
+        document.getElementById('edit-photos-step-saving').style.display = 'block';
+
+        // Get cropped canvas
+        const canvas = currentEditPhotos.cropper.getCroppedCanvas({
+            maxWidth: 4096,
+            maxHeight: 4096,
+            imageSmoothingEnabled: true,
+            imageSmoothingQuality: 'high'
+        });
+
+        // Convert to blob
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+
+        // Create FormData with all photos
+        const formData = new FormData();
+        formData.append('person_id', currentEditPhotos.personId);
+        formData.append('person_name', currentEditPhotos.personName);
+        formData.append('cropped_photo_index', currentEditPhotos.selectedPhotoIndex);
+
+        // Add cropped photo
+        formData.append('cropped_photo', blob, `photo_${currentEditPhotos.selectedPhotoIndex}.jpg`);
+
+        // Add all original photos
+        for (let i = 0; i < currentEditPhotos.photos.length; i++) {
+            if (i !== currentEditPhotos.selectedPhotoIndex) {
+                // Fetch and add original photos
+                const photoResponse = await fetch(currentEditPhotos.photos[i]);
+                const photoBlob = await photoResponse.blob();
+                formData.append('photos', photoBlob, `photo_${i}.jpg`);
+            } else {
+                // Add cropped version
+                formData.append('photos', blob, `photo_${i}.jpg`);
+            }
+        }
+
+        // Call backend to replace photos
+        const response = await fetch('/api/admin/replace-photos', {
+            method: 'POST',
+            credentials: 'include',
+            body: formData
+        });
+
+        if (response.ok) {
+            showAlert('Photos updated successfully!', 'success');
+            closeEditPhotosModal();
+            // Reload faces to show updated photos
+            await loadRegisteredFaces();
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Failed to update photos', 'error');
+            backToPhotoSelection();
+        }
+    } catch (error) {
+        console.error('Error applying crop:', error);
+        showAlert('Error saving cropped photo', 'error');
+        backToPhotoSelection();
+    }
+}
+
+// Close edit photos modal
+function closeEditPhotosModal() {
+    // Destroy cropper
+    if (currentEditPhotos.cropper) {
+        currentEditPhotos.cropper.destroy();
+        currentEditPhotos.cropper = null;
+    }
+
+    // Reset state
+    currentEditPhotos = {
+        personId: null,
+        personName: null,
+        photos: [],
+        selectedPhotoIndex: null,
+        cropper: null,
+        croppedImages: []
+    };
+
+    // Close modal
+    closeModal('edit-photos-modal');
 }
 
 // Initialize on page load
