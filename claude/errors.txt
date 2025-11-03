@@ -1,17 +1,14 @@
-register:1393 Uncaught TypeError: Cannot read properties of null (reading 'style')
-    at updateUserCropBox (register:1393:21)
-    at img.onload (register:1285:17)
-updateUserCropBox @ register:1393
-img.onload @ register:1285
-register:1393 Uncaught TypeError: Cannot read properties of null (reading 'style')
-    at updateUserCropBox (register:1393:21)
-    at img.onload (register:1285:17)
-updateUserCropBox @ register:1393
-img.onload @ register:1285
-register:1429 [Violation] 'click' handler took 629ms
-register:1465  POST https://nrf.ruvolo.loseyourip.com/api/register-face net::ERR_CONTENT_LENGTH_MISMATCH 404 (Not Found)
-(anonymous) @ register:1465
-register:1465  POST https://nrf.ruvolo.loseyourip.com/api/register-face net::ERR_CONTENT_LENGTH_MISMATCH 404 (Not Found)
-(anonymous) @ register:1465
 
+INFO:     172.16.1.150:46190 - "POST /api/devices/register HTTP/1.1" 200 OK
+INFO:     172.16.1.150:46202 - "GET /api/devices/status/821b521b-a1fd-4aed-b9a3-5c03999bdabf HTTP/1.1" 200 OK
+INFO:     172.16.1.150:34196 - "POST /api/admin/register-face HTTP/1.1" 422 Unprocessable Entity
+INFO:     172.16.1.150:34200 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 200 OK
+INFO:     172.16.1.150:34208 - "POST
 
+favicon.ico:1  GET https://nrf.ruvolo.loseyourip.com/favicon.ico 404 (Not Found)
+register:1437 [Violation] 'click' handler took 336ms
+register:1473  POST https://nrf.ruvolo.loseyourip.com/api/admin/register-face 422 (Unprocessable Entity)
+(anonymous) @ register:1473
+register:1437 [Violation] 'click' handler took 336ms
+register:1473  POST https://nrf.ruvolo.loseyourip.com/api/admin/register-face 422 (Unprocessable Entity)
+(anonymous) @ register:1473

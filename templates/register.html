@@ -583,13 +583,13 @@
             <div class="info-message">
                 The process takes about 10-15 seconds. Follow the on-screen instructions to move your head to different angles.
             </div>
-        </div>
 
-        <div class="photo-grid" id="photoGrid"></div>
+            <div class="photo-grid" id="photoGrid"></div>
 
-        <div class="button-group">
-            <button id="submitRegistration" class="btn-primary" disabled>Submit to CodeProject.AI</button>
-            <button id="resetForm" class="btn-danger">Reset</button>
+            <div class="button-group">
+                <button id="submitRegistration" class="btn-primary" disabled>Submit to CodeProject.AI</button>
+                <button id="resetForm" class="btn-danger">Reset</button>
+            </div>
         </div>
 
         <div class="loading" id="loading">
@@ -1456,13 +1456,16 @@
                 return;
             }
 
-            // Convert canvases to data URLs
+            // Convert canvases to data URLs with proper format
             const photos = [];
             for (let i = 0; i < uploadedPhotos.length; i++) {
                 const canvas = document.getElementById(`upload-canvas-${i}`);
                 if (canvas) {
                     const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-                    photos.push(dataUrl);
+                    photos.push({
+                        image: dataUrl,
+                        position: `upload_${i + 1}`
+                    });
                 }
             }
 
