@@ -4764,7 +4764,8 @@ async def device_register_face(
 @app.post("/api/devices/recognize-face")
 async def device_recognize_face(
     data: DeviceRecognizeRequest,
-    device: Device = Depends(get_current_device)
+    device: Device = Depends(get_current_device),
+    session: AsyncSession = Depends(get_async_session)
 ):
     """Recognize face in image using CodeProject.AI (device-authenticated)"""
     try:
@@ -4812,6 +4813,8 @@ async def device_recognize_face(
                 print(f"[DEVICE-RECOGNIZE] Faces detected: {len(predictions)}")
 
                 faces = []
+                person_names = []
+
                 for pred in predictions:
                     face_data = {
                         'userid': pred.get('userid', 'unknown'),
@@ -4822,7 +4825,47 @@ async def device_recognize_face(
                         'y_max': pred.get('y_max', 0)
                     }
                     faces.append(face_data)
+                    person_names.append(pred.get('userid', 'unknown'))
                     print(f"[DEVICE-RECOGNIZE]   - {face_data['userid']}: {face_data['confidence']:.2f}")
+
+                # Get metadata (profile photos, employee status, tags) for recognized people
+                if person_names:
+                    face_result = await session.execute(
+                        select(RegisteredFace.person_name, RegisteredFace.profile_photo, RegisteredFace.is_employee)
+                        .where(RegisteredFace.location_id == device.location_id)
+                        .where(RegisteredFace.person_name.in_(person_names))
+                        .distinct(RegisteredFace.person_name)
+                    )
+                    person_data = {row.person_name: {"profile_photo": row.profile_photo, "is_employee": row.is_employee, "tags": []} for row in face_result.all()}
+
+                    # Get tags for recognized people
+                    tag_result = await session.execute(
+                        select(PersonTag, Tag, Category).join(
+                            Tag, PersonTag.tag_id == Tag.id
+                        ).join(
+                            Category, Tag.category_id == Category.id
+                        ).where(
+                            PersonTag.person_name.in_(person_names),
+                            PersonTag.location_id == device.location_id
+                        )
+                    )
+                    for person_tag, tag, category in tag_result.all():
+                        if person_tag.person_name in person_data:
+                            person_data[person_tag.person_name]["tags"].append({
+                                "tag_id": tag.id,
+                                "tag_name": tag.name,
+                                "category_id": category.id,
+                                "category_name": category.name,
+                                "category_scope": category.scope
+                            })
+
+                    # Add metadata to face data
+                    for face in faces:
+                        person_name = face['userid']
+                        data = person_data.get(person_name, {})
+                        face['profile_photo'] = data.get('profile_photo')
+                        face['is_employee'] = data.get('is_employee', False)
+                        face['tags'] = data.get('tags', [])
 
                 print(f"{'='*60}\n")
 
