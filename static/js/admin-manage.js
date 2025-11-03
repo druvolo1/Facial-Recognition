@@ -2613,7 +2613,16 @@ async function showCreateCategoryModal() {
 function toggleCategoryLocation() {
     const scope = document.getElementById('category-scope').value;
     const locationGroup = document.getElementById('category-location-group');
-    locationGroup.style.display = scope === 'location' ? 'block' : 'none';
+    const locationSelect = document.getElementById('category-location');
+
+    if (scope === 'location') {
+        locationGroup.style.display = 'block';
+        locationSelect.setAttribute('required', 'required');
+    } else {
+        locationGroup.style.display = 'none';
+        locationSelect.removeAttribute('required');
+        locationSelect.value = ''; // Clear selection when hiding
+    }
 }
 
 // Create category form submission
@@ -2621,11 +2630,19 @@ document.getElementById('create-category-form').addEventListener('submit', async
     e.preventDefault();
 
     const scope = document.getElementById('category-scope').value;
+    const locationValue = document.getElementById('category-location').value;
+
+    // Validate location selection for location-specific categories
+    if (scope === 'location' && (!locationValue || locationValue === '')) {
+        showAlert('Please select a location for location-specific categories', 'error');
+        return;
+    }
+
     const data = {
         name: document.getElementById('category-name').value,
         description: document.getElementById('category-description').value || null,
         scope: scope,
-        location_id: scope === 'location' ? parseInt(document.getElementById('category-location').value) : null
+        location_id: scope === 'location' ? parseInt(locationValue) : null
     };
 
     try {
