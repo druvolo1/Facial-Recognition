@@ -195,47 +195,65 @@ function buildTabs() {
 
     // Common tabs for all admins
     const devicesActive = currentActive === 'devices' ? 'active' : '';
+    const devicesBadge = overviewStats.total_devices > 0
+        ? `<span class="badge-count">${overviewStats.total_devices}</span>`
+        : '';
     tabs.push(`
         <button class="tab-button ${devicesActive}" onclick="switchTab('devices')">
-            📱 Devices
+            📱 Devices${devicesBadge}
         </button>
     `);
 
     const facesActive = currentActive === 'faces' ? 'active' : '';
+    const facesBadge = overviewStats.total_registered_faces > 0
+        ? `<span class="badge-count">${overviewStats.total_registered_faces}</span>`
+        : '';
     tabs.push(`
         <button class="tab-button ${facesActive}" onclick="switchTab('faces')">
-            👥 Registered Faces
+            👥 Registered Faces${facesBadge}
         </button>
     `);
 
     // Categories & Tags tab (all admins)
     const categoriesActive = currentActive === 'categories' ? 'active' : '';
+    const categoriesBadge = overviewStats.total_categories > 0
+        ? `<span class="badge-count">${overviewStats.total_categories}</span>`
+        : '';
     tabs.push(`
         <button class="tab-button ${categoriesActive}" onclick="switchTab('categories')">
-            🏷️ Categories & Tags
+            🏷️ Categories & Tags${categoriesBadge}
         </button>
     `);
 
     // Superadmin-only tabs
     if (overviewStats.is_superuser) {
         const usersActive = currentActive === 'users' ? 'active' : '';
+        const usersBadge = overviewStats.total_users > 0
+            ? `<span class="badge-count">${overviewStats.total_users}</span>`
+            : '';
         tabs.push(`
             <button class="tab-button ${usersActive}" onclick="switchTab('users')">
-                👤 Users
+                👤 Users${usersBadge}
             </button>
         `);
 
         const locationsActive = currentActive === 'locations' ? 'active' : '';
+        const locationsBadge = overviewStats.total_locations > 0
+            ? `<span class="badge-count">${overviewStats.total_locations}</span>`
+            : '';
         tabs.push(`
             <button class="tab-button ${locationsActive}" onclick="switchTab('locations')">
-                📍 Locations
+                📍 Locations${locationsBadge}
             </button>
         `);
 
         const serversActive = currentActive === 'servers' ? 'active' : '';
+        const serversBadge = overviewStats.total_servers > 0
+            ? `<span class="badge-count">${overviewStats.total_servers}</span>`
+            : '';
         tabs.push(`
             <button class="tab-button ${serversActive}" onclick="switchTab('servers')">
-                🖥️ Servers
+                🖥️ Servers${serversBadge}
             </button>
         `);
     }
@@ -499,15 +517,15 @@ async function loadRegisteredFaces() {
                             <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
                                 <input type="checkbox"
                                        ${face.is_employee ? 'checked' : ''}
-                                       onchange="updateEmployeeStatus('${escapeHtml(face.person_name)}', this.checked)"
+                                       onchange="updateEmployeeStatus('${escapeHtml(face.person_id)}', '${escapeHtml(face.person_name)}', this.checked)"
                                        style="cursor: pointer;">
                                 <span>Employee</span>
                             </label>
                         </p>
                         <button class="btn btn-secondary btn-sm" style="margin-top: 10px; width: 100%;"
-                                onclick="showAssignTagsModal('${escapeHtml(face.person_name)}', ${face.location_id})">🏷️ Assign Tags</button>
+                                onclick="showAssignTagsModal('${escapeHtml(face.person_id)}', '${escapeHtml(face.person_name)}', ${face.location_id})">🏷️ Assign Tags</button>
                         <button class="btn btn-danger btn-sm" style="margin-top: 5px; width: 100%;"
-                                onclick="deleteFaceFromDatabase('${escapeHtml(face.person_name)}')">Delete</button>
+                                onclick="deleteFaceFromDatabase('${escapeHtml(face.person_id)}', '${escapeHtml(face.person_name)}')">Delete</button>
                     </div>
                 `).join('')}
             </div>
@@ -1190,11 +1208,11 @@ async function deleteDevice(deviceId, deviceName) {
 }
 
 // Registered faces management
-async function deleteFaceFromDatabase(personName) {
+async function deleteFaceFromDatabase(personId, personName) {
     if (!confirm(`Delete all photos and records for "${personName}"?\n\nThis will:\n- Remove the face from CodeProject.AI server(s)\n- Delete all photo files\n- Remove all database records\n\nThis cannot be undone.`)) return;
 
     try {
-        const response = await fetch(`/api/registered-faces/${encodeURIComponent(personName)}`, {
+        const response = await fetch(`/api/registered-faces/${encodeURIComponent(personId)}`, {
             method: 'DELETE',
             credentials: 'include'
         });
@@ -1217,9 +1235,9 @@ async function deleteFaceFromDatabase(personName) {
 }
 
 // Update employee status for a registered face
-async function updateEmployeeStatus(personName, isEmployee) {
+async function updateEmployeeStatus(personId, personName, isEmployee) {
     try {
-        const response = await fetch(`/api/registered-faces/${encodeURIComponent(personName)}/employee-status?is_employee=${isEmployee}`, {
+        const response = await fetch(`/api/registered-faces/${encodeURIComponent(personId)}/employee-status?is_employee=${isEmployee}`, {
             method: 'PUT',
             credentials: 'include'
         });
@@ -2812,11 +2830,13 @@ async function deleteTag(tagId, categoryId, tagName) {
 }
 
 // Show assign tags modal for a person
-let currentAssignPerson = null;
+let currentAssignPersonId = null;
+let currentAssignPersonName = null;
 let currentAssignLocationId = null;
 
-async function showAssignTagsModal(personName, locationId) {
-    currentAssignPerson = personName;
+async function showAssignTagsModal(personId, personName, locationId) {
+    currentAssignPersonId = personId;
+    currentAssignPersonName = personName;
     currentAssignLocationId = locationId;
 
     document.getElementById('assign-tags-person-name').textContent = personName;
@@ -2827,7 +2847,7 @@ async function showAssignTagsModal(personName, locationId) {
     }
 
     // Load current tags for person
-    const personTags = await loadPersonTags(personName, locationId);
+    const personTags = await loadPersonTags(personId, locationId);
     const personTagIds = personTags.map(t => t.tag_id);
 
     // Build UI with categories and checkboxes
@@ -2863,9 +2883,9 @@ async function showAssignTagsModal(personName, locationId) {
 }
 
 // Load current tags for a person
-async function loadPersonTags(personName, locationId) {
+async function loadPersonTags(personId, locationId) {
     try {
-        const response = await fetch(`/api/person-tags/${encodeURIComponent(personName)}?location_id=${locationId}`, {
+        const response = await fetch(`/api/person-tags/${encodeURIComponent(personId)}?location_id=${locationId}`, {
             credentials: 'include'
         });
         const data = await response.json();
@@ -2887,14 +2907,15 @@ async function savePersonTags() {
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify({
-                person_name: currentAssignPerson,
+                person_id: currentAssignPersonId,
+                person_name: currentAssignPersonName,
                 location_id: currentAssignLocationId,
                 tag_ids: tagIds
             })
         });
 
         if (response.ok) {
-            showAlert(`Tags updated for ${currentAssignPerson}`, 'success');
+            showAlert(`Tags updated for ${currentAssignPersonName}`, 'success');
             closeModal('assign-tags-modal');
             await loadRegisteredFaces();
         } else {

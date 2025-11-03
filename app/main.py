@@ -11,6 +11,7 @@ import base64
 from io import BytesIO
 import json
 import asyncio
+import uuid
 
 from fastapi import FastAPI, Depends, HTTPException, Request, Form, status, WebSocket, WebSocketDisconnect
 from fastapi.security import OAuth2PasswordRequestForm
@@ -122,9 +123,11 @@ class RegisteredFace(Base):
     __tablename__ = "registered_face"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    # The person's name - used as the user_id in CodeProject.AI
+    # Unique identifier for this person (UUID)
+    person_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
+    # The person's name - for display purposes
     person_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    # The CodeProject.AI user_id (same as person_name but stored for clarity)
+    # The CodeProject.AI user_id (will be person_id instead of person_name)
     codeproject_user_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     # Path to the image file
     file_path: Mapped[str] = mapped_column(String(512), nullable=False)
@@ -198,6 +201,9 @@ class PersonTag(Base):
     __tablename__ = "person_tag"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    # Unique identifier for the person (UUID) - primary way to link
+    person_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
+    # Kept for backward compatibility, but person_id is the source of truth
     person_name: Mapped[str] = mapped_column(String(255), nullable=False)
     location_id: Mapped[int] = mapped_column(Integer, ForeignKey("location.id", ondelete="CASCADE"), nullable=False)
     tag_id: Mapped[int] = mapped_column(Integer, ForeignKey("tag.id", ondelete="CASCADE"), nullable=False)
@@ -626,7 +632,8 @@ class UpdateTagRequest(BaseModel):
 
 
 class AssignPersonTagsRequest(BaseModel):
-    person_name: str
+    person_id: str  # UUID
+    person_name: str  # For display/logging purposes
     location_id: int
     tag_ids: list[int]
 
@@ -1258,6 +1265,9 @@ async def get_admin_overview(
         "total_devices": 0,
         "pending_devices": 0,
         "total_registered_faces": 0,
+        "total_categories": 0,
+        "total_tags": 0,
+        "total_servers": 0,
         "managed_locations": []
     }
 
@@ -1311,6 +1321,26 @@ async def get_admin_overview(
                 )
             )
             stats["total_registered_faces"] = face_count.scalar()
+
+            # Count categories (global + this location's)
+            category_count = await session.execute(
+                select(func.count(Category.id)).where(
+                    or_(Category.scope == 'global', Category.location_id == location_id)
+                )
+            )
+            stats["total_categories"] = category_count.scalar()
+
+            # Count tags for accessible categories
+            tag_count = await session.execute(
+                select(func.count(Tag.id)).where(
+                    Tag.category_id.in_(
+                        select(Category.id).where(
+                            or_(Category.scope == 'global', Category.location_id == location_id)
+                        )
+                    )
+                )
+            )
+            stats["total_tags"] = tag_count.scalar()
         else:
             # Show all locations (no filter)
             # Count users
@@ -1337,12 +1367,24 @@ async def get_admin_overview(
             face_count = await session.execute(select(func.count(func.distinct(RegisteredFace.person_name))))
             stats["total_registered_faces"] = face_count.scalar()
 
+            # Count categories (all)
+            category_count = await session.execute(select(func.count(Category.id)))
+            stats["total_categories"] = category_count.scalar()
+
+            # Count tags (all)
+            tag_count = await session.execute(select(func.count(Tag.id)))
+            stats["total_tags"] = tag_count.scalar()
+
         # Get all locations for managed_locations dropdown (always show all for superadmin)
         locations_result = await session.execute(select(Location))
         all_locations = locations_result.scalars().all()
         stats["managed_locations"] = [
             {"id": loc.id, "name": loc.name} for loc in all_locations
         ]
+
+        # Count servers (always all for superadmin)
+        server_count = await session.execute(select(func.count(CodeProjectServer.id)))
+        stats["total_servers"] = server_count.scalar()
 
     else:
         # Location admin sees only their locations
@@ -1412,6 +1454,30 @@ async def get_admin_overview(
                 )
             )
             stats["total_users"] = user_count.scalar()
+
+            # Count categories (global + their locations')
+            category_count = await session.execute(
+                select(func.count(Category.id)).where(
+                    or_(Category.scope == 'global', Category.location_id.in_(location_ids))
+                )
+            )
+            stats["total_categories"] = category_count.scalar()
+
+            # Count tags for accessible categories
+            tag_count = await session.execute(
+                select(func.count(Tag.id)).where(
+                    Tag.category_id.in_(
+                        select(Category.id).where(
+                            or_(Category.scope == 'global', Category.location_id.in_(location_ids))
+                        )
+                    )
+                )
+            )
+            stats["total_tags"] = tag_count.scalar()
+
+            # Count servers (location admins can see all servers)
+            server_count = await session.execute(select(func.count(CodeProjectServer.id)))
+            stats["total_servers"] = server_count.scalar()
 
     return stats
 
@@ -3173,10 +3239,21 @@ async def assign_person_tags(
             if not result.scalar_one_or_none():
                 raise HTTPException(status_code=403, detail="Access denied to this location")
 
-        # Delete existing tags for this person
+        # Verify person exists at this location
+        face_result = await session.execute(
+            select(RegisteredFace).where(
+                RegisteredFace.person_id == data.person_id,
+                RegisteredFace.location_id == data.location_id
+            ).limit(1)
+        )
+        registered_face = face_result.scalar_one_or_none()
+        if not registered_face:
+            raise HTTPException(status_code=404, detail="Person not found at this location")
+
+        # Delete existing tags for this person (using person_id)
         await session.execute(
             delete(PersonTag).where(
-                PersonTag.person_name == data.person_name,
+                PersonTag.person_id == data.person_id,
                 PersonTag.location_id == data.location_id
             )
         )
@@ -3184,7 +3261,8 @@ async def assign_person_tags(
         # Add new tags
         for tag_id in data.tag_ids:
             person_tag = PersonTag(
-                person_name=data.person_name,
+                person_id=data.person_id,
+                person_name=data.person_name,  # Keep for backward compatibility
                 location_id=data.location_id,
                 tag_id=tag_id
             )
@@ -3203,14 +3281,14 @@ async def assign_person_tags(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/person-tags/{person_name}")
+@app.get("/api/person-tags/{person_id}")
 async def get_person_tags(
-    person_name: str,
+    person_id: str,
     location_id: int,
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session)
 ):
-    """Get all tags assigned to a person"""
+    """Get all tags assigned to a person (by person_id UUID)"""
     try:
         # Check access
         if not user.is_superuser:
@@ -3223,14 +3301,14 @@ async def get_person_tags(
             if not result.scalar_one_or_none():
                 raise HTTPException(status_code=403, detail="Access denied to this location")
 
-        # Get person tags with tag and category info
+        # Get person tags with tag and category info (using person_id)
         result = await session.execute(
             select(PersonTag, Tag, Category).join(
                 Tag, PersonTag.tag_id == Tag.id
             ).join(
                 Category, Tag.category_id == Category.id
             ).where(
-                PersonTag.person_name == person_name,
+                PersonTag.person_id == person_id,
                 PersonTag.location_id == location_id
             )
         )
@@ -3850,10 +3928,11 @@ async def log_scan(
     Expects a JSON body with a 'detections' array:
     {
         "detections": [
-            {"person_name": "John Doe", "confidence": 0.95},
-            {"person_name": "Jane Smith", "confidence": 0.87}
+            {"person_name": "uuid-here", "confidence": 0.95},
+            {"person_name": "uuid-here-2", "confidence": 0.87}
         ]
     }
+    Note: person_name field contains person_id (UUID) from CodeProject.AI
     """
     try:
         data = await request.json()
@@ -3873,15 +3952,60 @@ async def log_scan(
             if area:
                 area_name = area.area_name
 
-        # Create detection records
+        # Extract person_ids from detections (scanner sends person_id in 'person_name' field)
+        person_ids = []
+        for det in detections:
+            person_id = det.get("person_name")  # Scanner sends person_id here
+            if person_id:
+                person_ids.append(person_id)
+
+        if not person_ids:
+            return {"status": "ok", "logged": 0}
+
+        # Get person metadata (person_name, profile_photo, is_employee) using person_id
+        face_result = await session.execute(
+            select(RegisteredFace.person_id, RegisteredFace.person_name, RegisteredFace.profile_photo, RegisteredFace.is_employee)
+            .where(RegisteredFace.location_id == device.location_id)
+            .where(RegisteredFace.person_id.in_(person_ids))
+            .distinct(RegisteredFace.person_id)
+        )
+        person_data = {row.person_id: {"person_name": row.person_name, "profile_photo": row.profile_photo, "is_employee": row.is_employee, "tags": []} for row in face_result.all()}
+
+        # Get tags for detected people (using person_id)
+        tag_result = await session.execute(
+            select(PersonTag, Tag, Category).join(
+                Tag, PersonTag.tag_id == Tag.id
+            ).join(
+                Category, Tag.category_id == Category.id
+            ).where(
+                PersonTag.person_id.in_(person_ids),
+                PersonTag.location_id == device.location_id
+            )
+        )
+        for person_tag, tag, category in tag_result.all():
+            if person_tag.person_id in person_data:
+                person_data[person_tag.person_id]["tags"].append({
+                    "tag_id": tag.id,
+                    "tag_name": tag.name,
+                    "category_id": category.id,
+                    "category_name": category.name,
+                    "category_scope": category.scope
+                })
+
+        # Create detection records for database and broadcast
         detection_records = []
         for det in detections:
-            person_name = det.get("person_name")
+            person_id = det.get("person_name")  # Scanner sends person_id here
             confidence = det.get("confidence")
 
-            if not person_name or confidence is None:
+            if not person_id or confidence is None:
                 continue
 
+            # Get person data
+            data = person_data.get(person_id, {})
+            person_name = data.get("person_name", "Unknown")
+
+            # Save detection to database (using person_name for historical logging)
             detection = Detection(
                 device_id=device.device_id,
                 person_name=person_name,
@@ -3890,57 +4014,25 @@ async def log_scan(
                 detected_at=datetime.utcnow()
             )
             session.add(detection)
+
+            # Build detection record for broadcast
             detection_records.append({
+                "person_id": person_id,
                 "person_name": person_name,
                 "confidence": confidence,
                 "device_name": device.device_name or device.device_id[:8],
                 "area_name": area_name,
-                "detected_at": detection.detected_at.isoformat()
+                "detected_at": detection.detected_at.isoformat(),
+                "profile_photo": data.get("profile_photo"),
+                "is_employee": data.get("is_employee", False),
+                "tags": data.get("tags", []),
+                "device_id": device.device_id
             })
 
         await session.commit()
 
-        # Get profile photos, employee status, and tags for detected people
+        # Broadcast to dashboards for this location via WebSocket
         if detection_records:
-            person_names = [det["person_name"] for det in detection_records]
-            face_result = await session.execute(
-                select(RegisteredFace.person_name, RegisteredFace.profile_photo, RegisteredFace.is_employee)
-                .where(RegisteredFace.location_id == device.location_id)
-                .where(RegisteredFace.person_name.in_(person_names))
-                .distinct(RegisteredFace.person_name)
-            )
-            person_data = {row.person_name: {"profile_photo": row.profile_photo, "is_employee": row.is_employee, "tags": []} for row in face_result.all()}
-
-            # Get tags for detected people
-            tag_result = await session.execute(
-                select(PersonTag, Tag, Category).join(
-                    Tag, PersonTag.tag_id == Tag.id
-                ).join(
-                    Category, Tag.category_id == Category.id
-                ).where(
-                    PersonTag.person_name.in_(person_names),
-                    PersonTag.location_id == device.location_id
-                )
-            )
-            for person_tag, tag, category in tag_result.all():
-                if person_tag.person_name in person_data:
-                    person_data[person_tag.person_name]["tags"].append({
-                        "tag_id": tag.id,
-                        "tag_name": tag.name,
-                        "category_id": category.id,
-                        "category_name": category.name,
-                        "category_scope": category.scope
-                    })
-
-            # Add profile photos, employee status, and tags to detection records
-            for det in detection_records:
-                data = person_data.get(det["person_name"], {})
-                det["profile_photo"] = data.get("profile_photo")
-                det["is_employee"] = data.get("is_employee", False)
-                det["tags"] = data.get("tags", [])
-                det["device_id"] = device.device_id
-
-            # Broadcast to dashboards for this location via WebSocket
             await manager.broadcast_to_location(device.location_id, {
                 "type": "new_detections",
                 "detections": detection_records
@@ -4878,11 +4970,12 @@ async def device_recognize_face(
                 print(f"[DEVICE-RECOGNIZE] Faces detected: {len(predictions)}")
 
                 faces = []
-                person_names = []
+                person_ids = []
 
                 for pred in predictions:
+                    person_id = pred.get('userid', 'unknown')  # This is now person_id from CodeProject
                     face_data = {
-                        'userid': pred.get('userid', 'unknown'),
+                        'userid': person_id,  # This is person_id
                         'confidence': pred.get('confidence', 0),
                         'x_min': pred.get('x_min', 0),
                         'y_min': pred.get('y_min', 0),
@@ -4890,33 +4983,33 @@ async def device_recognize_face(
                         'y_max': pred.get('y_max', 0)
                     }
                     faces.append(face_data)
-                    person_names.append(pred.get('userid', 'unknown'))
-                    print(f"[DEVICE-RECOGNIZE]   - {face_data['userid']}: {face_data['confidence']:.2f}")
+                    person_ids.append(person_id)
+                    print(f"[DEVICE-RECOGNIZE]   - person_id {person_id}: {face_data['confidence']:.2f}")
 
-                # Get metadata (profile photos, employee status, tags) for recognized people
-                if person_names:
+                # Get metadata (person_name, profile photos, employee status, tags) using person_id
+                if person_ids:
                     face_result = await session.execute(
-                        select(RegisteredFace.person_name, RegisteredFace.profile_photo, RegisteredFace.is_employee)
+                        select(RegisteredFace.person_id, RegisteredFace.person_name, RegisteredFace.profile_photo, RegisteredFace.is_employee)
                         .where(RegisteredFace.location_id == device.location_id)
-                        .where(RegisteredFace.person_name.in_(person_names))
-                        .distinct(RegisteredFace.person_name)
+                        .where(RegisteredFace.person_id.in_(person_ids))
+                        .distinct(RegisteredFace.person_id)
                     )
-                    person_data = {row.person_name: {"profile_photo": row.profile_photo, "is_employee": row.is_employee, "tags": []} for row in face_result.all()}
+                    person_data = {row.person_id: {"person_name": row.person_name, "profile_photo": row.profile_photo, "is_employee": row.is_employee, "tags": []} for row in face_result.all()}
 
-                    # Get tags for recognized people
+                    # Get tags for recognized people (using person_id)
                     tag_result = await session.execute(
                         select(PersonTag, Tag, Category).join(
                             Tag, PersonTag.tag_id == Tag.id
                         ).join(
                             Category, Tag.category_id == Category.id
                         ).where(
-                            PersonTag.person_name.in_(person_names),
+                            PersonTag.person_id.in_(person_ids),
                             PersonTag.location_id == device.location_id
                         )
                     )
                     for person_tag, tag, category in tag_result.all():
-                        if person_tag.person_name in person_data:
-                            person_data[person_tag.person_name]["tags"].append({
+                        if person_tag.person_id in person_data:
+                            person_data[person_tag.person_id]["tags"].append({
                                 "tag_id": tag.id,
                                 "tag_name": tag.name,
                                 "category_id": category.id,
@@ -4924,10 +5017,11 @@ async def device_recognize_face(
                                 "category_scope": category.scope
                             })
 
-                    # Add metadata to face data
+                    # Add metadata to face data and map person_id to person_name for display
                     for face in faces:
-                        person_name = face['userid']
-                        data = person_data.get(person_name, {})
+                        person_id = face['userid']
+                        data = person_data.get(person_id, {})
+                        face['person_name'] = data.get('person_name', 'Unknown')  # Add person_name for display
                         face['profile_photo'] = data.get('profile_photo')
                         face['is_employee'] = data.get('is_employee', False)
                         face['tags'] = data.get('tags', [])
@@ -5086,7 +5180,8 @@ async def get_registered_faces(
                     location_name = location.name
 
             registered_faces.append({
-                "person_name": name,  # Changed from "name" to match JavaScript expectation
+                "person_name": name,  # Display name
+                "person_id": face_record.person_id if face_record else None,  # Unique identifier (UUID)
                 "photo": photos[0] if photos else None,  # Use first photo as profile picture
                 "photo_count": len(photos),
                 "all_photos": photos,
@@ -5263,6 +5358,24 @@ async def admin_register_face(
 
         codeproject_endpoint = server.endpoint_url
 
+        # Check if person already exists at this location, and get or create person_id
+        existing_face_result = await session.execute(
+            select(RegisteredFace).where(
+                RegisteredFace.person_name == data.person_name,
+                RegisteredFace.location_id == data.location_id
+            ).limit(1)
+        )
+        existing_face = existing_face_result.scalar_one_or_none()
+
+        if existing_face and existing_face.person_id:
+            # Reuse existing person_id
+            person_id = existing_face.person_id
+            print(f"[ADMIN-REGISTER] Existing person found, reusing person_id: {person_id}")
+        else:
+            # Generate new person_id for new person
+            person_id = str(uuid.uuid4())
+            print(f"[ADMIN-REGISTER] New person, generated person_id: {person_id}")
+
         successful_registrations = 0
         errors = []
         profile_photo_path = None
@@ -5296,12 +5409,12 @@ async def admin_register_face(
                 if idx == len(data.photos) - 1:
                     profile_photo_path = f"/uploads/{filename}"
 
-                # Register with CodeProject.AI
+                # Register with CodeProject.AI using person_id as userid
                 files = {
                     'image': (filename, BytesIO(image_bytes), 'image/jpeg')
                 }
                 params = {
-                    'userid': data.person_name
+                    'userid': person_id  # Use person_id instead of person_name
                 }
 
                 print(f"[ADMIN-REGISTER]   Sending to CodeProject.AI...")
@@ -5321,8 +5434,9 @@ async def admin_register_face(
 
                         # Save to database
                         registered_face = RegisteredFace(
+                            person_id=person_id,
                             person_name=data.person_name,
-                            codeproject_user_id=data.person_name,
+                            codeproject_user_id=person_id,  # Store person_id as codeproject_user_id
                             file_path=filepath,
                             codeproject_endpoint=codeproject_endpoint,
                             location_id=data.location_id,
@@ -5433,25 +5547,25 @@ async def recognize_face(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.delete("/api/registered-faces/{person_name}")
+@app.delete("/api/registered-faces/{person_id}")
 async def delete_registered_face(
-    person_name: str,
+    person_id: str,
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session)
 ):
     """Delete a person's registered face from CodeProject.AI and remove all associated files"""
     try:
         print(f"\n{'='*60}")
-        print(f"[DELETE] Deleting registered face: {person_name}")
+        print(f"[DELETE] Deleting registered face with person_id: {person_id}")
 
         # Get all registered face records for this person
         result = await session.execute(
-            select(RegisteredFace).where(RegisteredFace.person_name == person_name)
+            select(RegisteredFace).where(RegisteredFace.person_id == person_id)
         )
         face_records = result.scalars().all()
 
         if not face_records:
-            raise HTTPException(status_code=404, detail=f"No registered faces found for {person_name}")
+            raise HTTPException(status_code=404, detail=f"No registered faces found for person_id {person_id}")
 
         # Check permissions - location admins can only delete faces from their locations
         if not user.is_superuser:
@@ -5541,9 +5655,9 @@ async def delete_registered_face(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.put("/api/registered-faces/{person_name}/employee-status")
+@app.put("/api/registered-faces/{person_id}/employee-status")
 async def update_employee_status(
-    person_name: str,
+    person_id: str,
     is_employee: bool,
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session)
@@ -5551,16 +5665,16 @@ async def update_employee_status(
     """Update employee status for a registered face"""
     try:
         print(f"\n{'='*60}")
-        print(f"[UPDATE-EMPLOYEE] Updating {person_name} to is_employee={is_employee}")
+        print(f"[UPDATE-EMPLOYEE] Updating person_id {person_id} to is_employee={is_employee}")
 
         # Get all registered face records for this person
         result = await session.execute(
-            select(RegisteredFace).where(RegisteredFace.person_name == person_name)
+            select(RegisteredFace).where(RegisteredFace.person_id == person_id)
         )
         face_records = result.scalars().all()
 
         if not face_records:
-            raise HTTPException(status_code=404, detail=f"No registered faces found for {person_name}")
+            raise HTTPException(status_code=404, detail=f"No registered faces found for person_id {person_id}")
 
         # Check permissions - location admins can only edit faces from their locations
         if not user.is_superuser:
