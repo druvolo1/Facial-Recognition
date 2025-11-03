@@ -3276,9 +3276,35 @@ async function applyCroppedPhoto() {
 
         if (response.ok) {
             showAlert('Photos updated successfully!', 'success');
-            closeEditPhotosModal();
-            // Reload faces to show updated photos
+
+            // Reload the registered faces data in the background
             await loadRegisteredFaces();
+
+            // Fetch updated photos for this person
+            const facesResponse = await fetch('/api/registered-faces', {
+                credentials: 'include'
+            });
+            const facesData = await facesResponse.json();
+            const updatedPerson = facesData.faces.find(f => f.person_id === currentEditPhotos.personId);
+
+            if (updatedPerson && updatedPerson.all_photos) {
+                // Update the photos array with the new photos
+                currentEditPhotos.photos = updatedPerson.all_photos;
+
+                // Refresh the photo selection list
+                const photosList = document.getElementById('edit-photos-list');
+                photosList.innerHTML = currentEditPhotos.photos.map((photo, index) => `
+                    <div class="crop-preview-item" onclick="selectPhotoForCrop(${index})">
+                        <img src="${photo}" alt="Photo ${index + 1}">
+                        <div style="text-align: center; padding: 5px; font-size: 12px; background: rgba(255,255,255,0.9);">
+                            Photo ${index + 1}
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // Go back to photo selection so user can crop another photo or close
+            backToPhotoSelection();
         } else {
             const error = await response.json();
             showAlert(error.detail || 'Failed to update photos', 'error');
