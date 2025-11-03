@@ -196,7 +196,7 @@ function buildTabs() {
     // Common tabs for all admins
     const devicesActive = currentActive === 'devices' ? 'active' : '';
     const devicesBadge = overviewStats.total_devices > 0
-        ? `<span class="badge-count">${overviewStats.total_devices}</span>`
+        ? `<span class="badge-count info">${overviewStats.total_devices}</span>`
         : '';
     tabs.push(`
         <button class="tab-button ${devicesActive}" onclick="switchTab('devices')">
@@ -206,7 +206,7 @@ function buildTabs() {
 
     const facesActive = currentActive === 'faces' ? 'active' : '';
     const facesBadge = overviewStats.total_registered_faces > 0
-        ? `<span class="badge-count">${overviewStats.total_registered_faces}</span>`
+        ? `<span class="badge-count info">${overviewStats.total_registered_faces}</span>`
         : '';
     tabs.push(`
         <button class="tab-button ${facesActive}" onclick="switchTab('faces')">
@@ -217,7 +217,7 @@ function buildTabs() {
     // Categories & Tags tab (all admins)
     const categoriesActive = currentActive === 'categories' ? 'active' : '';
     const categoriesBadge = overviewStats.total_categories > 0
-        ? `<span class="badge-count">${overviewStats.total_categories}</span>`
+        ? `<span class="badge-count info">${overviewStats.total_categories}</span>`
         : '';
     tabs.push(`
         <button class="tab-button ${categoriesActive}" onclick="switchTab('categories')">
@@ -229,7 +229,7 @@ function buildTabs() {
     if (overviewStats.is_superuser) {
         const usersActive = currentActive === 'users' ? 'active' : '';
         const usersBadge = overviewStats.total_users > 0
-            ? `<span class="badge-count">${overviewStats.total_users}</span>`
+            ? `<span class="badge-count info">${overviewStats.total_users}</span>`
             : '';
         tabs.push(`
             <button class="tab-button ${usersActive}" onclick="switchTab('users')">
@@ -239,7 +239,7 @@ function buildTabs() {
 
         const locationsActive = currentActive === 'locations' ? 'active' : '';
         const locationsBadge = overviewStats.total_locations > 0
-            ? `<span class="badge-count">${overviewStats.total_locations}</span>`
+            ? `<span class="badge-count info">${overviewStats.total_locations}</span>`
             : '';
         tabs.push(`
             <button class="tab-button ${locationsActive}" onclick="switchTab('locations')">
@@ -249,7 +249,7 @@ function buildTabs() {
 
         const serversActive = currentActive === 'servers' ? 'active' : '';
         const serversBadge = overviewStats.total_servers > 0
-            ? `<span class="badge-count">${overviewStats.total_servers}</span>`
+            ? `<span class="badge-count info">${overviewStats.total_servers}</span>`
             : '';
         tabs.push(`
             <button class="tab-button ${serversActive}" onclick="switchTab('servers')">
