@@ -1282,10 +1282,13 @@
                     };
                 }
 
+                // Show modal and set cropBox reference BEFORE updating
+                document.getElementById('crop-modal').style.display = 'flex';
+                cropBox = document.getElementById('user-crop-box');
+
                 updateUserCropBox();
                 updateUserCropPreview();
 
-                document.getElementById('crop-modal').style.display = 'flex';
                 setupUserCropDragHandlers();
             };
 
@@ -1416,12 +1419,17 @@
         }
 
         function closeCropModal() {
+            // Clean up document-level listeners
             document.removeEventListener('mousemove', onUserCropMouseMove);
             document.removeEventListener('mouseup', stopUserCropDrag);
+
+            // Reset state
             cropBox = null;
             currentCropPhotoIndex = null;
             isDraggingCrop = false;
             isResizingCrop = false;
+
+            // Hide modal
             document.getElementById('crop-modal').style.display = 'none';
         }
 
@@ -1462,7 +1470,7 @@
             document.getElementById('submit-upload').disabled = true;
 
             try {
-                const response = await fetch('/api/register-face', {
+                const response = await fetch('/api/admin/register-face', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
