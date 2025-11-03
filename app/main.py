@@ -10,6 +10,7 @@ import secrets
 import base64
 from io import BytesIO
 import json
+import asyncio
 
 from fastapi import FastAPI, Depends, HTTPException, Request, Form, status, WebSocket, WebSocketDisconnect
 from fastapi.security import OAuth2PasswordRequestForm
@@ -787,6 +788,11 @@ class ConnectionManager:
         for connection in disconnected:
             self.disconnect(connection, location_id)
 
+    async def broadcast_to_all(self, message: dict):
+        """Send a message to all WebSocket connections across all locations"""
+        for location_id in list(self.active_connections.keys()):
+            await self.broadcast_to_location(location_id, message)
+
 manager = ConnectionManager()
 
 
@@ -831,6 +837,61 @@ async def custom_http_exception_handler(request: Request, exc: HTTPException):
         status_code=exc.status_code,
         content={"detail": exc.detail},
     )
+
+
+# ============================================================================
+# BACKGROUND TASKS
+# ============================================================================
+
+async def cleanup_stale_pending_devices():
+    """Background task to remove pending devices that haven't checked in for 5+ minutes"""
+    PENDING_DEVICE_TIMEOUT_MINUTES = 5
+    CHECK_INTERVAL_SECONDS = 60  # Check every minute
+
+    while True:
+        try:
+            await asyncio.sleep(CHECK_INTERVAL_SECONDS)
+
+            # Get database session
+            async for session in get_async_session():
+                try:
+                    # Find pending devices that haven't checked in for 5+ minutes
+                    timeout_threshold = datetime.utcnow() - timedelta(minutes=PENDING_DEVICE_TIMEOUT_MINUTES)
+
+                    result = await session.execute(
+                        select(Device).where(
+                            Device.is_approved == False,
+                            Device.last_seen.isnot(None),
+                            Device.last_seen < timeout_threshold
+                        )
+                    )
+                    stale_devices = result.scalars().all()
+
+                    if stale_devices:
+                        device_ids = [d.device_id for d in stale_devices]
+                        print(f"[CLEANUP] Removing {len(stale_devices)} stale pending device(s): {', '.join(d.device_id[:8] for d in stale_devices)}")
+
+                        # Delete stale pending devices
+                        await session.execute(
+                            delete(Device).where(Device.device_id.in_(device_ids))
+                        )
+                        await session.commit()
+
+                        # Broadcast removal to all connected dashboards
+                        await manager.broadcast_to_all({
+                            "type": "pending_devices_removed",
+                            "device_ids": device_ids,
+                            "reason": "timeout"
+                        })
+
+                except Exception as e:
+                    print(f"[CLEANUP] Error cleaning up stale pending devices: {e}")
+                    await session.rollback()
+                finally:
+                    break  # Exit the session loop after one iteration
+
+        except Exception as e:
+            print(f"[CLEANUP] Unexpected error in cleanup task: {e}")
 
 
 # ============================================================================
@@ -899,6 +960,10 @@ async def on_startup():
         print(f"[STARTUP] ⚠ Error during admin user creation: {e}")
         import traceback
         traceback.print_exc()
+
+    # Start background cleanup task for stale pending devices
+    asyncio.create_task(cleanup_stale_pending_devices())
+    print(f"[STARTUP] ✓ Background cleanup task started (pending device timeout: 5 minutes)")
 
     print(f"[STARTUP] ✓ Startup complete")
     print(f"{'='*60}\n")

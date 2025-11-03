@@ -338,20 +338,27 @@ async function loadPendingDevices() {
                     <tr>
                         <th>Registration Code</th>
                         <th>Registered At</th>
+                        <th>Last Seen</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${devices.map(device => `
-                        <tr>
-                            <td><strong style="font-size: 18px; letter-spacing: 2px; font-family: monospace;">${escapeHtml(device.registration_code)}</strong></td>
-                            <td>${new Date(device.registered_at).toLocaleString()}</td>
-                            <td>
-                                <button class="btn btn-success" onclick="showApproveDeviceModal('${device.device_id}', '${escapeHtml(device.registration_code)}')">Approve</button>
-                                <button class="btn btn-danger" onclick="rejectDevice('${device.device_id}')">Reject</button>
-                            </td>
-                        </tr>
-                    `).join('')}
+                    ${devices.map(device => {
+                        const lastSeen = device.last_seen
+                            ? new Date(device.last_seen).toLocaleString()
+                            : '<span style="color: #999;">Never</span>';
+                        return `
+                            <tr>
+                                <td><strong style="font-size: 18px; letter-spacing: 2px; font-family: monospace;">${escapeHtml(device.registration_code)}</strong></td>
+                                <td>${new Date(device.registered_at).toLocaleString()}</td>
+                                <td>${lastSeen}</td>
+                                <td>
+                                    <button class="btn btn-success" onclick="showApproveDeviceModal('${device.device_id}', '${escapeHtml(device.registration_code)}')">Approve</button>
+                                    <button class="btn btn-danger" onclick="rejectDevice('${device.device_id}')">Reject</button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')}
                 </tbody>
             </table>
         `;
