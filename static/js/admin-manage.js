@@ -363,12 +363,12 @@ async function loadPendingDevices() {
                 <tbody>
                     ${devices.map(device => {
                         const lastSeen = device.last_seen
-                            ? new Date(device.last_seen).toLocaleString()
+                            ? formatUTCDateTimeLocal(device.last_seen)
                             : '<span style="color: #999;">Never</span>';
                         return `
                             <tr>
                                 <td><strong style="font-size: 18px; letter-spacing: 2px; font-family: monospace;">${escapeHtml(device.registration_code)}</strong></td>
-                                <td>${new Date(device.registered_at).toLocaleString()}</td>
+                                <td>${formatUTCDateTimeLocal(device.registered_at)}</td>
                                 <td>${lastSeen}</td>
                                 <td>
                                     <button class="btn btn-success" onclick="showApproveDeviceModal('${device.device_id}', '${escapeHtml(device.registration_code)}')">Approve</button>
@@ -439,7 +439,7 @@ async function loadDevices() {
                             <td><span class="badge badge-info">${escapeHtml(device.device_type)}</span></td>
                             <td>${escapeHtml(device.location_name || 'Unknown')}</td>
                             <td>${device.area_name ? escapeHtml(device.area_name) : '<span style="color: #999;">N/A</span>'}</td>
-                            <td>${device.last_seen ? new Date(device.last_seen).toLocaleString() : 'Never'}</td>
+                            <td>${device.last_seen ? formatUTCDateTimeLocal(device.last_seen) : 'Never'}</td>
                             <td><span class="badge ${tokenBadgeClass}">${tokenDisplay}</span></td>
                             <td>
                                 <button class="btn btn-warning btn-sm" onclick="editDeviceById('${device.device_id}')">Edit</button>
@@ -1775,6 +1775,15 @@ function formatDateLocal(dateString) {
     const day = parseInt(parts[2]);
     const date = new Date(year, month, day);
     return date.toLocaleDateString();
+}
+
+// Format UTC datetime string to local datetime for display
+function formatUTCDateTimeLocal(dateString) {
+    if (!dateString) return '';
+    // If the string doesn't have a Z suffix, add it (backend sends UTC without Z)
+    const utcString = dateString.endsWith('Z') ? dateString : dateString + 'Z';
+    const date = new Date(utcString);
+    return date.toLocaleString();
 }
 
 async function logout() {
