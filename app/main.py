@@ -285,6 +285,43 @@ class Device(Base):
     dashboard_display_timeout_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
 
+class RegistrationLink(Base):
+    """Public registration links with QR codes for remote user registration"""
+    __tablename__ = "registration_link"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    link_id: Mapped[str] = mapped_column(String(36), unique=True, nullable=False, index=True)  # UUID for public URL
+    created_by_user_id: Mapped[int] = mapped_column(Integer, ForeignKey("user.id"), nullable=False)
+    location_id: Mapped[int] = mapped_column(Integer, ForeignKey("location.id"), nullable=False)
+    # Expiration for users registered via this link (ISO date or "never")
+    user_expiration: Mapped[str] = mapped_column(String(50), nullable=False)
+    # When the link itself expires (ISO datetime)
+    link_expiration: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    # Maximum number of times this link can be used (NULL = unlimited)
+    max_uses: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # Current number of times used
+    current_uses: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Whether users registered are employees or visitors
+    is_employee: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Link status
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Metadata
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    # Optional link name/description
+    link_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+
+class LinkRegistration(Base):
+    """Tracks which people were registered via which registration links"""
+    __tablename__ = "link_registration"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    link_id: Mapped[str] = mapped_column(String(36), ForeignKey("registration_link.link_id", ondelete="CASCADE"), nullable=False, index=True)
+    person_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)  # UUID of registered person
+    person_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    registered_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+
+
 class Detection(Base):
     """Tracks face detection events for dashboard display"""
     __tablename__ = "detection"
@@ -660,6 +697,21 @@ class UpdateCodeProjectServerRequest(BaseModel):
     friendly_name: Optional[str] = None
     endpoint_url: Optional[str] = None
     description: Optional[str] = None
+
+
+class CreateRegistrationLinkRequest(BaseModel):
+    location_id: int
+    link_name: Optional[str] = None
+    user_expiration: str  # ISO date or "never"
+    link_expiration: str  # ISO datetime
+    max_uses: Optional[int] = None  # NULL = unlimited
+    is_employee: bool = False
+
+
+class PublicRegisterRequest(BaseModel):
+    link_id: str
+    person_name: str
+    photos: list[str]  # Base64 data URLs
 
 
 # ============================================================================
@@ -6039,6 +6091,517 @@ async def update_user_expiration(
         raise
     except Exception as e:
         print(f"[UPDATE-EXPIRATION] ✗ EXCEPTION: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# REGISTRATION LINK API ROUTES
+# ============================================================================
+
+@app.post("/api/registration-links")
+async def create_registration_link(
+    data: CreateRegistrationLinkRequest,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Create a public registration link with QR code"""
+    try:
+        print(f"\n{'='*60}")
+        print(f"[CREATE-LINK] Creating registration link for location {data.location_id}")
+
+        # Check permissions - user must have access to this location
+        if not user.is_superuser:
+            result = await session.execute(
+                select(UserLocationRole).where(
+                    UserLocationRole.user_id == user.id,
+                    UserLocationRole.location_id == data.location_id
+                )
+            )
+            user_location = result.scalar_one_or_none()
+            if not user_location:
+                raise HTTPException(status_code=403, detail="You don't have access to this location")
+
+        # Validate expiration formats
+        if data.user_expiration != "never":
+            try:
+                date.fromisoformat(data.user_expiration)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="user_expiration must be ISO date (YYYY-MM-DD) or 'never'")
+
+        try:
+            link_exp = datetime.fromisoformat(data.link_expiration)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="link_expiration must be ISO datetime")
+
+        # Generate unique link ID
+        link_id = str(uuid.uuid4())
+
+        # Create link
+        link = RegistrationLink(
+            link_id=link_id,
+            created_by_user_id=user.id,
+            location_id=data.location_id,
+            user_expiration=data.user_expiration,
+            link_expiration=link_exp,
+            max_uses=data.max_uses,
+            is_employee=data.is_employee,
+            link_name=data.link_name
+        )
+        session.add(link)
+        await session.commit()
+
+        print(f"[CREATE-LINK] ✓ Created link {link_id}")
+        print(f"{'='*60}\n")
+
+        return {
+            "success": True,
+            "link_id": link_id,
+            "link_url": f"/register-public/{link_id}",
+            "message": "Registration link created successfully"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[CREATE-LINK] ✗ EXCEPTION: {e}")
+        traceback.print_exc()
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/registration-links")
+async def list_registration_links(
+    location_id: Optional[int] = None,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """List registration links created by user or for their locations"""
+    try:
+        # Build query
+        if user.is_superuser:
+            # Superadmins see all links (optionally filtered by location)
+            if location_id:
+                query = select(RegistrationLink).where(RegistrationLink.location_id == location_id)
+            else:
+                query = select(RegistrationLink)
+        else:
+            # Get user's locations
+            user_locations_result = await session.execute(
+                select(UserLocationRole.location_id).where(UserLocationRole.user_id == user.id)
+            )
+            user_location_ids = [row[0] for row in user_locations_result.all()]
+
+            if not user_location_ids:
+                return {"links": []}
+
+            # Filter by user's locations
+            if location_id:
+                if location_id not in user_location_ids:
+                    raise HTTPException(status_code=403, detail="You don't have access to this location")
+                query = select(RegistrationLink).where(RegistrationLink.location_id == location_id)
+            else:
+                query = select(RegistrationLink).where(RegistrationLink.location_id.in_(user_location_ids))
+
+        query = query.order_by(RegistrationLink.created_at.desc())
+        result = await session.execute(query)
+        links = result.scalars().all()
+
+        # Get location names
+        location_result = await session.execute(select(Location))
+        locations = {loc.id: loc.name for loc in location_result.scalars().all()}
+
+        # Format response
+        links_data = []
+        for link in links:
+            # Count registrations
+            reg_result = await session.execute(
+                select(func.count(LinkRegistration.id)).where(LinkRegistration.link_id == link.link_id)
+            )
+            registration_count = reg_result.scalar() or 0
+
+            # Check if expired
+            is_expired = datetime.utcnow() > link.link_expiration
+            is_max_uses_reached = link.max_uses is not None and link.current_uses >= link.max_uses
+
+            links_data.append({
+                "link_id": link.link_id,
+                "link_name": link.link_name,
+                "location_id": link.location_id,
+                "location_name": locations.get(link.location_id, "Unknown"),
+                "user_expiration": link.user_expiration,
+                "link_expiration": link.link_expiration.isoformat(),
+                "max_uses": link.max_uses,
+                "current_uses": link.current_uses,
+                "registration_count": registration_count,
+                "is_employee": link.is_employee,
+                "is_active": link.is_active,
+                "is_expired": is_expired,
+                "is_max_uses_reached": is_max_uses_reached,
+                "created_at": link.created_at.isoformat(),
+                "link_url": f"/register-public/{link.link_id}"
+            })
+
+        return {"links": links_data}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[LIST-LINKS] ✗ EXCEPTION: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/registration-links/{link_id}/registrations")
+async def get_link_registrations(
+    link_id: str,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Get list of people who registered via this link"""
+    try:
+        # Get link
+        result = await session.execute(
+            select(RegistrationLink).where(RegistrationLink.link_id == link_id)
+        )
+        link = result.scalar_one_or_none()
+
+        if not link:
+            raise HTTPException(status_code=404, detail="Link not found")
+
+        # Check permissions
+        if not user.is_superuser:
+            user_locations_result = await session.execute(
+                select(UserLocationRole.location_id).where(UserLocationRole.user_id == user.id)
+            )
+            user_location_ids = [row[0] for row in user_locations_result.all()]
+
+            if link.location_id not in user_location_ids:
+                raise HTTPException(status_code=403, detail="You don't have access to this link")
+
+        # Get registrations
+        reg_result = await session.execute(
+            select(LinkRegistration)
+            .where(LinkRegistration.link_id == link_id)
+            .order_by(LinkRegistration.registered_at.desc())
+        )
+        registrations = reg_result.scalars().all()
+
+        return {
+            "registrations": [
+                {
+                    "person_id": reg.person_id,
+                    "person_name": reg.person_name,
+                    "registered_at": reg.registered_at.isoformat()
+                }
+                for reg in registrations
+            ]
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[GET-LINK-REGS] ✗ EXCEPTION: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/registration-links/{link_id}")
+async def delete_registration_link(
+    link_id: str,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Delete a registration link"""
+    try:
+        # Get link
+        result = await session.execute(
+            select(RegistrationLink).where(RegistrationLink.link_id == link_id)
+        )
+        link = result.scalar_one_or_none()
+
+        if not link:
+            raise HTTPException(status_code=404, detail="Link not found")
+
+        # Check permissions
+        if not user.is_superuser:
+            user_locations_result = await session.execute(
+                select(UserLocationRole.location_id).where(UserLocationRole.user_id == user.id)
+            )
+            user_location_ids = [row[0] for row in user_locations_result.all()]
+
+            if link.location_id not in user_location_ids:
+                raise HTTPException(status_code=403, detail="You don't have access to this link")
+
+        # Delete link (registrations will cascade delete)
+        await session.delete(link)
+        await session.commit()
+
+        return {"success": True, "message": "Link deleted successfully"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[DELETE-LINK] ✗ EXCEPTION: {e}")
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/registration-links/{link_id}/toggle")
+async def toggle_registration_link(
+    link_id: str,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Toggle a registration link active/inactive"""
+    try:
+        # Get link
+        result = await session.execute(
+            select(RegistrationLink).where(RegistrationLink.link_id == link_id)
+        )
+        link = result.scalar_one_or_none()
+
+        if not link:
+            raise HTTPException(status_code=404, detail="Link not found")
+
+        # Check permissions
+        if not user.is_superuser:
+            user_locations_result = await session.execute(
+                select(UserLocationRole.location_id).where(UserLocationRole.user_id == user.id)
+            )
+            user_location_ids = [row[0] for row in user_locations_result.all()]
+
+            if link.location_id not in user_location_ids:
+                raise HTTPException(status_code=403, detail="You don't have access to this link")
+
+        # Toggle
+        link.is_active = not link.is_active
+        await session.commit()
+
+        return {
+            "success": True,
+            "is_active": link.is_active,
+            "message": f"Link {'activated' if link.is_active else 'deactivated'}"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[TOGGLE-LINK] ✗ EXCEPTION: {e}")
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Public registration endpoint (no auth required)
+@app.get("/register-public/{link_id}", response_class=HTMLResponse)
+async def public_registration_page(
+    link_id: str,
+    request: Request,
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Public registration page for link-based registration"""
+    # Will create this template next
+    return templates.TemplateResponse("register_public.html", {
+        "request": request,
+        "link_id": link_id
+    })
+
+
+@app.get("/api/registration-links/{link_id}/info")
+async def get_link_info(
+    link_id: str,
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Get public info about a registration link (no auth required)"""
+    try:
+        result = await session.execute(
+            select(RegistrationLink).where(RegistrationLink.link_id == link_id)
+        )
+        link = result.scalar_one_or_none()
+
+        if not link:
+            raise HTTPException(status_code=404, detail="Link not found")
+
+        # Check if link is valid
+        is_expired = datetime.utcnow() > link.link_expiration
+        is_max_uses_reached = link.max_uses is not None and link.current_uses >= link.max_uses
+
+        if not link.is_active:
+            return {"valid": False, "message": "This registration link has been deactivated"}
+
+        if is_expired:
+            return {"valid": False, "message": "This registration link has expired"}
+
+        if is_max_uses_reached:
+            return {"valid": False, "message": "This registration link has reached its maximum number of uses"}
+
+        # Get location name
+        loc_result = await session.execute(
+            select(Location).where(Location.id == link.location_id)
+        )
+        location = loc_result.scalar_one_or_none()
+
+        return {
+            "valid": True,
+            "link_name": link.link_name,
+            "location_name": location.name if location else "Unknown",
+            "remaining_uses": (link.max_uses - link.current_uses) if link.max_uses else None,
+            "link_expiration": link.link_expiration.isoformat()
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[GET-LINK-INFO] ✗ EXCEPTION: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/register-public")
+async def register_via_public_link(
+    data: PublicRegisterRequest,
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Register a face via public link (no auth required)"""
+    try:
+        print(f"\n{'='*60}")
+        print(f"[PUBLIC-REGISTER] Registration via link {data.link_id} for {data.person_name}")
+
+        # Get and validate link
+        result = await session.execute(
+            select(RegistrationLink).where(RegistrationLink.link_id == data.link_id)
+        )
+        link = result.scalar_one_or_none()
+
+        if not link:
+            raise HTTPException(status_code=404, detail="Link not found")
+
+        # Check if link is valid
+        is_expired = datetime.utcnow() > link.link_expiration
+        is_max_uses_reached = link.max_uses is not None and link.current_uses >= link.max_uses
+
+        if not link.is_active:
+            raise HTTPException(status_code=400, detail="This registration link has been deactivated")
+
+        if is_expired:
+            raise HTTPException(status_code=400, detail="This registration link has expired")
+
+        if is_max_uses_reached:
+            raise HTTPException(status_code=400, detail="This registration link has reached its maximum number of uses")
+
+        # Get location's CodeProject endpoint
+        loc_result = await session.execute(
+            select(Location).where(Location.id == link.location_id)
+        )
+        location = loc_result.scalar_one_or_none()
+
+        if not location or not location.codeproject_server_id:
+            raise HTTPException(status_code=500, detail="Location configuration error")
+
+        server_result = await session.execute(
+            select(CodeProjectServer).where(CodeProjectServer.id == location.codeproject_server_id)
+        )
+        server = server_result.scalar_one_or_none()
+
+        if not server:
+            raise HTTPException(status_code=500, detail="CodeProject server not found")
+
+        codeproject_endpoint = server.endpoint_url
+
+        # Generate person_id
+        person_id = str(uuid.uuid4())
+
+        # Save photos and register
+        saved_photos = []
+        for idx, photo_data in enumerate(data.photos):
+            # Extract base64 data from data URL
+            if photo_data.startswith('data:image'):
+                photo_data = photo_data.split(',')[1]
+
+            photo_bytes = base64.b64decode(photo_data)
+
+            # Save to disk
+            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            filename = f"{person_id}_{timestamp}_{idx}.jpg"
+            filepath = os.path.join(UPLOAD_FOLDER, filename)
+
+            with open(filepath, "wb") as f:
+                f.write(photo_bytes)
+
+            saved_photos.append({
+                'filepath': filepath,
+                'data': photo_bytes,
+                'filename': filename
+            })
+
+        # Register with CodeProject.AI
+        files = []
+        for photo in saved_photos:
+            files.append(('images', (photo['filename'], photo['data'], 'image/jpeg')))
+
+        params = {'userid': person_id}
+
+        response = requests.post(
+            f"{codeproject_endpoint}/vision/face/register",
+            files=files,
+            data=params,
+            timeout=60
+        )
+
+        if response.status_code != 200:
+            # Cleanup
+            for photo in saved_photos:
+                if os.path.exists(photo['filepath']):
+                    os.remove(photo['filepath'])
+            raise HTTPException(status_code=500, detail="Failed to register with facial recognition system")
+
+        # Save to database
+        profile_photo_path = None
+        for idx, photo in enumerate(saved_photos):
+            # Extract base64 for profile photo (last image)
+            if idx == len(saved_photos) - 1:
+                with open(photo['filepath'], 'rb') as f:
+                    photo_bytes = f.read()
+                    profile_photo_path = base64.b64encode(photo_bytes).decode('utf-8')
+
+            registered_face = RegisteredFace(
+                person_id=person_id,
+                person_name=data.person_name,
+                codeproject_user_id=person_id,
+                file_path=photo['filepath'],
+                codeproject_endpoint=codeproject_endpoint,
+                location_id=link.location_id,
+                registered_by_user_id=link.created_by_user_id,
+                profile_photo=profile_photo_path if idx == len(saved_photos) - 1 else None,
+                is_employee=link.is_employee,
+                user_expiration=link.user_expiration
+            )
+            session.add(registered_face)
+
+        # Track registration via link
+        link_reg = LinkRegistration(
+            link_id=link.link_id,
+            person_id=person_id,
+            person_name=data.person_name
+        )
+        session.add(link_reg)
+
+        # Increment link usage
+        link.current_uses += 1
+
+        await session.commit()
+
+        print(f"[PUBLIC-REGISTER] ✓ Registered {data.person_name} via link")
+        print(f"{'='*60}\n")
+
+        return {
+            "success": True,
+            "message": f"Successfully registered {data.person_name}",
+            "person_id": person_id
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[PUBLIC-REGISTER] ✗ EXCEPTION: {e}")
+        traceback.print_exc()
+        await session.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 

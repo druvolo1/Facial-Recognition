@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Face Registration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo img {
+            height: 80px;
+            background: white;
+            padding: 10px 15px;
+            border-radius: 10px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .step {
+            display: none;
+        }
+
+        .step.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            margin-top: 10px;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .camera-container {
+            position: relative;
+            width: 100%;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #000;
+        }
+
+        #video {
+            width: 100%;
+            display: block;
+        }
+
+        #canvas {
+            display: none;
+        }
+
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .photo-item {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #e0e0e0;
+        }
+
+        .photo-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .photo-item.empty {
+            background: #f5f5f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+            font-size: 12px;
+        }
+
+        .remove-photo {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(255, 59, 48, 0.9);
+            color: white;
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        .photo-counter {
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .alert {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .instructions {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .instructions ul {
+            margin: 10px 0 0 20px;
+        }
+
+        .instructions li {
+            margin: 5px 0;
+        }
+
+        .success-icon {
+            text-align: center;
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <img src="/static/biometric-logo.svg" alt="BiometriX">
+        </div>
+
+        <div class="card">
+            <!-- Step 1: Loading/Validation -->
+            <div id="step-loading" class="step active">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Validating registration link...</p>
+                </div>
+            </div>
+
+            <!-- Step 2: Name Input -->
+            <div id="step-name" class="step">
+                <h1>Welcome!</h1>
+                <p class="subtitle" id="location-info">Please enter your information to begin</p>
+
+                <div class="form-group">
+                    <label for="person-name">Full Name</label>
+                    <input type="text" id="person-name" placeholder="Enter your full name" required>
+                </div>
+
+                <button class="btn btn-primary" onclick="startCamera()">Continue</button>
+            </div>
+
+            <!-- Step 3: Camera Capture -->
+            <div id="step-camera" class="step">
+                <h1>Take Photos</h1>
+                <p class="subtitle">We need 3-5 photos of your face from different angles</p>
+
+                <div class="instructions">
+                    <strong>Tips for best results:</strong>
+                    <ul>
+                        <li>Look directly at the camera</li>
+                        <li>Ensure good lighting</li>
+                        <li>Remove glasses if possible</li>
+                        <li>Take photos from slightly different angles</li>
+                    </ul>
+                </div>
+
+                <div class="camera-container">
+                    <video id="video" autoplay playsinline></video>
+                    <canvas id="canvas"></canvas>
+                </div>
+
+                <div class="photo-counter" id="photo-counter">0 / 5 photos taken</div>
+
+                <div class="photo-grid" id="photo-grid"></div>
+
+                <button class="btn btn-primary" onclick="capturePhoto()" id="capture-btn">📸 Take Photo</button>
+                <button class="btn btn-success" onclick="submitRegistration()" id="submit-btn" style="display: none;">✓ Complete Registration</button>
+                <button class="btn btn-secondary" onclick="location.reload()">Cancel</button>
+            </div>
+
+            <!-- Step 4: Processing -->
+            <div id="step-processing" class="step">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Registering your face...</p>
+                    <p style="font-size: 14px; color: #666; margin-top: 10px;">This may take a moment</p>
+                </div>
+            </div>
+
+            <!-- Step 5: Success -->
+            <div id="step-success" class="step">
+                <div class="success-icon">✓</div>
+                <h1>Registration Complete!</h1>
+                <p class="subtitle">Your face has been successfully registered</p>
+                <div class="alert alert-success" id="success-message"></div>
+            </div>
+
+            <!-- Alert container -->
+            <div id="alert-container"></div>
+        </div>
+    </div>
+
+    <script>
+        const linkId = "{{ link_id }}";
+        let linkInfo = null;
+        let capturedPhotos = [];
+        let stream = null;
+        const MIN_PHOTOS = 3;
+        const MAX_PHOTOS = 5;
+
+        // Show/hide steps
+        function showStep(stepId) {
+            document.querySelectorAll('.step').forEach(step => step.classList.remove('active'));
+            document.getElementById(stepId).classList.add('active');
+        }
+
+        // Show alert
+        function showAlert(message, type = 'error') {
+            const container = document.getElementById('alert-container');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            container.innerHTML = '';
+            container.appendChild(alert);
+        }
+
+        // Validate link on page load
+        async function validateLink() {
+            try {
+                const response = await fetch(`/api/registration-links/${linkId}/info`);
+                const data = await response.json();
+
+                if (!data.valid) {
+                    showStep('step-name');
+                    showAlert(data.message, 'error');
+                    document.querySelector('#step-name .btn').disabled = true;
+                    return;
+                }
+
+                linkInfo = data;
+                const locationInfo = document.getElementById('location-info');
+                locationInfo.textContent = `Registering for: ${data.location_name}`;
+
+                if (data.link_name) {
+                    locationInfo.textContent += ` - ${data.link_name}`;
+                }
+
+                showStep('step-name');
+            } catch (error) {
+                showStep('step-name');
+                showAlert('Failed to validate registration link', 'error');
+                document.querySelector('#step-name .btn').disabled = true;
+            }
+        }
+
+        // Start camera
+        async function startCamera() {
+            const name = document.getElementById('person-name').value.trim();
+
+            if (!name) {
+                showAlert('Please enter your full name', 'error');
+                return;
+            }
+
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'user',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
+
+                const video = document.getElementById('video');
+                video.srcObject = stream;
+
+                showStep('step-camera');
+                updatePhotoGrid();
+            } catch (error) {
+                showAlert('Camera access denied. Please allow camera access to continue.', 'error');
+            }
+        }
+
+        // Capture photo
+        function capturePhoto() {
+            if (capturedPhotos.length >= MAX_PHOTOS) {
+                showAlert('Maximum 5 photos allowed', 'info');
+                return;
+            }
+
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+
+            const photoData = canvas.toDataURL('image/jpeg', 0.9);
+            capturedPhotos.push(photoData);
+
+            updatePhotoGrid();
+            updatePhotoCounter();
+
+            // Show submit button when minimum photos reached
+            if (capturedPhotos.length >= MIN_PHOTOS) {
+                document.getElementById('submit-btn').style.display = 'block';
+            }
+        }
+
+        // Remove photo
+        function removePhoto(index) {
+            capturedPhotos.splice(index, 1);
+            updatePhotoGrid();
+            updatePhotoCounter();
+
+            if (capturedPhotos.length < MIN_PHOTOS) {
+                document.getElementById('submit-btn').style.display = 'none';
+            }
+        }
+
+        // Update photo grid
+        function updatePhotoGrid() {
+            const grid = document.getElementById('photo-grid');
+            grid.innerHTML = '';
+
+            // Show captured photos
+            capturedPhotos.forEach((photo, index) => {
+                const item = document.createElement('div');
+                item.className = 'photo-item';
+                item.innerHTML = `
+                    <img src="${photo}" alt="Photo ${index + 1}">
+                    <button class="remove-photo" onclick="removePhoto(${index})">×</button>
+                `;
+                grid.appendChild(item);
+            });
+
+            // Show empty slots
+            for (let i = capturedPhotos.length; i < MAX_PHOTOS; i++) {
+                const item = document.createElement('div');
+                item.className = 'photo-item empty';
+                item.textContent = i < MIN_PHOTOS ? 'Required' : 'Optional';
+                grid.appendChild(item);
+            }
+        }
+
+        // Update photo counter
+        function updatePhotoCounter() {
+            const counter = document.getElementById('photo-counter');
+            counter.textContent = `${capturedPhotos.length} / ${MAX_PHOTOS} photos taken`;
+
+            if (capturedPhotos.length >= MIN_PHOTOS) {
+                counter.textContent += ' (Ready to submit)';
+                counter.style.color = '#28a745';
+            }
+        }
+
+        // Submit registration
+        async function submitRegistration() {
+            if (capturedPhotos.length < MIN_PHOTOS) {
+                showAlert(`Please take at least ${MIN_PHOTOS} photos`, 'error');
+                return;
+            }
+
+            const name = document.getElementById('person-name').value.trim();
+
+            // Stop camera
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+
+            showStep('step-processing');
+
+            try {
+                const response = await fetch('/api/register-public', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        link_id: linkId,
+                        person_name: name,
+                        photos: capturedPhotos
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('success-message').textContent = data.message;
+                    showStep('step-success');
+                } else {
+                    showStep('step-camera');
+                    showAlert(data.detail || 'Registration failed', 'error');
+                }
+            } catch (error) {
+                showStep('step-camera');
+                showAlert('Network error. Please try again.', 'error');
+            }
+        }
+
+        // Validate link on page load
+        validateLink();
+    </script>
+</body>
+</html>
