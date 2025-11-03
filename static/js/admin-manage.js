@@ -682,6 +682,7 @@ async function loadServers() {
                             <td><code>${escapeHtml(server.endpoint_url)}</code></td>
                             <td>${escapeHtml(server.description || 'N/A')}</td>
                             <td>
+                                <button class="btn btn-secondary btn-sm" onclick="showEditServerModal(${server.id})">Edit</button>
                                 <button class="btn btn-danger btn-sm" onclick="deleteServer(${server.id}, '${escapeHtml(server.friendly_name)}')">Delete</button>
                             </td>
                         </tr>
