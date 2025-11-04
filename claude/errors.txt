@@ -1,127 +1,16 @@
-  172.16.1.150:34844 - "POST /api/devices/register HTTP/1.1" 200 OK
-INFO:     172.16.1.150:34860 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:34862 - "POST /api/devices/register HTTP/1.1" 200 OK
-INFO:     172.16.1.150:34866 - "GET /admin/manage?location_id=2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:34876 - "GET /static/js/admin-manage.js HTTP/1.1" 200 OK
-INFO:     172.16.1.150:34890 - "GET /api/admin/overview?location_id=2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:34900 - "GET /api/admin/overview?location_id=2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:34904 - "GET /api/devices/pending HTTP/1.1" 200 OK
-INFO:     172.16.1.150:34928 - "GET /api/codeproject-servers HTTP/1.1" 200 OK
-INFO:     172.16.1.150:34916 - "GET /api/locations HTTP/1.1" 200 OK
-INFO:     172.16.1.150:34936 - "GET /api/locations HTTP/1.1" 200 OK
-INFO:     172.16.1.150:34952 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:34968 - "POST /api/devices/register HTTP/1.1" 200 OK
-INFO:     172.16.1.150:34970 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:34984 - "POST /api/devices/register HTTP/1.1" 200 OK
-INFO:     172.16.1.150:34990 - "GET /api/devices?approved=true&location_id=2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:43650 - "GET /api/admin/overview?location_id=2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:43664 - "GET /api/devices/pending HTTP/1.1" 200 OK
-INFO:     172.16.1.150:43678 - "GET /api/codeproject-servers HTTP/1.1" 200 OK
-INFO:     172.16.1.150:43668 - "GET /api/locations HTTP/1.1" 200 OK
-INFO:     172.16.1.150:43692 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:43706 - "POST /api/devices/register HTTP/1.1" 200 OK
-INFO:     172.16.1.150:43718 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:43728 - "POST /api/devices/register HTTP/1.1" 200 OK
-INFO:     172.16.1.150:43738 - "GET /api/locations/2/areas HTTP/1.1" 200 OK
-INFO:     172.16.1.150:43744 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:43754 - "POST /api/devices/register HTTP/1.1" 200 OK
-INFO:     172.16.1.150:43764 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:43772 - "POST /api/devices/register HTTP/1.1" 200 OK
-INFO:     172.16.1.150:46384 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:46386 - "POST /api/devices/register HTTP/1.1" 200 OK
-INFO:     172.16.1.150:46398 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:46404 - "POST /api/devices/register HTTP/1.1" 200 OK
-INFO:     172.16.1.150:46406 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:46416 - "POST /api/devices/register HTTP/1.1" 200 OK
-INFO:     172.16.1.150:46420 - "POST /api/devices/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2/approve HTTP/1.1" 410 Gone
-INFO:     172.16.1.150:38126 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 404 Not Found
-[DEVICE] New device registered: 32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 with code 617582
-INFO:     172.16.1.150:38136 - "POST /api/devices/register HTTP/1.1" 200 OK
-INFO:     172.16.1.150:38146 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:38154 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:38162 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:56890 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:56892 - "GET /api/admin/overview?location_id=2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:56906 - "GET /api/devices/pending HTTP/1.1" 200 OK
-INFO:     172.16.1.150:56916 - "GET /api/codeproject-servers HTTP/1.1" 200 OK
-INFO:     172.16.1.150:56908 - "GET /api/locations HTTP/1.1" 200 OK
-INFO:     172.16.1.150:56920 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:56922 - "POST /api/devices/register HTTP/1.1" 200 OK
-INFO:     172.16.1.150:56928 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:42306 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:42310 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:42316 - "GET /api/locations/2/areas HTTP/1.1" 200 OK
-INFO:     172.16.1.150:42330 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:42340 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:40066 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:40070 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:40078 - "POST /api/devices/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2/approve HTTP/1.1" 500 Internal Server Error
-ERROR:    Exception in ASGI application
-Traceback (most recent call last):
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/uvicorn/protocols/http/h11_impl.py", line 406, in run_asgi
-    result = await app(  # type: ignore[func-returns-value]
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
-    return await self.app(scope, receive, send)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/fastapi/applications.py", line 1054, in __call__
-    await super().__call__(scope, receive, send)
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/applications.py", line 113, in __call__
-    await self.middleware_stack(scope, receive, send)
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/middleware/errors.py", line 187, in __call__
-    raise exc
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/middleware/errors.py", line 165, in __call__
-    await self.app(scope, receive, _send)
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/middleware/cors.py", line 93, in __call__
-    await self.simple_response(scope, receive, send, request_headers=headers)
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/middleware/cors.py", line 144, in simple_response
-    await self.app(scope, receive, send)
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
-    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
-    raise exc
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
-    await app(scope, receive, sender)
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/routing.py", line 715, in __call__
-    await self.middleware_stack(scope, receive, send)
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/routing.py", line 735, in app
-    await route.handle(scope, receive, send)
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/routing.py", line 288, in handle
-    await self.app(scope, receive, send)
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/routing.py", line 76, in app
-    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/_exception_handler.py", line 62, in wrapped_app
-    raise exc
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/_exception_handler.py", line 51, in wrapped_app
-    await app(scope, receive, sender)
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/starlette/routing.py", line 73, in app
-    response = await f(request)
-               ^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/fastapi/routing.py", line 301, in app
-    raw_response = await run_endpoint_function(
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/fastapi/routing.py", line 212, in run_endpoint_function
-    return await dependant.call(**values)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/app/main.py", line 4400, in approve_device
-    location = location_result.scalar_one()
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/result.py", line 1464, in scalar_one
-    return self._only_one_row(
-           ^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/result.py", line 749, in _only_one_row
-    row: Optional[_InterimRowType[Any]] = onerow(hard_close=True)
-                                          ^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/result.py", line 2257, in _fetchone_impl
-    self._raise_hard_closed()
-  File "/home/dave/Facial-Recognition/venv/lib/python3.11/site-packages/sqlalchemy/engine/result.py", line 2243, in _raise_hard_closed
-    raise exc.ResourceClosedError("This result object is closed.")
-sqlalchemy.exc.ResourceClosedError: This result object is closed.
-INFO:     172.16.1.150:40084 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:40100 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 200 OK
-INFO:     172.16.1.150:42174 - "GET /api/devices/status/32713aa0-2a30-59c8-2cd2-7c3620d2c9f2 HTTP/1.1" 200 OK
-^CINFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [661581]
-INFO:     Stopping reloader process [6615
+
+[DELETE] Deleting registered face with person_id: 66b7afc4-ac1e-42b9-9601-22303b2aa366
+[DELETE] Found 6 file(s) to delete
+[DELETE] Removing bill (person_id: 66b7afc4-ac1e-42b9-9601-22303b2aa366) from 1 CodeProject.AI server(s)...
+[DELETE]   Deleting from http://172.16.1.150:32168/v1...
+[DELETE] ✗ EXCEPTION: name 'endpoint' is not defined
+INFO:     172.16.1.150:35026 - "DELETE /api/registered-faces/66b7afc4-ac1e-42b9-9601-22303b2aa366 HTTP/1.1" 500 Internal Server Error
+
+============================================================
+[DELETE] Deleting registered face with person_id: 1b5711ae-cb4f-4375-a331-72a010959248
+[DELETE] Found 5 file(s) to delete
+[DELETE] Removing Dave (person_id: 1b5711ae-cb4f-4375-a331-72a010959248) from 1 CodeProject.AI server(s)...
+[DELETE]   Deleting from http://172.16.1.150:32168/v1...
+[DELETE] ✗ EXCEPTION: name 'endpoint' is not defined
+INFO:     172.16.1.150:44400 - "DELETE /api/registered-faces/1b5711ae-cb4f-4375-a331-72a010959248 HTTP/1.1" 500 Internal Server Error
+INFO:     172.16.1.150:39994 - "POST /api/devices/heartbeat HTTP/1.1" 200 OK

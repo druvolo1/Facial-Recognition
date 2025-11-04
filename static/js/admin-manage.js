@@ -737,9 +737,6 @@ async function testServerConnection(serverId) {
         return;
     }
 
-    // Show loading message
-    showAlert(`Testing connection to ${server.friendly_name}...`, 'info');
-
     try {
         const response = await fetch(`/api/codeproject-servers/${serverId}/test`, {
             credentials: 'include'
@@ -752,18 +749,17 @@ async function testServerConnection(serverId) {
         const result = await response.json();
 
         // Build message showing all test results
-        let message = `<strong>${escapeHtml(server.friendly_name)}</strong><br><br>`;
-        message += `<strong>${result.summary}</strong><br><br>`;
+        let message = `<div style="font-size: 16px;"><strong>${escapeHtml(server.friendly_name)} - Connection Test</strong></div>`;
+        message += `<div style="margin: 10px 0; font-size: 14px;"><strong>${result.summary}</strong></div>`;
 
         if (result.tests.public) {
             const test = result.tests.public;
             const icon = test.online ? '✓' : '✗';
-            const color = test.online ? '#28a745' : '#dc3545';
-            message += `<div style="color: ${color}; margin: 8px 0;">`;
-            message += `<strong>${icon} Public Endpoint:</strong><br>`;
-            message += `${escapeHtml(test.message)}`;
+            message += `<div style="margin: 12px 0; padding: 10px; background: ${test.online ? '#d4edda' : '#f8d7da'}; border-radius: 4px;">`;
+            message += `<strong style="font-size: 14px;">${icon} Public Endpoint</strong><br>`;
+            message += `<span style="font-size: 13px;">${test.online ? test.message.replace('✓ Public endpoint is online and responding', 'Online and responding') : test.message.replace('✗ Public endpoint', '')}</span>`;
             if (test.response_time_ms) {
-                message += `<br>Response time: ${test.response_time_ms}ms`;
+                message += `<br><span style="font-size: 12px;">Response time: ${test.response_time_ms}ms</span>`;
             }
             message += `</div>`;
         }
@@ -771,12 +767,11 @@ async function testServerConnection(serverId) {
         if (result.tests.lan) {
             const test = result.tests.lan;
             const icon = test.online ? '✓' : '✗';
-            const color = test.online ? '#28a745' : '#dc3545';
-            message += `<div style="color: ${color}; margin: 8px 0;">`;
-            message += `<strong>${icon} LAN Endpoint:</strong><br>`;
-            message += `${escapeHtml(test.message)}`;
+            message += `<div style="margin: 12px 0; padding: 10px; background: ${test.online ? '#d4edda' : '#f8d7da'}; border-radius: 4px;">`;
+            message += `<strong style="font-size: 14px;">${icon} LAN Endpoint</strong><br>`;
+            message += `<span style="font-size: 13px;">${test.online ? test.message.replace('✓ LAN endpoint is online and responding', 'Online and responding') : test.message.replace('✗ LAN endpoint', '')}</span>`;
             if (test.response_time_ms) {
-                message += `<br>Response time: ${test.response_time_ms}ms`;
+                message += `<br><span style="font-size: 12px;">Response time: ${test.response_time_ms}ms</span>`;
             }
             message += `</div>`;
         }
@@ -784,12 +779,11 @@ async function testServerConnection(serverId) {
         if (result.tests.legacy) {
             const test = result.tests.legacy;
             const icon = test.online ? '✓' : '✗';
-            const color = test.online ? '#28a745' : '#dc3545';
-            message += `<div style="color: ${color}; margin: 8px 0;">`;
-            message += `<strong>${icon} Legacy Endpoint:</strong><br>`;
-            message += `${escapeHtml(test.message)}`;
+            message += `<div style="margin: 12px 0; padding: 10px; background: ${test.online ? '#d4edda' : '#f8d7da'}; border-radius: 4px;">`;
+            message += `<strong style="font-size: 14px;">${icon} Legacy Endpoint</strong><br>`;
+            message += `<span style="font-size: 13px;">${test.online ? test.message.replace('✓ Legacy endpoint is online and responding', 'Online and responding') : test.message.replace('✗ Legacy endpoint', '')}</span>`;
             if (test.response_time_ms) {
-                message += `<br>Response time: ${test.response_time_ms}ms`;
+                message += `<br><span style="font-size: 12px;">Response time: ${test.response_time_ms}ms</span>`;
             }
             message += `</div>`;
         }
@@ -800,7 +794,7 @@ async function testServerConnection(serverId) {
 
     } catch (error) {
         console.error('Error testing server:', error);
-        showAlert(`Failed to test server: ${error.message}`, 'error');
+        showAlert(`<strong>Connection Test Failed</strong><br>${error.message}`, 'error');
     }
 }
 
