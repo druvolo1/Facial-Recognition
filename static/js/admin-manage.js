@@ -1875,7 +1875,7 @@ function showAlert(message, type = 'success') {
     const container = document.getElementById('alert-container');
     const alert = document.createElement('div');
     alert.className = `alert alert-${type}`;
-    alert.textContent = message;
+    alert.innerHTML = message;
     container.appendChild(alert);
 
     setTimeout(() => {
