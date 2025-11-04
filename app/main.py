@@ -3862,6 +3862,14 @@ async def test_codeproject_server(
                     "response_time_ms": int(elapsed * 1000),
                     "message": f"✓ {endpoint_type} endpoint is online and responding"
                 }
+            elif response.status_code == 401:
+                return {
+                    "online": False,
+                    "status_code": response.status_code,
+                    "response_time_ms": int(elapsed * 1000),
+                    "message": f"✗ {endpoint_type} endpoint authentication failed (401 Unauthorized)",
+                    "auth_failed": True
+                }
             else:
                 return {
                     "online": False,

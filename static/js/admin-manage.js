@@ -748,84 +748,71 @@ async function testServerConnection(serverId) {
 
         const result = await response.json();
 
-        // Build message showing all test results
-        let message = `<div style="font-size: 16px;"><strong>${escapeHtml(server.friendly_name)} - Connection Test</strong></div>`;
-        message += `<div style="margin: 10px 0; font-size: 14px;"><strong>${result.summary}</strong></div>`;
+        // Determine overall status
+        const configuredTests = Object.values(result.tests).filter(t => !t.not_configured);
+        const anyOnline = configuredTests.some(t => t.online);
+        const hasAuthFailure = Object.values(result.tests).some(t => t.auth_failed);
 
+        // Build message - all in one box
+        let message = `<div style="font-size: 16px; font-weight: bold; margin-bottom: 8px;">${escapeHtml(server.friendly_name)} - Connection Test</div>`;
+        message += `<div style="font-size: 14px; font-weight: bold; margin-bottom: 12px;">${result.summary}</div>`;
+
+        // Public Endpoint
         if (result.tests.public) {
             const test = result.tests.public;
-            let icon, bgColor;
-
             if (test.not_configured) {
-                icon = '○';
-                bgColor = '#e9ecef';
-            } else if (test.online) {
-                icon = '✓';
-                bgColor = '#d4edda';
+                message += `<div style="margin-bottom: 10px;">`;
+                message += `<div style="font-weight: bold;">○ Public Endpoint</div>`;
+                message += `<div style="color: #6c757d; font-style: italic; margin-left: 20px;">Not configured</div>`;
+                message += `</div>`;
             } else {
-                icon = '✗';
-                bgColor = '#f8d7da';
-            }
-
-            message += `<div style="margin: 12px 0; padding: 10px; background: ${bgColor}; border-radius: 4px;">`;
-            message += `<strong style="font-size: 14px;">${icon} Public Endpoint</strong><br>`;
-
-            if (test.not_configured) {
-                message += `<span style="font-size: 13px; color: #6c757d; font-style: italic;">Not configured</span>`;
-            } else {
-                message += `<span style="font-size: 13px;">${test.online ? test.message.replace('✓ Public endpoint is online and responding', 'Online and responding') : test.message.replace('✗ Public endpoint', '')}</span>`;
+                const icon = test.online ? '✓' : '✗';
+                message += `<div style="margin-bottom: 10px;">`;
+                message += `<div style="font-weight: bold;">${icon} Public Endpoint</div>`;
+                message += `<div style="margin-left: 20px;">${test.online ? 'Online and responding' : (test.auth_failed ? 'Authentication failed (401 Unauthorized)' : test.message.replace('✗ Public endpoint', ''))}</div>`;
                 if (test.response_time_ms) {
-                    message += `<br><span style="font-size: 12px;">Response time: ${test.response_time_ms}ms</span>`;
+                    message += `<div style="margin-left: 20px; font-size: 13px;">Response time: ${test.response_time_ms}ms</div>`;
                 }
+                message += `</div>`;
             }
-            message += `</div>`;
         }
 
+        // LAN Endpoint
         if (result.tests.lan) {
             const test = result.tests.lan;
-            let icon, bgColor;
-
             if (test.not_configured) {
-                icon = '○';
-                bgColor = '#e9ecef';
-            } else if (test.online) {
-                icon = '✓';
-                bgColor = '#d4edda';
+                message += `<div style="margin-bottom: 10px;">`;
+                message += `<div style="font-weight: bold;">○ LAN Endpoint</div>`;
+                message += `<div style="color: #6c757d; font-style: italic; margin-left: 20px;">Not configured</div>`;
+                message += `</div>`;
             } else {
-                icon = '✗';
-                bgColor = '#f8d7da';
-            }
-
-            message += `<div style="margin: 12px 0; padding: 10px; background: ${bgColor}; border-radius: 4px;">`;
-            message += `<strong style="font-size: 14px;">${icon} LAN Endpoint</strong><br>`;
-
-            if (test.not_configured) {
-                message += `<span style="font-size: 13px; color: #6c757d; font-style: italic;">Not configured</span>`;
-            } else {
-                message += `<span style="font-size: 13px;">${test.online ? test.message.replace('✓ LAN endpoint is online and responding', 'Online and responding') : test.message.replace('✗ LAN endpoint', '')}</span>`;
+                const icon = test.online ? '✓' : '✗';
+                message += `<div style="margin-bottom: 10px;">`;
+                message += `<div style="font-weight: bold;">${icon} LAN Endpoint</div>`;
+                message += `<div style="margin-left: 20px;">${test.online ? 'Online and responding' : test.message.replace('✗ LAN endpoint', '')}</div>`;
                 if (test.response_time_ms) {
-                    message += `<br><span style="font-size: 12px;">Response time: ${test.response_time_ms}ms</span>`;
+                    message += `<div style="margin-left: 20px; font-size: 13px;">Response time: ${test.response_time_ms}ms</div>`;
                 }
+                message += `</div>`;
             }
-            message += `</div>`;
         }
 
+        // Legacy Endpoint
         if (result.tests.legacy) {
             const test = result.tests.legacy;
             const icon = test.online ? '✓' : '✗';
-            message += `<div style="margin: 12px 0; padding: 10px; background: ${test.online ? '#d4edda' : '#f8d7da'}; border-radius: 4px;">`;
-            message += `<strong style="font-size: 14px;">${icon} Legacy Endpoint</strong><br>`;
-            message += `<span style="font-size: 13px;">${test.online ? test.message.replace('✓ Legacy endpoint is online and responding', 'Online and responding') : test.message.replace('✗ Legacy endpoint', '')}</span>`;
+            message += `<div style="margin-bottom: 10px;">`;
+            message += `<div style="font-weight: bold;">${icon} Legacy Endpoint</div>`;
+            message += `<div style="margin-left: 20px;">${test.online ? 'Online and responding' : test.message.replace('✗ Legacy endpoint', '')}</div>`;
             if (test.response_time_ms) {
-                message += `<br><span style="font-size: 12px;">Response time: ${test.response_time_ms}ms</span>`;
+                message += `<div style="margin-left: 20px; font-size: 13px;">Response time: ${test.response_time_ms}ms</div>`;
             }
             message += `</div>`;
         }
 
-        // Show success if any configured endpoint is online, warning otherwise
-        const configuredTests = Object.values(result.tests).filter(t => !t.not_configured);
-        const anyOnline = configuredTests.some(t => t.online);
-        showAlert(message, anyOnline ? 'success' : 'warning');
+        // Show in single alert box - success if any online, error if auth failed, warning otherwise
+        const alertType = anyOnline ? 'success' : (hasAuthFailure ? 'error' : 'warning');
+        showAlert(message, alertType);
 
     } catch (error) {
         console.error('Error testing server:', error);
