@@ -737,6 +737,9 @@ async function testServerConnection(serverId) {
         return;
     }
 
+    // Show immediate loading feedback (clear any previous alerts)
+    showAlert(`<div style="font-size: 16px; font-weight: bold;">${escapeHtml(server.friendly_name)} - Connection Test</div><div style="margin-top: 8px;">Testing endpoints, please wait...</div>`, 'info', true);
+
     try {
         const response = await fetch(`/api/codeproject-servers/${serverId}/test`, {
             credentials: 'include'
@@ -812,11 +815,11 @@ async function testServerConnection(serverId) {
 
         // Show in single alert box - success if any online, error if auth failed, warning otherwise
         const alertType = anyOnline ? 'success' : (hasAuthFailure ? 'error' : 'warning');
-        showAlert(message, alertType);
+        showAlert(message, alertType, true);
 
     } catch (error) {
         console.error('Error testing server:', error);
-        showAlert(`<strong>Connection Test Failed</strong><br>${error.message}`, 'error');
+        showAlert(`<strong>Connection Test Failed</strong><br>${error.message}`, 'error', true);
     }
 }
 
@@ -1887,8 +1890,14 @@ function closeModal(modalId) {
     document.getElementById(modalId).classList.remove('active');
 }
 
-function showAlert(message, type = 'success') {
+function showAlert(message, type = 'success', clearPrevious = false) {
     const container = document.getElementById('alert-container');
+
+    // Clear previous alerts if requested
+    if (clearPrevious) {
+        container.innerHTML = '';
+    }
+
     const alert = document.createElement('div');
     alert.className = `alert alert-${type}`;
     alert.innerHTML = message;
