@@ -1214,6 +1214,22 @@
         </div>
     </div>
 
+    <!-- Test Connection Results Modal -->
+    <div id="test-connection-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 id="test-connection-title">Connection Test</h2>
+                <button class="close-modal" onclick="closeModal('test-connection-modal')">&times;</button>
+            </div>
+            <div id="test-connection-results" style="padding: 20px;">
+                <!-- Results will be inserted here -->
+            </div>
+            <div style="padding: 0 20px 20px; text-align: right;">
+                <button class="btn btn-primary" onclick="closeModal('test-connection-modal')">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Manage User Locations Modal (Superadmin only) -->
     <div id="manage-user-locations-modal" class="modal">
         <div class="modal-content" style="max-width: 700px;">
