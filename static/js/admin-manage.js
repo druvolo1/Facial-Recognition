@@ -754,24 +754,58 @@ async function testServerConnection(serverId) {
 
         if (result.tests.public) {
             const test = result.tests.public;
-            const icon = test.online ? '✓' : '✗';
-            message += `<div style="margin: 12px 0; padding: 10px; background: ${test.online ? '#d4edda' : '#f8d7da'}; border-radius: 4px;">`;
+            let icon, bgColor;
+
+            if (test.not_configured) {
+                icon = '○';
+                bgColor = '#e9ecef';
+            } else if (test.online) {
+                icon = '✓';
+                bgColor = '#d4edda';
+            } else {
+                icon = '✗';
+                bgColor = '#f8d7da';
+            }
+
+            message += `<div style="margin: 12px 0; padding: 10px; background: ${bgColor}; border-radius: 4px;">`;
             message += `<strong style="font-size: 14px;">${icon} Public Endpoint</strong><br>`;
-            message += `<span style="font-size: 13px;">${test.online ? test.message.replace('✓ Public endpoint is online and responding', 'Online and responding') : test.message.replace('✗ Public endpoint', '')}</span>`;
-            if (test.response_time_ms) {
-                message += `<br><span style="font-size: 12px;">Response time: ${test.response_time_ms}ms</span>`;
+
+            if (test.not_configured) {
+                message += `<span style="font-size: 13px; color: #6c757d; font-style: italic;">Not configured</span>`;
+            } else {
+                message += `<span style="font-size: 13px;">${test.online ? test.message.replace('✓ Public endpoint is online and responding', 'Online and responding') : test.message.replace('✗ Public endpoint', '')}</span>`;
+                if (test.response_time_ms) {
+                    message += `<br><span style="font-size: 12px;">Response time: ${test.response_time_ms}ms</span>`;
+                }
             }
             message += `</div>`;
         }
 
         if (result.tests.lan) {
             const test = result.tests.lan;
-            const icon = test.online ? '✓' : '✗';
-            message += `<div style="margin: 12px 0; padding: 10px; background: ${test.online ? '#d4edda' : '#f8d7da'}; border-radius: 4px;">`;
+            let icon, bgColor;
+
+            if (test.not_configured) {
+                icon = '○';
+                bgColor = '#e9ecef';
+            } else if (test.online) {
+                icon = '✓';
+                bgColor = '#d4edda';
+            } else {
+                icon = '✗';
+                bgColor = '#f8d7da';
+            }
+
+            message += `<div style="margin: 12px 0; padding: 10px; background: ${bgColor}; border-radius: 4px;">`;
             message += `<strong style="font-size: 14px;">${icon} LAN Endpoint</strong><br>`;
-            message += `<span style="font-size: 13px;">${test.online ? test.message.replace('✓ LAN endpoint is online and responding', 'Online and responding') : test.message.replace('✗ LAN endpoint', '')}</span>`;
-            if (test.response_time_ms) {
-                message += `<br><span style="font-size: 12px;">Response time: ${test.response_time_ms}ms</span>`;
+
+            if (test.not_configured) {
+                message += `<span style="font-size: 13px; color: #6c757d; font-style: italic;">Not configured</span>`;
+            } else {
+                message += `<span style="font-size: 13px;">${test.online ? test.message.replace('✓ LAN endpoint is online and responding', 'Online and responding') : test.message.replace('✗ LAN endpoint', '')}</span>`;
+                if (test.response_time_ms) {
+                    message += `<br><span style="font-size: 12px;">Response time: ${test.response_time_ms}ms</span>`;
+                }
             }
             message += `</div>`;
         }
@@ -788,8 +822,9 @@ async function testServerConnection(serverId) {
             message += `</div>`;
         }
 
-        // Show success if any test passed, warning otherwise
-        const anyOnline = Object.values(result.tests).some(t => t.online);
+        // Show success if any configured endpoint is online, warning otherwise
+        const configuredTests = Object.values(result.tests).filter(t => !t.not_configured);
+        const anyOnline = configuredTests.some(t => t.online);
         showAlert(message, anyOnline ? 'success' : 'warning');
 
     } catch (error) {

@@ -3892,37 +3892,51 @@ async def test_codeproject_server(
                 "message": f"✗ {endpoint_type} endpoint error: {str(e)}"
             }
 
-    # Test public endpoint if configured
+    # Test public endpoint if configured, otherwise mark as not configured
     if server.public_endpoint_url:
         results["tests"]["public"] = test_endpoint(
             server.public_endpoint_url,
             use_auth=True,
             endpoint_type="Public"
         )
+    else:
+        results["tests"]["public"] = {
+            "online": False,
+            "status_code": None,
+            "response_time_ms": None,
+            "message": "Not configured",
+            "not_configured": True
+        }
 
-    # Test LAN endpoint if configured
+    # Test LAN endpoint if configured, otherwise mark as not configured
     if server.lan_endpoint_url:
         results["tests"]["lan"] = test_endpoint(
             server.lan_endpoint_url,
             use_auth=False,
             endpoint_type="LAN"
         )
+    else:
+        results["tests"]["lan"] = {
+            "online": False,
+            "status_code": None,
+            "response_time_ms": None,
+            "message": "Not configured",
+            "not_configured": True
+        }
 
-    # Test legacy endpoint if no new endpoints configured
-    if not server.public_endpoint_url and not server.lan_endpoint_url:
+    # Add summary
+    configured_tests = [t for t in results["tests"].values() if not t.get("not_configured")]
+    if configured_tests:
+        online_count = sum(1 for t in configured_tests if t["online"])
+        results["summary"] = f"{online_count}/{len(configured_tests)} endpoint(s) online"
+    else:
+        # Only legacy endpoint configured
         results["tests"]["legacy"] = test_endpoint(
             server.endpoint_url,
             use_auth=server.auth_enabled,
             endpoint_type="Legacy"
         )
-
-    # Add summary
-    all_tests = list(results["tests"].values())
-    if all_tests:
-        online_count = sum(1 for t in all_tests if t["online"])
-        results["summary"] = f"{online_count}/{len(all_tests)} endpoint(s) online"
-    else:
-        results["summary"] = "No endpoints configured"
+        results["summary"] = "Using legacy endpoint only"
 
     return results
 
@@ -5984,7 +5998,7 @@ async def detect_face_bounds(
         files = {'image': ('image.jpg', image_data, 'image/jpeg')}
 
         response = make_codeproject_request(
-            f"{server.endpoint_url}/vision/face/detect",
+            "/vision/face/detect",
             server,
             files=files,
             timeout=30
