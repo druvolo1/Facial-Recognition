@@ -6250,10 +6250,24 @@ async def recognize_face(
             result = response.json()
             predictions = result.get('predictions', [])
 
+            # Look up person names from database
             recognized_faces = []
             for pred in predictions:
+                person_id = pred.get('userid', 'unknown')
+                person_name = 'Unknown'
+
+                # Look up person_name from database using person_id
+                if person_id != 'unknown':
+                    face_result = await session.execute(
+                        select(RegisteredFace).where(RegisteredFace.person_id == person_id).limit(1)
+                    )
+                    face_record = face_result.scalar_one_or_none()
+                    if face_record:
+                        person_name = face_record.person_name
+
                 recognized_faces.append({
-                    "userid": pred.get('userid', 'unknown'),
+                    "userid": person_id,
+                    "name": person_name,
                     "confidence": pred.get('confidence', 0),
                     "x_min": pred.get('x_min', 0),
                     "y_min": pred.get('y_min', 0),
@@ -6355,13 +6369,13 @@ async def delete_registered_face(
                 if response.status_code == 200:
                     result_data = response.json()
                     if result_data.get('success'):
-                        print(f"[DELETE]     ✓ Removed from {endpoint} ({len(records)} record(s))")
+                        print(f"[DELETE]     ✓ Removed from CodeProject.AI ({len(records)} record(s))")
                     else:
                         print(f"[DELETE]     ⚠ CodeProject.AI response: {result_data.get('error', 'Unknown error')}")
                 else:
                     print(f"[DELETE]     ⚠ CodeProject.AI returned status {response.status_code}")
             except Exception as e:
-                print(f"[DELETE]     ⚠ Error removing from {endpoint}: {e}")
+                print(f"[DELETE]     ⚠ Error removing from CodeProject.AI: {e}")
                 # Continue with file deletion even if CodeProject.AI fails
 
         # Delete files from disk

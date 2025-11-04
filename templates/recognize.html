@@ -610,7 +610,7 @@
                 faceCard.className = 'face-card';
 
                 const confidencePercent = (face.confidence * 100).toFixed(1);
-                const userName = face.userid === 'unknown' ? 'Unknown Person' : face.userid;
+                const userName = face.userid === 'unknown' ? 'Unknown Person' : (face.name || face.userid);
 
                 faceCard.innerHTML = `
                     <div class="face-info">
@@ -643,7 +643,7 @@
                 ctx.strokeRect(x, y, width, height);
 
                 // Draw label background
-                const label = face.userid === 'unknown' ? 'Unknown' : face.userid;
+                const label = face.userid === 'unknown' ? 'Unknown' : (face.name || face.userid);
                 const confidence = (face.confidence * 100).toFixed(0) + '%';
                 const labelText = `${label} (${confidence})`;
 
