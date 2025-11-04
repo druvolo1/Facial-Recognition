@@ -715,6 +715,7 @@ async function loadServers() {
                             <td><code>${escapeHtml(server.endpoint_url)}</code></td>
                             <td>${escapeHtml(server.description || 'N/A')}</td>
                             <td>
+                                <button class="btn btn-secondary btn-sm" onclick="testServerConnection(${server.id})">Test</button>
                                 <button class="btn btn-secondary btn-sm" onclick="showEditServerModal(${server.id})">Edit</button>
                                 <button class="btn btn-danger btn-sm" onclick="deleteServer(${server.id}, '${escapeHtml(server.friendly_name)}')">Delete</button>
                             </td>
@@ -726,6 +727,80 @@ async function loadServers() {
     } catch (error) {
         console.error('Error loading servers:', error);
         showAlert('Failed to load servers', 'error');
+    }
+}
+
+async function testServerConnection(serverId) {
+    const server = allServers.find(s => s.id === serverId);
+    if (!server) {
+        showAlert('Server not found', 'error');
+        return;
+    }
+
+    // Show loading message
+    showAlert(`Testing connection to ${server.friendly_name}...`, 'info');
+
+    try {
+        const response = await fetch(`/api/codeproject-servers/${serverId}/test`, {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        // Build message showing all test results
+        let message = `<strong>${escapeHtml(server.friendly_name)}</strong><br><br>`;
+        message += `<strong>${result.summary}</strong><br><br>`;
+
+        if (result.tests.public) {
+            const test = result.tests.public;
+            const icon = test.online ? '✓' : '✗';
+            const color = test.online ? '#28a745' : '#dc3545';
+            message += `<div style="color: ${color}; margin: 8px 0;">`;
+            message += `<strong>${icon} Public Endpoint:</strong><br>`;
+            message += `${escapeHtml(test.message)}`;
+            if (test.response_time_ms) {
+                message += `<br>Response time: ${test.response_time_ms}ms`;
+            }
+            message += `</div>`;
+        }
+
+        if (result.tests.lan) {
+            const test = result.tests.lan;
+            const icon = test.online ? '✓' : '✗';
+            const color = test.online ? '#28a745' : '#dc3545';
+            message += `<div style="color: ${color}; margin: 8px 0;">`;
+            message += `<strong>${icon} LAN Endpoint:</strong><br>`;
+            message += `${escapeHtml(test.message)}`;
+            if (test.response_time_ms) {
+                message += `<br>Response time: ${test.response_time_ms}ms`;
+            }
+            message += `</div>`;
+        }
+
+        if (result.tests.legacy) {
+            const test = result.tests.legacy;
+            const icon = test.online ? '✓' : '✗';
+            const color = test.online ? '#28a745' : '#dc3545';
+            message += `<div style="color: ${color}; margin: 8px 0;">`;
+            message += `<strong>${icon} Legacy Endpoint:</strong><br>`;
+            message += `${escapeHtml(test.message)}`;
+            if (test.response_time_ms) {
+                message += `<br>Response time: ${test.response_time_ms}ms`;
+            }
+            message += `</div>`;
+        }
+
+        // Show success if any test passed, warning otherwise
+        const anyOnline = Object.values(result.tests).some(t => t.online);
+        showAlert(message, anyOnline ? 'success' : 'warning');
+
+    } catch (error) {
+        console.error('Error testing server:', error);
+        showAlert(`Failed to test server: ${error.message}`, 'error');
     }
 }
 

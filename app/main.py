@@ -3637,7 +3637,13 @@ async def get_codeproject_servers(
             "id": server.id,
             "friendly_name": server.friendly_name,
             "endpoint_url": server.endpoint_url,
+            "public_endpoint_url": server.public_endpoint_url,
+            "lan_endpoint_url": server.lan_endpoint_url,
+            "server_communication_preference": server.server_communication_preference,
             "description": server.description,
+            "auth_enabled": server.auth_enabled,
+            "auth_username": server.auth_username,
+            # Do NOT return auth_password_encrypted for security
             "created_at": server.created_at.isoformat()
         }
         for server in servers
@@ -3816,7 +3822,7 @@ async def test_codeproject_server(
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session)
 ):
-    """Test connection to a CodeProject.AI server"""
+    """Test connection to a CodeProject.AI server (tests both public and LAN endpoints)"""
     result = await session.execute(
         select(CodeProjectServer).where(CodeProjectServer.id == server_id)
     )
@@ -3825,50 +3831,100 @@ async def test_codeproject_server(
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")
 
-    try:
-        # Try to ping the server with a simple status check
-        response = make_codeproject_request(
-            "/vision/face/list",
-            server,
-            timeout=5
+    results = {
+        "success": True,
+        "server_name": server.friendly_name,
+        "tests": {}
+    }
+
+    # Helper function to test an endpoint
+    def test_endpoint(endpoint_url: str, use_auth: bool, endpoint_type: str):
+        try:
+            import time
+            start_time = time.time()
+
+            url = f"{endpoint_url}/vision/face/list"
+            kwargs = {"timeout": 5}
+
+            # Add authentication if needed
+            if use_auth and server.auth_enabled:
+                username, password = get_server_credentials(server.id, server)
+                if username and password:
+                    kwargs['auth'] = (username, password)
+
+            response = requests.post(url, **kwargs)
+            elapsed = time.time() - start_time
+
+            if response.status_code == 200:
+                return {
+                    "online": True,
+                    "status_code": response.status_code,
+                    "response_time_ms": int(elapsed * 1000),
+                    "message": f"✓ {endpoint_type} endpoint is online and responding"
+                }
+            else:
+                return {
+                    "online": False,
+                    "status_code": response.status_code,
+                    "response_time_ms": int(elapsed * 1000),
+                    "message": f"✗ {endpoint_type} endpoint responded with status {response.status_code}"
+                }
+
+        except requests.Timeout:
+            return {
+                "online": False,
+                "status_code": None,
+                "response_time_ms": None,
+                "message": f"✗ {endpoint_type} endpoint timeout (not responding)"
+            }
+        except requests.ConnectionError:
+            return {
+                "online": False,
+                "status_code": None,
+                "response_time_ms": None,
+                "message": f"✗ {endpoint_type} endpoint unreachable (connection error)"
+            }
+        except Exception as e:
+            return {
+                "online": False,
+                "status_code": None,
+                "response_time_ms": None,
+                "message": f"✗ {endpoint_type} endpoint error: {str(e)}"
+            }
+
+    # Test public endpoint if configured
+    if server.public_endpoint_url:
+        results["tests"]["public"] = test_endpoint(
+            server.public_endpoint_url,
+            use_auth=True,
+            endpoint_type="Public"
         )
 
-        if response.status_code == 200:
-            return {
-                "success": True,
-                "online": True,
-                "status_code": response.status_code,
-                "message": "Server is online and responding"
-            }
-        else:
-            return {
-                "success": True,
-                "online": False,
-                "status_code": response.status_code,
-                "message": f"Server responded with status {response.status_code}"
-            }
+    # Test LAN endpoint if configured
+    if server.lan_endpoint_url:
+        results["tests"]["lan"] = test_endpoint(
+            server.lan_endpoint_url,
+            use_auth=False,
+            endpoint_type="LAN"
+        )
 
-    except requests.Timeout:
-        return {
-            "success": True,
-            "online": False,
-            "status_code": None,
-            "message": "Connection timeout (server not responding)"
-        }
-    except requests.ConnectionError:
-        return {
-            "success": True,
-            "online": False,
-            "status_code": None,
-            "message": "Connection error (server unreachable)"
-        }
-    except Exception as e:
-        return {
-            "success": True,
-            "online": False,
-            "status_code": None,
-            "message": f"Error: {str(e)}"
-        }
+    # Test legacy endpoint if no new endpoints configured
+    if not server.public_endpoint_url and not server.lan_endpoint_url:
+        results["tests"]["legacy"] = test_endpoint(
+            server.endpoint_url,
+            use_auth=server.auth_enabled,
+            endpoint_type="Legacy"
+        )
+
+    # Add summary
+    all_tests = list(results["tests"].values())
+    if all_tests:
+        online_count = sum(1 for t in all_tests if t["online"])
+        results["summary"] = f"{online_count}/{len(all_tests)} endpoint(s) online"
+    else:
+        results["summary"] = "No endpoints configured"
+
+    return results
 
 
 @app.get("/api/codeproject-servers/{server_id}/faces")
