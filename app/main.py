@@ -4383,11 +4383,12 @@ async def approve_device(
         if not location_check.scalar_one_or_none():
             raise HTTPException(status_code=403, detail="You must be an admin of the target location")
 
-    # Verify location exists
+    # Verify location exists and get it
     location_result = await session.execute(
         select(Location).where(Location.id == data.location_id)
     )
-    if not location_result.scalar_one_or_none():
+    location = location_result.scalar_one_or_none()
+    if not location:
         raise HTTPException(status_code=404, detail="Location not found")
 
     # Validate device type and determine CodeProject server
@@ -4397,7 +4398,6 @@ async def approve_device(
 
         if not server_id:
             # Default to location's server
-            location = location_result.scalar_one()
             server_id = location.codeproject_server_id
 
         if not server_id:
