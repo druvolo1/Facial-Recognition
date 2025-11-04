@@ -1488,16 +1488,43 @@ document.getElementById('edit-location-form').addEventListener('submit', async (
 // Server management (superadmin only)
 function showCreateServerModal() {
     document.getElementById('create-server-form').reset();
+    // Reset auth fields visibility
+    document.getElementById('server-auth-fields').style.display = 'none';
+    document.getElementById('server-auth-username').required = false;
+    document.getElementById('server-auth-password').required = false;
     openModal('create-server-modal');
 }
+
+// Toggle auth fields visibility in create server form
+document.getElementById('server-auth-enabled').addEventListener('change', (e) => {
+    const authFields = document.getElementById('server-auth-fields');
+    authFields.style.display = e.target.checked ? 'block' : 'none';
+
+    // Make username/password required when auth is enabled
+    document.getElementById('server-auth-username').required = e.target.checked;
+    document.getElementById('server-auth-password').required = e.target.checked;
+});
+
+// Toggle auth fields visibility in edit server form
+document.getElementById('edit-server-auth-enabled').addEventListener('change', (e) => {
+    const authFields = document.getElementById('edit-server-auth-fields');
+    authFields.style.display = e.target.checked ? 'block' : 'none';
+});
 
 document.getElementById('create-server-form').addEventListener('submit', async (e) => {
     e.preventDefault();
 
+    const authEnabled = document.getElementById('server-auth-enabled').checked;
     const data = {
         friendly_name: document.getElementById('server-name').value,
         endpoint_url: document.getElementById('server-url').value,
-        description: document.getElementById('server-description').value || null
+        public_endpoint_url: document.getElementById('server-public-url').value || null,
+        lan_endpoint_url: document.getElementById('server-lan-url').value || null,
+        server_communication_preference: document.getElementById('server-comm-preference').value,
+        description: document.getElementById('server-description').value || null,
+        auth_enabled: authEnabled,
+        auth_username: authEnabled ? document.getElementById('server-auth-username').value : null,
+        auth_password: authEnabled ? document.getElementById('server-auth-password').value : null
     };
 
     try {
@@ -1535,7 +1562,18 @@ function showEditServerModal(serverId) {
     document.getElementById('edit-server-id').value = server.id;
     document.getElementById('edit-server-name').value = server.friendly_name;
     document.getElementById('edit-server-url').value = server.endpoint_url;
+    document.getElementById('edit-server-public-url').value = server.public_endpoint_url || '';
+    document.getElementById('edit-server-lan-url').value = server.lan_endpoint_url || '';
+    document.getElementById('edit-server-comm-preference').value = server.server_communication_preference || 'lan';
     document.getElementById('edit-server-description').value = server.description || '';
+
+    // Set auth fields
+    document.getElementById('edit-server-auth-enabled').checked = server.auth_enabled || false;
+    document.getElementById('edit-server-auth-username').value = server.auth_username || '';
+    document.getElementById('edit-server-auth-password').value = ''; // Always blank for security
+
+    // Show/hide auth fields based on current state
+    document.getElementById('edit-server-auth-fields').style.display = server.auth_enabled ? 'block' : 'none';
 
     openModal('edit-server-modal');
 }
@@ -1544,10 +1582,19 @@ document.getElementById('edit-server-form').addEventListener('submit', async (e)
     e.preventDefault();
 
     const serverId = document.getElementById('edit-server-id').value;
+    const authEnabled = document.getElementById('edit-server-auth-enabled').checked;
+    const password = document.getElementById('edit-server-auth-password').value;
+
     const data = {
         friendly_name: document.getElementById('edit-server-name').value,
         endpoint_url: document.getElementById('edit-server-url').value,
-        description: document.getElementById('edit-server-description').value || null
+        public_endpoint_url: document.getElementById('edit-server-public-url').value || null,
+        lan_endpoint_url: document.getElementById('edit-server-lan-url').value || null,
+        server_communication_preference: document.getElementById('edit-server-comm-preference').value,
+        description: document.getElementById('edit-server-description').value || null,
+        auth_enabled: authEnabled,
+        auth_username: authEnabled ? document.getElementById('edit-server-auth-username').value : null,
+        auth_password: password || null  // Only send if changed
     };
 
     try {

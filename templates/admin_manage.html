@@ -1085,13 +1085,48 @@
                     <input type="text" id="server-name" required placeholder="e.g., Main Office Server">
                 </div>
                 <div class="form-group">
-                    <label for="server-url">Endpoint URL *</label>
+                    <label for="server-url">Endpoint URL (Legacy) *</label>
                     <input type="text" id="server-url" required placeholder="http://192.168.1.100:32168/v1">
-                    <small style="color: #666;">Include the full URL with /v1 suffix</small>
+                    <small style="color: #666;">For backward compatibility. Will be auto-filled if you provide public or LAN URL</small>
+                </div>
+                <div class="form-group">
+                    <label for="server-public-url">Public Endpoint URL</label>
+                    <input type="text" id="server-public-url" placeholder="https://codeproject.example.com/v1">
+                    <small style="color: #666;">HTTPS endpoint with authentication (e.g., nginx reverse proxy)</small>
+                </div>
+                <div class="form-group">
+                    <label for="server-lan-url">LAN Endpoint URL</label>
+                    <input type="text" id="server-lan-url" placeholder="http://192.168.1.100:32168/v1">
+                    <small style="color: #666;">Local LAN IP address, no authentication required</small>
+                </div>
+                <div class="form-group">
+                    <label for="server-comm-preference">Server Communication Preference *</label>
+                    <select id="server-comm-preference" required>
+                        <option value="lan">LAN (Local Network)</option>
+                        <option value="public">Public (HTTPS)</option>
+                    </select>
+                    <small style="color: #666;">How the Flask server should communicate with this CodeProject.AI server</small>
                 </div>
                 <div class="form-group">
                     <label for="server-description">Description</label>
                     <textarea id="server-description" placeholder="Optional notes about this server"></textarea>
+                </div>
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="server-auth-enabled" style="margin-right: 8px;">
+                        <span>Requires Authentication (HTTP Basic Auth)</span>
+                    </label>
+                    <small style="color: #666;">Enable if this server is protected by a reverse proxy with authentication</small>
+                </div>
+                <div id="server-auth-fields" style="display: none;">
+                    <div class="form-group">
+                        <label for="server-auth-username">Username *</label>
+                        <input type="text" id="server-auth-username" placeholder="e.g., biometrix">
+                    </div>
+                    <div class="form-group">
+                        <label for="server-auth-password">Password *</label>
+                        <input type="password" id="server-auth-password" placeholder="Enter password">
+                    </div>
                 </div>
                 <div style="display: flex; gap: 10px;">
                     <button type="submit" class="btn btn-primary">Add Server</button>
@@ -1115,13 +1150,49 @@
                     <input type="text" id="edit-server-name" required placeholder="e.g., Main Office Server">
                 </div>
                 <div class="form-group">
-                    <label for="edit-server-url">Endpoint URL *</label>
+                    <label for="edit-server-url">Endpoint URL (Legacy) *</label>
                     <input type="text" id="edit-server-url" required placeholder="http://192.168.1.100:32168/v1">
-                    <small style="color: #666;">Include the full URL with /v1 suffix</small>
+                    <small style="color: #666;">For backward compatibility. Will be auto-filled if you provide public or LAN URL</small>
+                </div>
+                <div class="form-group">
+                    <label for="edit-server-public-url">Public Endpoint URL</label>
+                    <input type="text" id="edit-server-public-url" placeholder="https://codeproject.example.com/v1">
+                    <small style="color: #666;">HTTPS endpoint with authentication (e.g., nginx reverse proxy)</small>
+                </div>
+                <div class="form-group">
+                    <label for="edit-server-lan-url">LAN Endpoint URL</label>
+                    <input type="text" id="edit-server-lan-url" placeholder="http://192.168.1.100:32168/v1">
+                    <small style="color: #666;">Local LAN IP address, no authentication required</small>
+                </div>
+                <div class="form-group">
+                    <label for="edit-server-comm-preference">Server Communication Preference *</label>
+                    <select id="edit-server-comm-preference" required>
+                        <option value="lan">LAN (Local Network)</option>
+                        <option value="public">Public (HTTPS)</option>
+                    </select>
+                    <small style="color: #666;">How the Flask server should communicate with this CodeProject.AI server</small>
                 </div>
                 <div class="form-group">
                     <label for="edit-server-description">Description</label>
                     <textarea id="edit-server-description" placeholder="Optional notes about this server"></textarea>
+                </div>
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="edit-server-auth-enabled" style="margin-right: 8px;">
+                        <span>Requires Authentication (HTTP Basic Auth)</span>
+                    </label>
+                    <small style="color: #666;">Enable if this server is protected by a reverse proxy with authentication</small>
+                </div>
+                <div id="edit-server-auth-fields" style="display: none;">
+                    <div class="form-group">
+                        <label for="edit-server-auth-username">Username</label>
+                        <input type="text" id="edit-server-auth-username" placeholder="e.g., biometrix">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-server-auth-password">Password</label>
+                        <input type="password" id="edit-server-auth-password" placeholder="Leave blank to keep current password">
+                        <small style="color: #666;">Only enter a new password if you want to change it</small>
+                    </div>
                 </div>
                 <div style="display: flex; gap: 10px;">
                     <button type="submit" class="btn btn-primary">Update Server</button>

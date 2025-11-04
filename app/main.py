@@ -36,6 +36,8 @@ from pydantic import EmailStr, BaseModel
 from dotenv import load_dotenv
 import requests
 from PIL import Image
+from cryptography.fernet import Fernet
+import hashlib
 
 # Load environment variables
 load_dotenv()
@@ -79,6 +81,116 @@ print(f"[CONFIG] Database URL: {DATABASE_URL}")
 print(f"[CONFIG] Base directory: {BASE_DIR}")
 print(f"[CONFIG] Upload folder: {UPLOAD_FOLDER}")
 print(f"[CONFIG] CodeProject.AI: {CODEPROJECT_BASE_URL}")
+
+# ============================================================================
+# ENCRYPTION UTILITIES FOR CODEPROJECT SERVER CREDENTIALS
+# ============================================================================
+
+# Generate encryption key from SECRET_KEY (must be 32 url-safe base64-encoded bytes)
+def _generate_fernet_key():
+    """Generate a Fernet key from the SECRET_KEY"""
+    # Use SHA256 hash of SECRET to get 32 bytes, then base64 encode it
+    key_bytes = hashlib.sha256(SECRET.encode()).digest()
+    return base64.urlsafe_b64encode(key_bytes)
+
+FERNET_KEY = _generate_fernet_key()
+FERNET_CIPHER = Fernet(FERNET_KEY)
+
+def encrypt_password(password: str) -> str:
+    """Encrypt a password for storage in database"""
+    if not password:
+        return None
+    encrypted_bytes = FERNET_CIPHER.encrypt(password.encode())
+    return encrypted_bytes.decode()
+
+def decrypt_password(encrypted_password: str) -> str:
+    """Decrypt a password from database"""
+    if not encrypted_password:
+        return None
+    decrypted_bytes = FERNET_CIPHER.decrypt(encrypted_password.encode())
+    return decrypted_bytes.decode()
+
+# ============================================================================
+# CODEPROJECT SERVER CREDENTIALS CACHE
+# ============================================================================
+
+# In-memory cache for decrypted CodeProject server credentials
+# Structure: { server_id: { 'username': str, 'password': str, 'cached_at': datetime } }
+CODEPROJECT_CREDENTIALS_CACHE = {}
+
+def get_server_credentials(server_id: int, server) -> tuple:
+    """
+    Get decrypted credentials for a CodeProject server from cache or decrypt from DB.
+    Returns: (username, password) tuple or (None, None) if auth is disabled
+    """
+    if not server.auth_enabled:
+        return (None, None)
+
+    # Check cache first
+    if server_id in CODEPROJECT_CREDENTIALS_CACHE:
+        cached = CODEPROJECT_CREDENTIALS_CACHE[server_id]
+        return (cached['username'], cached['password'])
+
+    # Decrypt and cache
+    username = server.auth_username
+    password = decrypt_password(server.auth_password_encrypted) if server.auth_password_encrypted else None
+
+    # Store in cache
+    CODEPROJECT_CREDENTIALS_CACHE[server_id] = {
+        'username': username,
+        'password': password,
+        'cached_at': datetime.utcnow()
+    }
+
+    return (username, password)
+
+def invalidate_credentials_cache(server_id: int):
+    """Invalidate cached credentials when server is updated"""
+    if server_id in CODEPROJECT_CREDENTIALS_CACHE:
+        del CODEPROJECT_CREDENTIALS_CACHE[server_id]
+        print(f"[CACHE] Invalidated credentials cache for server {server_id}")
+
+def make_codeproject_request(path: str, server, **kwargs):
+    """
+    Make a request to CodeProject.AI with appropriate endpoint and optional Basic Auth.
+
+    Args:
+        path: API path (e.g., '/v1/vision/face/register')
+        server: CodeProjectServer object
+        **kwargs: Additional arguments to pass to requests.post/get
+
+    Returns:
+        requests.Response object
+    """
+    # Choose endpoint based on server communication preference
+    use_public = server.server_communication_preference == 'public'
+
+    if use_public and server.public_endpoint_url:
+        base_url = server.public_endpoint_url
+        # Get credentials from cache or decrypt from DB (only for public endpoint)
+        username, password = get_server_credentials(server.id, server)
+        if username and password:
+            kwargs['auth'] = (username, password)
+    elif server.lan_endpoint_url:
+        base_url = server.lan_endpoint_url
+        # No authentication for LAN endpoints
+    else:
+        # Fallback to endpoint_url for backward compatibility
+        base_url = server.endpoint_url
+        # Add auth if enabled (for backward compatibility)
+        username, password = get_server_credentials(server.id, server)
+        if username and password:
+            kwargs['auth'] = (username, password)
+
+    # Construct full URL
+    url = f"{base_url}{path}"
+
+    # Make the request (default to POST)
+    method = kwargs.pop('method', 'POST')
+    if method.upper() == 'POST':
+        return requests.post(url, **kwargs)
+    else:
+        return requests.get(url, **kwargs)
 
 # ============================================================================
 # TOKEN CACHE
@@ -248,8 +360,14 @@ class CodeProjectServer(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     friendly_name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
-    endpoint_url: Mapped[str] = mapped_column(String(512), nullable=False)
+    endpoint_url: Mapped[str] = mapped_column(String(512), nullable=False)  # Kept for backward compatibility
+    public_endpoint_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)  # HTTPS with auth
+    lan_endpoint_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)  # Local LAN IP, no auth
+    server_communication_preference: Mapped[str] = mapped_column(String(20), nullable=False, default='lan')  # 'lan' or 'public'
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    auth_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    auth_username: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    auth_password_encrypted: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     created_by_user_id: Mapped[int] = mapped_column(Integer, ForeignKey("user.id"), nullable=False)
 
@@ -692,14 +810,26 @@ class AssignUserToLocationRequest(BaseModel):
 
 class CreateCodeProjectServerRequest(BaseModel):
     friendly_name: str
-    endpoint_url: str
+    endpoint_url: str  # Kept for backward compatibility
+    public_endpoint_url: Optional[str] = None  # HTTPS with auth
+    lan_endpoint_url: Optional[str] = None  # Local LAN IP, no auth
+    server_communication_preference: str = 'lan'  # 'lan' or 'public'
     description: Optional[str] = None
+    auth_enabled: bool = False
+    auth_username: Optional[str] = None
+    auth_password: Optional[str] = None  # Will be encrypted before storing
 
 
 class UpdateCodeProjectServerRequest(BaseModel):
     friendly_name: Optional[str] = None
-    endpoint_url: Optional[str] = None
+    endpoint_url: Optional[str] = None  # Kept for backward compatibility
+    public_endpoint_url: Optional[str] = None  # HTTPS with auth
+    lan_endpoint_url: Optional[str] = None  # Local LAN IP, no auth
+    server_communication_preference: Optional[str] = None  # 'lan' or 'public'
     description: Optional[str] = None
+    auth_enabled: Optional[bool] = None
+    auth_username: Optional[str] = None
+    auth_password: Optional[str] = None  # Will be encrypted before storing; if None, existing password is kept
 
 
 class CreateRegistrationLinkRequest(BaseModel):
@@ -3528,16 +3658,35 @@ async def create_codeproject_server(
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Server with this name already exists")
 
+    # Validate at least one endpoint is provided
+    if not data.public_endpoint_url and not data.lan_endpoint_url:
+        raise HTTPException(
+            status_code=400,
+            detail="At least one endpoint (public or LAN) must be provided"
+        )
+
+    # Encrypt password if authentication is enabled
+    encrypted_password = None
+    if data.auth_enabled and data.auth_password:
+        encrypted_password = encrypt_password(data.auth_password)
+
     server = CodeProjectServer(
         friendly_name=data.friendly_name,
         endpoint_url=data.endpoint_url.rstrip('/'),  # Remove trailing slash
+        public_endpoint_url=data.public_endpoint_url.rstrip('/') if data.public_endpoint_url else None,
+        lan_endpoint_url=data.lan_endpoint_url.rstrip('/') if data.lan_endpoint_url else None,
+        server_communication_preference=data.server_communication_preference,
         description=data.description,
+        auth_enabled=data.auth_enabled,
+        auth_username=data.auth_username if data.auth_enabled else None,
+        auth_password_encrypted=encrypted_password,
         created_by_user_id=user.id
     )
     session.add(server)
     await session.commit()
 
-    print(f"[CODEPROJECT-SERVER] Created by {user.email}: {data.friendly_name} -> {data.endpoint_url}")
+    auth_status = "with auth" if data.auth_enabled else "no auth"
+    print(f"[CODEPROJECT-SERVER] Created by {user.email}: {data.friendly_name} -> {data.endpoint_url} ({auth_status})")
 
     return {
         "success": True,
@@ -3578,12 +3727,44 @@ async def update_codeproject_server(
     if data.endpoint_url is not None:
         server.endpoint_url = data.endpoint_url.rstrip('/')
 
+    if data.public_endpoint_url is not None:
+        server.public_endpoint_url = data.public_endpoint_url.rstrip('/') if data.public_endpoint_url else None
+
+    if data.lan_endpoint_url is not None:
+        server.lan_endpoint_url = data.lan_endpoint_url.rstrip('/') if data.lan_endpoint_url else None
+
+    if data.server_communication_preference is not None:
+        server.server_communication_preference = data.server_communication_preference
+
     if data.description is not None:
         server.description = data.description
 
+    # Update auth settings
+    if data.auth_enabled is not None:
+        server.auth_enabled = data.auth_enabled
+
+    if data.auth_username is not None:
+        server.auth_username = data.auth_username
+
+    # Update password if provided (encrypt it)
+    if data.auth_password is not None:
+        server.auth_password_encrypted = encrypt_password(data.auth_password)
+        # Invalidate cache when password changes
+        invalidate_credentials_cache(server_id)
+
+    # If auth is disabled, clear credentials
+    if data.auth_enabled is False:
+        server.auth_username = None
+        server.auth_password_encrypted = None
+        invalidate_credentials_cache(server_id)
+
     await session.commit()
 
-    print(f"[CODEPROJECT-SERVER] Updated by {user.email}: {server.friendly_name}")
+    # Invalidate cache on any update to be safe
+    invalidate_credentials_cache(server_id)
+
+    auth_status = "with auth" if server.auth_enabled else "no auth"
+    print(f"[CODEPROJECT-SERVER] Updated by {user.email}: {server.friendly_name} ({auth_status})")
 
     return {
         "success": True,
@@ -3646,8 +3827,9 @@ async def test_codeproject_server(
 
     try:
         # Try to ping the server with a simple status check
-        response = requests.post(
-            f"{server.endpoint_url}/vision/face/list",
+        response = make_codeproject_request(
+            "/vision/face/list",
+            server,
             timeout=5
         )
 
@@ -3706,8 +3888,9 @@ async def get_server_faces(
 
     try:
         # Get list from CodeProject.AI
-        response = requests.post(
-            f"{server.endpoint_url}/vision/face/list",
+        response = make_codeproject_request(
+            "/vision/face/list",
+            server,
             timeout=30
         )
 
@@ -3776,8 +3959,9 @@ async def delete_server_face(
 
     # Delete from CodeProject.AI
     try:
-        response = requests.post(
-            f"{server.endpoint_url}/vision/face/delete",
+        response = make_codeproject_request(
+            "/vision/face/delete",
+            server,
             data={'userid': userid},
             timeout=30
         )
@@ -3925,15 +4109,18 @@ async def get_device_status(
     device.last_seen = datetime.utcnow()
     await session.commit()
 
-    # Get CodeProject endpoint from server
+    # Get CodeProject endpoint from server (only if processing mode is "direct")
     codeproject_endpoint = None
-    if device.codeproject_server_id:
+    processing_mode = device.processing_mode or 'server'
+
+    if device.codeproject_server_id and processing_mode == 'direct':
         server_result = await session.execute(
             select(CodeProjectServer).where(CodeProjectServer.id == device.codeproject_server_id)
         )
         server = server_result.scalar_one_or_none()
         if server:
-            codeproject_endpoint = server.endpoint_url
+            # Send LAN endpoint for direct mode (no authentication)
+            codeproject_endpoint = server.lan_endpoint_url
 
     response_data = {
         "device_id": device.device_id,
@@ -3942,7 +4129,8 @@ async def get_device_status(
         "device_name": device.device_name,
         "device_type": device.device_type,
         "location_id": device.location_id,
-        "codeproject_endpoint": codeproject_endpoint
+        "codeproject_endpoint": codeproject_endpoint,
+        "processing_mode": processing_mode
     }
 
     # Add token if device is approved (only sent once during first status check after approval)
@@ -3988,15 +4176,18 @@ async def device_heartbeat(
         if area:
             area_name = area.area_name
 
-    # Get CodeProject endpoint from server
+    # Get CodeProject endpoint from server (only if processing mode is "direct")
     codeproject_endpoint = None
-    if device.codeproject_server_id:
+    processing_mode = device.processing_mode or 'server'
+
+    if device.codeproject_server_id and processing_mode == 'direct':
         server_result = await session.execute(
             select(CodeProjectServer).where(CodeProjectServer.id == device.codeproject_server_id)
         )
         server = server_result.scalar_one_or_none()
         if server:
-            codeproject_endpoint = server.endpoint_url
+            # Send LAN endpoint for direct mode (no authentication)
+            codeproject_endpoint = server.lan_endpoint_url
 
     # Return current device configuration
     response_data = {
@@ -4010,7 +4201,7 @@ async def device_heartbeat(
         "codeproject_endpoint": codeproject_endpoint,
         "is_approved": device.is_approved,
         # Processing mode (default to 'server' if not set)
-        "processing_mode": device.processing_mode or 'server',
+        "processing_mode": processing_mode,
         # Detection settings (use device-specific or fall back to .env defaults)
         "confidence_threshold": float(device.confidence_threshold) if device.confidence_threshold is not None else DEFAULT_CONFIDENCE_THRESHOLD,
         "presence_timeout_minutes": device.presence_timeout_minutes if device.presence_timeout_minutes is not None else DEFAULT_PRESENCE_TIMEOUT_MINUTES,
@@ -5009,8 +5200,9 @@ async def device_register_face(
 
                 print(f"[DEVICE-REGISTER]   Sending to CodeProject.AI at {codeproject_url}...")
 
-                response = requests.post(
-                    f"{codeproject_url}/vision/face/register",
+                response = make_codeproject_request(
+                    "/vision/face/register",
+                    server,
                     files=files,
                     data=params,
                     timeout=60
@@ -5131,8 +5323,9 @@ async def device_recognize_face(
 
         print(f"[DEVICE-RECOGNIZE] Sending to CodeProject.AI at {codeproject_url}...")
 
-        response = requests.post(
-            f"{codeproject_url}/vision/face/recognize",
+        response = make_codeproject_request(
+            "/vision/face/recognize",
+            server,
             files=files,
             data={'min_confidence': 0.4},
             timeout=30
@@ -5468,8 +5661,9 @@ async def register_face(
 
                 print(f"[REGISTER]   Sending to CodeProject.AI...")
 
-                response = requests.post(
-                    f"{codeproject_url}/vision/face/register",
+                response = make_codeproject_request(
+                    "/vision/face/register",
+                    server,
                     files=files,
                     data=params,
                     timeout=60
@@ -5637,8 +5831,9 @@ async def admin_register_face(
 
                 print(f"[ADMIN-REGISTER]   Sending to CodeProject.AI...")
 
-                response = requests.post(
-                    f"{codeproject_endpoint}/vision/face/register",
+                response = make_codeproject_request(
+                    "/vision/face/register",
+                    server,
                     files=files,
                     data=params,
                     timeout=60
@@ -5710,21 +5905,31 @@ async def admin_register_face(
 @app.post("/api/detect-face-bounds")
 async def detect_face_bounds(
     image: UploadFile = File(...),
-    user: User = Depends(current_active_user)
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
 ):
     """Detect face boundaries in an image for cropping suggestions"""
     try:
         print(f"\n{'='*60}")
         print(f"[DETECT-FACE] Detecting face bounds for cropping")
 
+        # Get first available server
+        server_result = await session.execute(
+            select(CodeProjectServer).order_by(CodeProjectServer.id).limit(1)
+        )
+        server = server_result.scalar_one_or_none()
+        if not server:
+            raise HTTPException(status_code=500, detail="No CodeProject server configured")
+
         # Read image
         image_data = await image.read()
 
-        # Call CodeProject.AI face detection using default server
+        # Call CodeProject.AI face detection
         files = {'image': ('image.jpg', image_data, 'image/jpeg')}
 
-        response = requests.post(
-            f"{CODEPROJECT_BASE_URL}/vision/face/detect",
+        response = make_codeproject_request(
+            f"{server.endpoint_url}/vision/face/detect",
+            server,
             files=files,
             timeout=30
         )
@@ -5877,8 +6082,9 @@ async def replace_photos(
         # Delete from CodeProject.AI
         try:
             print(f"[REPLACE-PHOTOS]   Deleting old registration from CodeProject.AI...")
-            response = requests.post(
-                f"{codeproject_endpoint}/vision/face/delete",
+            response = make_codeproject_request(
+                "/vision/face/delete",
+                server,
                 data={'userid': person_id},
                 timeout=30
             )
@@ -5898,8 +6104,9 @@ async def replace_photos(
         params = {'userid': person_id}
 
         try:
-            response = requests.post(
-                f"{codeproject_endpoint}/vision/face/register",
+            response = make_codeproject_request(
+                "/vision/face/register",
+                server,
                 files=files,
                 data=params,
                 timeout=60
@@ -5947,12 +6154,21 @@ async def replace_photos(
 @app.post("/api/recognize")
 async def recognize_face(
     data: RecognizeRequest,
-    user: User = Depends(current_active_user)
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
 ):
     """Recognize face in image using CodeProject.AI"""
     try:
         print(f"\n{'='*60}")
         print(f"[RECOGNIZE] New recognition request at {datetime.now().strftime('%H:%M:%S')}")
+
+        # Get first available server
+        server_result = await session.execute(
+            select(CodeProjectServer).order_by(CodeProjectServer.id).limit(1)
+        )
+        server = server_result.scalar_one_or_none()
+        if not server:
+            raise HTTPException(status_code=500, detail="No CodeProject server configured")
 
         # Extract base64 data from data URL
         image_data = data.image
@@ -5967,8 +6183,9 @@ async def recognize_face(
             'image': ('frame.jpg', BytesIO(image_bytes), 'image/jpeg')
         }
 
-        response = requests.post(
-            f"{CODEPROJECT_BASE_URL}/vision/face/recognize",
+        response = make_codeproject_request(
+            "/vision/face/recognize",
+            server,
             files=files,
             timeout=30
         )
@@ -6050,7 +6267,7 @@ async def delete_registered_face(
 
         # Get all servers for lookup
         servers_result = await session.execute(select(CodeProjectServer))
-        servers_dict = {s.id: s.endpoint_url for s in servers_result.scalars().all()}
+        servers_dict = {s.id: s for s in servers_result.scalars().all()}
 
         # Group face records by CodeProject server
         server_groups = {}
@@ -6066,14 +6283,15 @@ async def delete_registered_face(
         # Delete from each CodeProject.AI server
         print(f"[DELETE] Removing {person_name} (person_id: {person_id}) from {len(server_groups)} CodeProject.AI server(s)...")
         for server_id, records in server_groups.items():
-            endpoint = servers_dict.get(server_id)
-            if not endpoint:
+            server = servers_dict.get(server_id)
+            if not server:
                 print(f"[DELETE]   ⚠ Server ID {server_id} not found, skipping...")
                 continue
             try:
-                print(f"[DELETE]   Deleting from {endpoint}...")
-                response = requests.post(
-                    f"{endpoint}/vision/face/delete",
+                print(f"[DELETE]   Deleting from {server.endpoint_url}...")
+                response = make_codeproject_request(
+                    "/vision/face/delete",
+                    server,
                     data={'userid': person_id},  # Use person_id (UUID) not person_name
                     timeout=30
                 )
@@ -6715,8 +6933,9 @@ async def register_via_public_link(
 
         params = {'userid': person_id}
 
-        response = requests.post(
-            f"{codeproject_endpoint}/vision/face/register",
+        response = make_codeproject_request(
+            "/vision/face/register",
+            server,
             files=files,
             data=params,
             timeout=60
