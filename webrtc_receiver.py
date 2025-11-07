@@ -57,9 +57,20 @@ class VideoFrameCapture:
                 try:
                     # Receive frame from track
                     logger.info(f"[VideoCapture] Attempting to receive frame {frame_number}...")
-                    frame = await self.track.recv()
+                    logger.info(f"[VideoCapture] Track state: {self.track.readyState if hasattr(self.track, 'readyState') else 'unknown'}")
+
+                    # Add timeout to detect hanging
+                    try:
+                        frame = await asyncio.wait_for(self.track.recv(), timeout=5.0)
+                    except asyncio.TimeoutError:
+                        logger.error(f"[VideoCapture] TIMEOUT waiting for frame {frame_number} after 5 seconds!")
+                        logger.error(f"[VideoCapture] Track may not be sending data or codec issue")
+                        await asyncio.sleep(1)
+                        continue
+
                     frame_number += 1
                     logger.info(f"[VideoCapture] Frame {frame_number} received successfully!")
+                    logger.info(f"[VideoCapture] Frame type: {type(frame)}, format: {frame.format if hasattr(frame, 'format') else 'unknown'}")
 
                     # Check if enough time has passed since last capture
                     current_time = asyncio.get_event_loop().time()
@@ -440,6 +451,8 @@ async def offer(request):
     logger.info("=" * 50)
     logger.info("[WebRTC] Received offer from client")
     logger.info(f"[WebRTC] Offer SDP type: {offer_sdp.type}")
+    logger.info("[WebRTC] FULL SDP OFFER:")
+    logger.info(offer_sdp.sdp)
     logger.info("=" * 50)
 
     # Create peer connection
@@ -455,9 +468,14 @@ async def offer(request):
     async def on_track(track):
         nonlocal frame_capture, video_track
         logger.info(f"[WebRTC] Track received: {track.kind}")
+        logger.info(f"[WebRTC] Track ID: {track.id}")
 
         if track.kind == "video":
             logger.info("[WebRTC] Video track received, WAITING for connection to be established")
+            logger.info(f"[WebRTC] Video track details: {track}")
+            # Log codec information if available
+            if hasattr(track, '_RTCRtpReceiver__codecs'):
+                logger.info(f"[WebRTC] Track codecs: {track._RTCRtpReceiver__codecs}")
             video_track = track
 
         # Keep track alive - this is critical for aiortc
@@ -495,6 +513,9 @@ async def offer(request):
     answer = await pc.createAnswer()
     await pc.setLocalDescription(answer)
     logger.info("[WebRTC] Answer created and local description set")
+    logger.info("[WebRTC] FULL SDP ANSWER:")
+    logger.info(pc.localDescription.sdp)
+    logger.info("=" * 50)
 
     logger.info("[WebRTC] Sending answer to client")
 
