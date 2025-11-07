@@ -1,6 +1,27 @@
+# WebRTC and media processing
 aiortc>=1.6.0
 aiohttp>=3.9.0
+
+# Video codec support (requires ffmpeg system libraries - see installation steps below)
 av>=10.0.0
+
+# Image processing
 numpy>=1.24.0
 Pillow>=10.0.0
+
+# HTTP client
 requests>=2.31.0
+
+# INSTALLATION INSTRUCTIONS:
+#
+# Before installing Python packages, install FFmpeg with H.264 codec support:
+#
+# Ubuntu/Debian:
+#   sudo apt-get update
+#   sudo apt-get install -y ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libavdevice-dev
+#
+# Then install Python packages:
+#   pip install -r webrtc_requirements.txt
+#
+# Verify H.264 support:
+#   python -c "import av; print('H264 decoder available:', 'h264' in [c.name for c in av.codec.codecs_available])"
