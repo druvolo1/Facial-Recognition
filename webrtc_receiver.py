@@ -156,7 +156,11 @@ class VideoFrameCapture:
 
 async def broadcast_frame(base64_image):
     """Broadcast frame to all connected WebSocket clients"""
+    logger.info(f"[Broadcast] Called with image size: {len(base64_image)} chars")
+    logger.info(f"[Broadcast] Active WebSocket clients: {len(ws_clients)}")
+
     if not ws_clients:
+        logger.warning("[Broadcast] No WebSocket clients connected, skipping broadcast")
         return
 
     message = json.dumps({
@@ -165,17 +169,22 @@ async def broadcast_frame(base64_image):
         "timestamp": asyncio.get_event_loop().time()
     })
 
+    logger.info(f"[Broadcast] Message JSON size: {len(message)} chars")
+
     # Send to all connected clients
     disconnected = set()
     for ws in ws_clients:
         try:
+            logger.info(f"[Broadcast] Sending to WebSocket client...")
             await ws.send_str(message)
+            logger.info(f"[Broadcast] Successfully sent to client")
         except Exception as e:
             logger.error(f"[WebSocket] Error sending to client: {e}")
             disconnected.add(ws)
 
     # Remove disconnected clients
     ws_clients.difference_update(disconnected)
+    logger.info(f"[Broadcast] Broadcast complete to {len(ws_clients)} clients")
 
 
 async def websocket_handler(request):
@@ -314,6 +323,10 @@ async def viewer(request):
     </div>
 
     <script>
+        console.log('='.repeat(70));
+        console.log('WebRTC Frame Viewer - CLIENT SIDE LOGGING');
+        console.log('='.repeat(70));
+
         var ws = null;
         var frameCount = 0;
         var liveImage = document.getElementById('liveImage');
@@ -326,9 +339,15 @@ async def viewer(request):
         var lastFrameTime = 0;
         var frameTimestamps = [];
 
+        console.log('[Viewer] All elements loaded successfully');
+        console.log('[Viewer] Will connect to WebSocket at: ws://' + window.location.host + '/ws');
+
         function connectWebSocket() {
-            console.log('Connecting to WebSocket...');
-            ws = new WebSocket('ws://' + window.location.host + '/ws');
+            console.log('[Viewer] ='.repeat(35));
+            console.log('[Viewer] Initiating WebSocket connection...');
+            var wsUrl = 'ws://' + window.location.host + '/ws';
+            console.log('[Viewer] WebSocket URL:', wsUrl);
+            ws = new WebSocket(wsUrl);
 
             ws.onopen = function() {
                 console.log('WebSocket connected');
@@ -337,11 +356,21 @@ async def viewer(request):
             };
 
             ws.onmessage = function(event) {
+                console.log('='.repeat(50));
+                console.log('[WebSocket] Message received');
+                console.log('[WebSocket] Raw data length:', event.data.length);
+
                 try {
                     var message = JSON.parse(event.data);
+                    console.log('[WebSocket] Message type:', message.type);
 
                     if (message.type === 'frame' && message.data) {
                         frameCount++;
+                        console.log('[WebSocket] FRAME MESSAGE RECEIVED!');
+                        console.log('[WebSocket] Frame count:', frameCount);
+                        console.log('[WebSocket] Frame data length:', message.data.length);
+                        console.log('[WebSocket] Frame timestamp:', message.timestamp);
+
                         liveImage.src = message.data;
                         liveImage.style.display = 'block';
                         placeholder.style.display = 'none';
@@ -367,13 +396,18 @@ async def viewer(request):
                         }
                         lastFrameTime = currentTime;
 
-                        console.log('Frame', frameCount, 'received');
+                        console.log('[WebSocket] Frame', frameCount, 'processed successfully');
                     } else if (message.type === 'connected') {
-                        console.log('Connected:', message.message);
+                        console.log('[WebSocket] Connected:', message.message);
+                    } else {
+                        console.log('[WebSocket] Unknown message type or missing data');
+                        console.log('[WebSocket] Message:', message);
                     }
                 } catch(e) {
-                    console.error('Failed to parse message:', e);
+                    console.error('[WebSocket] Failed to parse message:', e);
+                    console.error('[WebSocket] Raw data:', event.data.substring(0, 200));
                 }
+                console.log('='.repeat(50));
             };
 
             ws.onerror = function(error) {
