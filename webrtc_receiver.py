@@ -25,7 +25,8 @@ pcs = set()
 ws_clients = set()
 
 # Configuration
-FACIAL_RECOGNITION_URL = "http://localhost:5000/api/displays/recognize"
+# FACIAL_RECOGNITION_URL = "http://localhost:5000/api/displays/recognize"  # COMMENTED OUT FOR TESTING
+CODEPROJECT_AI_URL = "http://172.16.1.150:32168/v1/vision/face/recognize"
 DISPLAY_ID = "lobby_display_01"
 LOCATION = "Front Lobby"
 FRAME_CAPTURE_INTERVAL = 1.0  # Capture every 1 second (1 fps)
@@ -128,37 +129,75 @@ class VideoFrameCapture:
             logger.error(f"[VideoCapture] Error processing frame: {e}")
 
     async def send_to_recognition(self, base64_image):
-        """Send frame to facial recognition endpoint"""
+        """Send frame directly to CodeProject.AI for testing"""
         try:
+            logger.info("=" * 60)
+            logger.info("[CodeProject.AI] Sending frame for recognition...")
+
+            # Extract base64 data (remove data URL prefix if present)
+            if ',' in base64_image:
+                base64_data = base64_image.split(',')[1]
+            else:
+                base64_data = base64_image
+
+            # Decode base64 to bytes
+            image_bytes = base64.b64decode(base64_data)
+            image_size_kb = len(image_bytes) / 1024
+
+            logger.info(f"[CodeProject.AI] Image size: {image_size_kb:.2f} KB")
+            logger.info(f"[CodeProject.AI] Sending to: {CODEPROJECT_AI_URL}")
+
             # Use requests in thread executor to avoid blocking
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
                 None,
                 lambda: requests.post(
-                    FACIAL_RECOGNITION_URL,
-                    json={
-                        "display_id": self.display_id,
-                        "location": self.location,
-                        "image": base64_image
-                    },
+                    CODEPROJECT_AI_URL,
+                    files={'image': ('frame.jpg', BytesIO(image_bytes), 'image/jpeg')},
                     timeout=10
                 )
             )
 
+            logger.info(f"[CodeProject.AI] Response status: {response.status_code}")
+
             if response.status_code == 200:
                 result = response.json()
-                logger.info(f"[Recognition] Success: {result.get('success')}, Faces: {len(result.get('faces', []))}")
+                logger.info(f"[CodeProject.AI] ✓ SUCCESS!")
+                logger.info(f"[CodeProject.AI] Response: {json.dumps(result, indent=2)}")
 
-                # Results would be broadcast to clients via WebSocket if needed
-                # For now, just log them
-                if result.get('faces'):
-                    for face in result['faces']:
-                        logger.info(f"[Recognition] Detected: {face.get('userid')} ({face.get('confidence')})")
+                predictions = result.get('predictions', [])
+                success = result.get('success', False)
+
+                logger.info(f"[CodeProject.AI] Success: {success}")
+                logger.info(f"[CodeProject.AI] Faces detected: {len(predictions)}")
+
+                if predictions:
+                    logger.info("[CodeProject.AI] FACE MATCHES:")
+                    for i, pred in enumerate(predictions, 1):
+                        userid = pred.get('userid', 'unknown')
+                        confidence = pred.get('confidence', 0)
+                        logger.info(f"[CodeProject.AI]   {i}. {userid} (confidence: {confidence:.2%})")
+                else:
+                    logger.info("[CodeProject.AI] No faces matched")
+
+                # Broadcast results to WebSocket clients
+                await broadcast_recognition_result({
+                    "success": success,
+                    "faces": predictions,
+                    "image_size_kb": image_size_kb,
+                    "timestamp": asyncio.get_event_loop().time()
+                })
+
             else:
-                logger.error(f"[Recognition] API error: {response.status_code}")
+                logger.error(f"[CodeProject.AI] ✗ API error: {response.status_code}")
+                logger.error(f"[CodeProject.AI] Response: {response.text[:500]}")
+
+            logger.info("=" * 60)
 
         except Exception as e:
-            logger.error(f"[Recognition] Request failed: {e}")
+            logger.error(f"[CodeProject.AI] ✗ Request failed: {e}")
+            import traceback
+            logger.error(f"[CodeProject.AI] Traceback: {traceback.format_exc()}")
 
     def stop(self):
         """Stop capturing frames"""
@@ -196,6 +235,27 @@ async def broadcast_frame(base64_image):
     # Remove disconnected clients
     ws_clients.difference_update(disconnected)
     logger.info(f"[Broadcast] Broadcast complete to {len(ws_clients)} clients")
+
+
+async def broadcast_recognition_result(result_data):
+    """Broadcast recognition results to all connected WebSocket clients"""
+    if not ws_clients:
+        return
+
+    message = json.dumps({
+        "type": "recognition",
+        "data": result_data
+    })
+
+    disconnected = set()
+    for ws in ws_clients:
+        try:
+            await ws.send_str(message)
+        except Exception as e:
+            logger.error(f"[WebSocket] Error sending recognition result: {e}")
+            disconnected.add(ws)
+
+    ws_clients.difference_update(disconnected)
 
 
 async def websocket_handler(request):
@@ -298,6 +358,62 @@ async def viewer(request):
             0%, 100% { opacity: 1; }
             50% { opacity: 0.6; }
         }
+        .recognition-card {
+            margin-top: 30px;
+            padding: 30px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 15px;
+            display: none;
+        }
+        .recognition-card h2 {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .recognition-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .recognition-info-item {
+            padding: 15px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 10px;
+            text-align: center;
+        }
+        .recognition-info-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+        .recognition-info-value {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        .faces-detected {
+            margin-top: 20px;
+        }
+        .face-card {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            padding: 20px;
+            border-radius: 12px;
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .face-card.no-match {
+            background: linear-gradient(135deg, #fc8181 0%, #f56565 100%);
+        }
+        .face-name {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        .face-confidence {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
     </style>
 </head>
 <body>
@@ -330,6 +446,30 @@ async def viewer(request):
                 <div class="stat-label">Frame Rate</div>
                 <div class="stat-value" id="fps">0.0</div>
             </div>
+        </div>
+
+        <!-- Recognition Results Card -->
+        <div class="recognition-card" id="recognitionCard">
+            <h2>🔍 Face Recognition</h2>
+            <div class="recognition-info">
+                <div class="recognition-info-item">
+                    <div class="recognition-info-label">Status</div>
+                    <div class="recognition-info-value" id="recStatus">--</div>
+                </div>
+                <div class="recognition-info-item">
+                    <div class="recognition-info-label">Image Size</div>
+                    <div class="recognition-info-value" id="recImageSize">--</div>
+                </div>
+                <div class="recognition-info-item">
+                    <div class="recognition-info-label">Faces Found</div>
+                    <div class="recognition-info-value" id="recFaceCount">0</div>
+                </div>
+                <div class="recognition-info-item">
+                    <div class="recognition-info-label">Last Scan</div>
+                    <div class="recognition-info-value" id="recLastScan" style="font-size: 1.1em;">--</div>
+                </div>
+            </div>
+            <div class="faces-detected" id="facesDetected"></div>
         </div>
     </div>
 
@@ -410,6 +550,10 @@ async def viewer(request):
                         console.log('[WebSocket] Frame', frameCount, 'processed successfully');
                     } else if (message.type === 'connected') {
                         console.log('[WebSocket] Connected:', message.message);
+                    } else if (message.type === 'recognition') {
+                        console.log('[WebSocket] RECOGNITION RESULT RECEIVED!');
+                        console.log('[WebSocket] Data:', message.data);
+                        handleRecognitionResult(message.data);
                     } else {
                         console.log('[WebSocket] Unknown message type or missing data');
                         console.log('[WebSocket] Message:', message);
@@ -433,6 +577,65 @@ async def viewer(request):
                 wsIndicator.className = 'ws-status disconnected';
                 setTimeout(connectWebSocket, 3000);
             };
+        }
+
+        function handleRecognitionResult(data) {
+            console.log('[Recognition] Processing result data...');
+
+            // Show recognition card
+            var recognitionCard = document.getElementById('recognitionCard');
+            recognitionCard.style.display = 'block';
+
+            // Update status
+            var recStatus = document.getElementById('recStatus');
+            if (data.success) {
+                recStatus.textContent = '✓ Success';
+                recStatus.style.color = '#48bb78';
+            } else {
+                recStatus.textContent = '✗ Failed';
+                recStatus.style.color = '#fc8181';
+            }
+
+            // Update image size
+            document.getElementById('recImageSize').textContent = data.image_size_kb.toFixed(2) + ' KB';
+
+            // Update face count
+            var faceCount = data.faces ? data.faces.length : 0;
+            document.getElementById('recFaceCount').textContent = faceCount;
+
+            // Update last scan time
+            var now = new Date();
+            document.getElementById('recLastScan').textContent = now.toLocaleTimeString();
+
+            // Display detected faces
+            var facesDetected = document.getElementById('facesDetected');
+            facesDetected.innerHTML = '';
+
+            if (faceCount > 0) {
+                console.log('[Recognition] Displaying', faceCount, 'faces');
+                data.faces.forEach(function(face, index) {
+                    var faceCard = document.createElement('div');
+                    faceCard.className = 'face-card';
+
+                    var userid = face.userid || 'unknown';
+                    var confidence = face.confidence || 0;
+
+                    if (userid === 'unknown') {
+                        faceCard.classList.add('no-match');
+                    }
+
+                    faceCard.innerHTML =
+                        '<div class="face-name">👤 ' + userid.replace(/_/g, ' ').toUpperCase() + '</div>' +
+                        '<div class="face-confidence">' + (confidence * 100).toFixed(1) + '%</div>';
+
+                    facesDetected.appendChild(faceCard);
+
+                    console.log('[Recognition] Face', (index + 1) + ':', userid, '(' + (confidence * 100).toFixed(1) + '%)');
+                });
+            } else {
+                console.log('[Recognition] No faces detected');
+                facesDetected.innerHTML = '<div style="text-align: center; padding: 20px; opacity: 0.7;">No faces detected in this frame</div>';
+            }
         }
 
         connectWebSocket();
