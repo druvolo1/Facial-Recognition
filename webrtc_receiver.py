@@ -24,6 +24,9 @@ logger = logging.getLogger(__name__)
 pcs = set()
 ws_clients = set()
 
+# Store active video tracks by device_id for on-demand capture
+active_video_tracks = {}  # device_id -> VideoFrameCapture instance
+
 # Configuration
 # FACIAL_RECOGNITION_URL = "http://localhost:5000/api/displays/recognize"  # COMMENTED OUT FOR TESTING
 CODEPROJECT_AI_URL = "http://172.16.1.150:32168/v1/vision/face/recognize"
@@ -184,6 +187,35 @@ class VideoFrameCapture:
         """Stop capturing frames"""
         self.running = False
 
+    async def capture_single_frame(self):
+        """Capture a single frame on demand (for kiosk photo capture)"""
+        try:
+            logger.info("[OnDemandCapture] Capturing single frame...")
+            # Receive frame from track
+            frame = await asyncio.wait_for(self.track.recv(), timeout=5.0)
+
+            # Convert AVFrame to PIL Image
+            img = frame.to_ndarray(format="rgb24")
+            pil_image = Image.fromarray(img)
+
+            # Convert to JPEG base64
+            buffer = BytesIO()
+            pil_image.save(buffer, format="JPEG", quality=90)
+            buffer.seek(0)
+
+            image_bytes = buffer.read()
+            base64_image = "data:image/jpeg;base64," + base64.b64encode(image_bytes).decode('utf-8')
+
+            logger.info(f"[OnDemandCapture] ✓ Frame captured successfully")
+            return base64_image
+
+        except asyncio.TimeoutError:
+            logger.error("[OnDemandCapture] Timeout waiting for frame")
+            return None
+        except Exception as e:
+            logger.error(f"[OnDemandCapture] Error capturing frame: {e}")
+            return None
+
 
 async def broadcast_frame(base64_image):
     """Broadcast frame to all connected WebSocket clients"""
@@ -254,11 +286,63 @@ async def websocket_handler(request):
             "message": "Connected to WebRTC frame viewer"
         }))
 
-        # Keep connection alive
+        # Keep connection alive and handle commands
         async for msg in ws:
             if msg.type == web.WSMsgType.TEXT:
-                # Could handle viewer commands here
-                pass
+                try:
+                    data = json.loads(msg.data)
+                    msg_type = data.get('type')
+
+                    if msg_type == 'capture_frame':
+                        # Handle on-demand frame capture for kiosk
+                        device_id = data.get('device_id')
+                        frame_index = data.get('frame_index', 0)
+
+                        logger.info(f"[WebSocket] Capture request from device {device_id}, frame {frame_index}")
+
+                        # Get the video track for this device
+                        if device_id in active_video_tracks:
+                            frame_capture = active_video_tracks[device_id]
+                            captured_image = await frame_capture.capture_single_frame()
+
+                            if captured_image:
+                                # Send back the captured frame
+                                await ws.send_str(json.dumps({
+                                    "type": "capture_result",
+                                    "data": {
+                                        "success": True,
+                                        "image": captured_image,
+                                        "frame_index": frame_index
+                                    }
+                                }))
+                                logger.info(f"[WebSocket] ✓ Frame {frame_index} sent to device {device_id}")
+                            else:
+                                # Failed to capture
+                                await ws.send_str(json.dumps({
+                                    "type": "capture_result",
+                                    "data": {
+                                        "success": False,
+                                        "frame_index": frame_index,
+                                        "error": "Failed to capture frame"
+                                    }
+                                }))
+                                logger.error(f"[WebSocket] ✗ Failed to capture frame {frame_index}")
+                        else:
+                            logger.warning(f"[WebSocket] No active video track for device {device_id}")
+                            await ws.send_str(json.dumps({
+                                "type": "capture_result",
+                                "data": {
+                                    "success": False,
+                                    "frame_index": frame_index,
+                                    "error": "No active video connection"
+                                }
+                            }))
+
+                except json.JSONDecodeError:
+                    logger.error(f"[WebSocket] Failed to parse message: {msg.data}")
+                except Exception as e:
+                    logger.error(f"[WebSocket] Error handling message: {e}")
+
             elif msg.type == web.WSMsgType.ERROR:
                 logger.error(f"[WebSocket] Connection error: {ws.exception()}")
 
@@ -783,9 +867,11 @@ async def offer(request):
     """Handle WebRTC offer from client"""
     params = await request.json()
     offer_sdp = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
+    device_id = params.get("device_id", "unknown")  # Get device_id from offer
 
     logger.info("=" * 50)
     logger.info("[WebRTC] Received offer from client")
+    logger.info(f"[WebRTC] Device ID: {device_id}")
     logger.info(f"[WebRTC] Offer SDP type: {offer_sdp.type}")
     logger.info("[WebRTC] FULL SDP OFFER:")
     logger.info(offer_sdp.sdp)
@@ -831,6 +917,11 @@ async def offer(request):
             logger.info("[WebRTC] Connection FULLY ESTABLISHED - Now starting frame capture!")
             logger.info("=" * 50)
             frame_capture = VideoFrameCapture(video_track, DISPLAY_ID, LOCATION)
+
+            # Register this device's video track for on-demand capture
+            active_video_tracks[device_id] = frame_capture
+            logger.info(f"[WebRTC] Registered device {device_id} for on-demand capture")
+
             asyncio.create_task(frame_capture.start())
 
         elif pc.connectionState == "failed" or pc.connectionState == "closed":
@@ -838,6 +929,10 @@ async def offer(request):
             pcs.discard(pc)
             if frame_capture:
                 frame_capture.stop()
+            # Remove from active tracks
+            if device_id in active_video_tracks:
+                del active_video_tracks[device_id]
+                logger.info(f"[WebRTC] Removed device {device_id} from active tracks")
 
     # Handle offer
     logger.info("[WebRTC] Setting remote description...")
