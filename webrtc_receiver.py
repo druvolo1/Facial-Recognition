@@ -15,6 +15,8 @@ from av import VideoFrame
 import numpy as np
 from PIL import Image
 import requests
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import Session
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -30,10 +32,16 @@ active_video_tracks = {}  # device_id -> VideoFrameCapture instance
 # Configuration
 # FACIAL_RECOGNITION_URL = "http://localhost:5000/api/displays/recognize"  # COMMENTED OUT FOR TESTING
 CODEPROJECT_AI_URL = "http://172.16.1.150:32168/v1/vision/face/recognize"
-BACKEND_API_URL = "http://172.16.1.102:5000"  # FastAPI backend for name lookup
+DATABASE_URL = "mariadb+pymysql://app_user:testpass123@172.16.1.150:3306/facial_recognition"
 DISPLAY_ID = "lobby_display_01"
 LOCATION = "Front Lobby"
 FRAME_CAPTURE_INTERVAL = 1.0  # Capture every 1 second (1 fps)
+
+# Create database engine for person name lookups (synchronous)
+db_engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+
+# Simple person name cache
+person_name_cache = {}
 
 
 class VideoFrameCapture:
@@ -132,31 +140,47 @@ class VideoFrameCapture:
         except Exception as e:
             logger.error(f"[VideoCapture] Error processing frame: {e}")
 
-    async def get_person_name(self, userid):
-        """Fetch person name from backend API"""
-        if userid == 'unknown':
+    async def get_person_name(self, person_id):
+        """Fetch person name from database using person_id (UUID)"""
+        if person_id == 'unknown':
             return 'Unknown Person'
 
+        # Check cache first
+        if person_id in person_name_cache:
+            return person_name_cache[person_id]
+
         try:
+            # Query database in thread executor to avoid blocking
             loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(
+            person_name = await loop.run_in_executor(
                 None,
-                lambda: requests.get(
-                    f"{BACKEND_API_URL}/api/people/{userid}",
-                    timeout=2
-                )
+                lambda: self._query_person_name(person_id)
             )
 
-            if response.status_code == 200:
-                data = response.json()
-                return data.get('name', userid)
-            else:
-                # API doesn't have this person, return userid
-                return userid
+            # Cache the result
+            person_name_cache[person_id] = person_name
+            return person_name
+
         except Exception as e:
-            # API error, return userid
-            logger.debug(f"[Recognition] Could not fetch name for {userid}: {e}")
-            return userid
+            logger.debug(f"[Recognition] Could not fetch name for {person_id}: {e}")
+            return person_id  # Fallback to person_id if query fails
+
+    def _query_person_name(self, person_id):
+        """Synchronous database query for person name"""
+        try:
+            with Session(db_engine) as session:
+                # Query registered_face table for this person_id
+                query = text("SELECT person_name FROM registered_face WHERE person_id = :person_id LIMIT 1")
+                result = session.execute(query, {"person_id": person_id})
+                row = result.first()
+                if row:
+                    return row[0]
+                else:
+                    logger.debug(f"[Recognition] No person found with person_id: {person_id}")
+                    return person_id
+        except Exception as e:
+            logger.error(f"[Recognition] Database query error: {e}")
+            return person_id
 
     async def send_to_recognition(self, base64_image):
         """Send frame directly to CodeProject.AI for testing"""
