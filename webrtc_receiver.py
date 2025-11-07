@@ -15,8 +15,17 @@ from av import VideoFrame
 import numpy as np
 from PIL import Image
 import requests
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import Session
+
+# Optional database imports for person name lookups
+try:
+    from sqlalchemy import create_engine, text
+    from sqlalchemy.orm import Session
+    SQLALCHEMY_AVAILABLE = True
+except ImportError:
+    SQLALCHEMY_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning("[Database] SQLAlchemy not available - person name lookups will be disabled")
+    logger.warning("[Database] Install with: pip install sqlalchemy pymysql")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -37,11 +46,26 @@ DISPLAY_ID = "lobby_display_01"
 LOCATION = "Front Lobby"
 FRAME_CAPTURE_INTERVAL = 1.0  # Capture every 1 second (1 fps)
 
-# Create database engine for person name lookups (synchronous)
-db_engine = create_engine(DATABASE_URL, pool_pre_ping=True)
-
-# Simple person name cache
+# Database engine and cache (lazy initialization)
+db_engine = None
 person_name_cache = {}
+
+def get_db_engine():
+    """Lazy initialization of database engine"""
+    global db_engine
+
+    if not SQLALCHEMY_AVAILABLE:
+        return None
+
+    if db_engine is None:
+        try:
+            db_engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=3600)
+            logger.info("[Database] ✓ Database connection initialized")
+        except Exception as e:
+            logger.error(f"[Database] Failed to create database engine: {e}")
+            logger.error("[Database] Person name lookups will be disabled")
+            db_engine = False  # Mark as failed to avoid retrying
+    return db_engine if db_engine is not False else None
 
 
 class VideoFrameCapture:
@@ -167,8 +191,14 @@ class VideoFrameCapture:
 
     def _query_person_name(self, person_id):
         """Synchronous database query for person name"""
+        # Get database engine (lazy init)
+        engine = get_db_engine()
+        if engine is None:
+            # Database not available, return person_id
+            return person_id
+
         try:
-            with Session(db_engine) as session:
+            with Session(engine) as session:
                 # Query registered_face table for this person_id
                 query = text("SELECT person_name FROM registered_face WHERE person_id = :person_id LIMIT 1")
                 result = session.execute(query, {"person_id": person_id})

@@ -12,6 +12,10 @@ Pillow>=10.0.0
 # HTTP client
 requests>=2.31.0
 
+# Database access for person name lookups
+SQLAlchemy>=2.0.0
+PyMySQL>=1.1.0
+
 # INSTALLATION INSTRUCTIONS:
 #
 # Before installing Python packages, install FFmpeg with H.264 codec support:
