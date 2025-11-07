@@ -28,7 +28,7 @@ ws_clients = set()
 FACIAL_RECOGNITION_URL = "http://localhost:5000/api/displays/recognize"
 DISPLAY_ID = "lobby_display_01"
 LOCATION = "Front Lobby"
-FRAME_CAPTURE_INTERVAL = 2.0  # Capture every 2 seconds
+FRAME_CAPTURE_INTERVAL = 1.0  # Capture every 1 second (1 fps)
 
 
 class VideoFrameCapture:
