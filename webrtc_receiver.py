@@ -45,12 +45,12 @@ class VideoFrameCapture:
     async def start(self):
         """Start capturing frames from the video track"""
         self.running = True
-        logger.info("=" * 50)
+        # logger.info("=" * 50)
         logger.info("[VideoCapture] Starting frame capture loop")
-        logger.info(f"[VideoCapture] Display ID: {self.display_id}")
-        logger.info(f"[VideoCapture] Location: {self.location}")
-        logger.info(f"[VideoCapture] Capture interval: {FRAME_CAPTURE_INTERVAL}s")
-        logger.info("=" * 50)
+        # logger.info(f"[VideoCapture] Display ID: {self.display_id}")
+        # logger.info(f"[VideoCapture] Location: {self.location}")
+        # logger.info(f"[VideoCapture] Capture interval: {FRAME_CAPTURE_INTERVAL}s")
+        # logger.info("=" * 50)
 
         frame_number = 0
         try:
@@ -131,9 +131,6 @@ class VideoFrameCapture:
     async def send_to_recognition(self, base64_image):
         """Send frame directly to CodeProject.AI for testing"""
         try:
-            logger.info("=" * 60)
-            logger.info("[CodeProject.AI] Sending frame for recognition...")
-
             # Extract base64 data (remove data URL prefix if present)
             if ',' in base64_image:
                 base64_data = base64_image.split(',')[1]
@@ -143,9 +140,6 @@ class VideoFrameCapture:
             # Decode base64 to bytes
             image_bytes = base64.b64decode(base64_data)
             image_size_kb = len(image_bytes) / 1024
-
-            logger.info(f"[CodeProject.AI] Image size: {image_size_kb:.2f} KB")
-            logger.info(f"[CodeProject.AI] Sending to: {CODEPROJECT_AI_URL}")
 
             # Use requests in thread executor to avoid blocking
             loop = asyncio.get_event_loop()
@@ -158,27 +152,19 @@ class VideoFrameCapture:
                 )
             )
 
-            logger.info(f"[CodeProject.AI] Response status: {response.status_code}")
-
             if response.status_code == 200:
                 result = response.json()
-                logger.info(f"[CodeProject.AI] ✓ SUCCESS!")
-                logger.info(f"[CodeProject.AI] Response: {json.dumps(result, indent=2)}")
-
                 predictions = result.get('predictions', [])
                 success = result.get('success', False)
 
-                logger.info(f"[CodeProject.AI] Success: {success}")
-                logger.info(f"[CodeProject.AI] Faces detected: {len(predictions)}")
-
                 if predictions:
-                    logger.info("[CodeProject.AI] FACE MATCHES:")
+                    logger.info("[Recognition] ✓ Faces detected:")
                     for i, pred in enumerate(predictions, 1):
                         userid = pred.get('userid', 'unknown')
                         confidence = pred.get('confidence', 0)
-                        logger.info(f"[CodeProject.AI]   {i}. {userid} (confidence: {confidence:.2%})")
+                        logger.info(f"  {i}. {userid} ({confidence:.1%})")
                 else:
-                    logger.info("[CodeProject.AI] No faces matched")
+                    logger.info("[Recognition] No faces matched")
 
                 # Broadcast results to WebSocket clients
                 await broadcast_recognition_result({
@@ -189,15 +175,10 @@ class VideoFrameCapture:
                 })
 
             else:
-                logger.error(f"[CodeProject.AI] ✗ API error: {response.status_code}")
-                logger.error(f"[CodeProject.AI] Response: {response.text[:500]}")
-
-            logger.info("=" * 60)
+                logger.error(f"[Recognition] ✗ API error: {response.status_code}")
 
         except Exception as e:
-            logger.error(f"[CodeProject.AI] ✗ Request failed: {e}")
-            import traceback
-            logger.error(f"[CodeProject.AI] Traceback: {traceback.format_exc()}")
+            logger.error(f"[Recognition] ✗ Request failed: {e}")
 
     def stop(self):
         """Stop capturing frames"""
@@ -414,6 +395,86 @@ async def viewer(request):
             font-size: 1.2em;
             opacity: 0.9;
         }
+        .recognition-history {
+            margin-top: 30px;
+            padding: 30px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 15px;
+            display: none;
+        }
+        .recognition-history h2 {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .history-list {
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        .history-item {
+            background: rgba(255,255,255,0.3);
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        .history-time {
+            font-size: 0.9em;
+            opacity: 0.8;
+            white-space: nowrap;
+        }
+        .history-faces {
+            flex: 1;
+            margin: 0 15px;
+        }
+        .history-face {
+            display: inline-block;
+            background: rgba(72,187,120,0.8);
+            padding: 5px 12px;
+            border-radius: 20px;
+            margin: 2px;
+            font-size: 0.95em;
+        }
+        .history-face.unknown {
+            background: rgba(252,129,129,0.8);
+        }
+        .history-count {
+            font-size: 1.2em;
+            font-weight: bold;
+            background: rgba(102,126,234,0.8);
+            padding: 5px 12px;
+            border-radius: 20px;
+            white-space: nowrap;
+        }
+        /* Scrollbar styling */
+        .history-list::-webkit-scrollbar {
+            width: 8px;
+        }
+        .history-list::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+        }
+        .history-list::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.3);
+            border-radius: 10px;
+        }
+        .history-list::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.5);
+        }
     </style>
 </head>
 <body>
@@ -470,6 +531,12 @@ async def viewer(request):
                 </div>
             </div>
             <div class="faces-detected" id="facesDetected"></div>
+        </div>
+
+        <!-- Recognition History -->
+        <div class="recognition-history" id="recognitionHistory">
+            <h2>📋 Recognition History</h2>
+            <div class="history-list" id="historyList"></div>
         </div>
     </div>
 
@@ -577,8 +644,13 @@ async def viewer(request):
             };
         }
 
+        var recognitionHistory = [];
+        var maxHistoryItems = 50;
+
         function handleRecognitionResult(data) {
             console.log('[Recognition] Processing result data...');
+
+            var now = new Date();
 
             // Show recognition card
             var recognitionCard = document.getElementById('recognitionCard');
@@ -602,7 +674,6 @@ async def viewer(request):
             document.getElementById('recFaceCount').textContent = faceCount;
 
             // Update last scan time
-            var now = new Date();
             document.getElementById('recLastScan').textContent = now.toLocaleTimeString();
 
             // Display detected faces
@@ -630,10 +701,74 @@ async def viewer(request):
 
                     console.log('[Recognition] Face', (index + 1) + ':', userid, '(' + (confidence * 100).toFixed(1) + '%)');
                 });
+
+                // Add to history
+                addToHistory(now, data.faces);
             } else {
                 console.log('[Recognition] No faces detected');
                 facesDetected.innerHTML = '<div style="text-align: center; padding: 20px; opacity: 0.7;">No faces detected in this frame</div>';
             }
+        }
+
+        function addToHistory(timestamp, faces) {
+            // Show history section
+            var historySection = document.getElementById('recognitionHistory');
+            historySection.style.display = 'block';
+
+            // Add to history array
+            recognitionHistory.unshift({
+                timestamp: timestamp,
+                faces: faces
+            });
+
+            // Keep only max items
+            if (recognitionHistory.length > maxHistoryItems) {
+                recognitionHistory.pop();
+            }
+
+            // Update history display
+            updateHistoryDisplay();
+        }
+
+        function updateHistoryDisplay() {
+            var historyList = document.getElementById('historyList');
+            historyList.innerHTML = '';
+
+            recognitionHistory.forEach(function(item, index) {
+                var historyItem = document.createElement('div');
+                historyItem.className = 'history-item';
+
+                // Time
+                var timeDiv = document.createElement('div');
+                timeDiv.className = 'history-time';
+                timeDiv.textContent = item.timestamp.toLocaleTimeString();
+
+                // Faces
+                var facesDiv = document.createElement('div');
+                facesDiv.className = 'history-faces';
+
+                item.faces.forEach(function(face) {
+                    var faceSpan = document.createElement('span');
+                    faceSpan.className = 'history-face';
+                    var userid = face.userid || 'unknown';
+                    if (userid === 'unknown') {
+                        faceSpan.classList.add('unknown');
+                    }
+                    faceSpan.textContent = userid.replace(/_/g, ' ').toUpperCase() + ' (' + (face.confidence * 100).toFixed(0) + '%)';
+                    facesDiv.appendChild(faceSpan);
+                });
+
+                // Count
+                var countDiv = document.createElement('div');
+                countDiv.className = 'history-count';
+                countDiv.textContent = item.faces.length + ' face' + (item.faces.length !== 1 ? 's' : '');
+
+                historyItem.appendChild(timeDiv);
+                historyItem.appendChild(facesDiv);
+                historyItem.appendChild(countDiv);
+
+                historyList.appendChild(historyItem);
+            });
         }
 
         connectWebSocket();
