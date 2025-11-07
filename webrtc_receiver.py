@@ -51,21 +51,41 @@ class VideoFrameCapture:
         logger.info(f"[VideoCapture] Capture interval: {FRAME_CAPTURE_INTERVAL}s")
         logger.info("=" * 50)
 
+        frame_number = 0
         try:
             while self.running:
-                # Receive frame from track
-                frame = await self.track.recv()
+                try:
+                    # Receive frame from track
+                    logger.info(f"[VideoCapture] Attempting to receive frame {frame_number}...")
+                    frame = await self.track.recv()
+                    frame_number += 1
+                    logger.info(f"[VideoCapture] Frame {frame_number} received successfully!")
 
-                # Check if enough time has passed since last capture
-                current_time = asyncio.get_event_loop().time()
-                if current_time - self.last_capture_time >= FRAME_CAPTURE_INTERVAL:
-                    self.last_capture_time = current_time
+                    # Check if enough time has passed since last capture
+                    current_time = asyncio.get_event_loop().time()
+                    if current_time - self.last_capture_time >= FRAME_CAPTURE_INTERVAL:
+                        self.last_capture_time = current_time
+                        logger.info(f"[VideoCapture] Processing frame {frame_number}...")
 
-                    # Process frame in background
-                    asyncio.create_task(self.process_frame(frame))
+                        # Process frame in background
+                        asyncio.create_task(self.process_frame(frame))
+                    else:
+                        time_until_next = FRAME_CAPTURE_INTERVAL - (current_time - self.last_capture_time)
+                        logger.info(f"[VideoCapture] Skipping frame {frame_number}, next capture in {time_until_next:.1f}s")
+
+                except Exception as frame_error:
+                    logger.error(f"[VideoCapture] Error receiving frame {frame_number}: {frame_error}")
+                    logger.error(f"[VideoCapture] Error type: {type(frame_error).__name__}")
+                    import traceback
+                    logger.error(f"[VideoCapture] Traceback: {traceback.format_exc()}")
+                    # Don't break the loop on individual frame errors
+                    await asyncio.sleep(0.1)
 
         except Exception as e:
-            logger.error(f"[VideoCapture] Error in capture loop: {e}")
+            logger.error(f"[VideoCapture] Fatal error in capture loop: {e}")
+            logger.error(f"[VideoCapture] Error type: {type(e).__name__}")
+            import traceback
+            logger.error(f"[VideoCapture] Traceback: {traceback.format_exc()}")
         finally:
             self.running = False
             logger.info("[VideoCapture] Capture loop stopped")
