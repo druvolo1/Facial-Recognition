@@ -57,8 +57,8 @@ class VideoFrameCapture:
             while self.running:
                 try:
                     # Receive frame from track
-                    logger.info(f"[VideoCapture] Attempting to receive frame {frame_number}...")
-                    logger.info(f"[VideoCapture] Track state: {self.track.readyState if hasattr(self.track, 'readyState') else 'unknown'}")
+                    # logger.info(f"[VideoCapture] Attempting to receive frame {frame_number}...")
+                    # logger.info(f"[VideoCapture] Track state: {self.track.readyState if hasattr(self.track, 'readyState') else 'unknown'}")
 
                     # Add timeout to detect hanging
                     try:
@@ -70,20 +70,20 @@ class VideoFrameCapture:
                         continue
 
                     frame_number += 1
-                    logger.info(f"[VideoCapture] Frame {frame_number} received successfully!")
-                    logger.info(f"[VideoCapture] Frame type: {type(frame)}, format: {frame.format if hasattr(frame, 'format') else 'unknown'}")
+                    # logger.info(f"[VideoCapture] Frame {frame_number} received successfully!")
+                    # logger.info(f"[VideoCapture] Frame type: {type(frame)}, format: {frame.format if hasattr(frame, 'format') else 'unknown'}")
 
                     # Check if enough time has passed since last capture
                     current_time = asyncio.get_event_loop().time()
                     if current_time - self.last_capture_time >= FRAME_CAPTURE_INTERVAL:
                         self.last_capture_time = current_time
-                        logger.info(f"[VideoCapture] Processing frame {frame_number}...")
+                        # logger.info(f"[VideoCapture] Processing frame {frame_number}...")
 
                         # Process frame in background
                         asyncio.create_task(self.process_frame(frame))
-                    else:
-                        time_until_next = FRAME_CAPTURE_INTERVAL - (current_time - self.last_capture_time)
-                        logger.info(f"[VideoCapture] Skipping frame {frame_number}, next capture in {time_until_next:.1f}s")
+                    # else:
+                        # time_until_next = FRAME_CAPTURE_INTERVAL - (current_time - self.last_capture_time)
+                        # logger.info(f"[VideoCapture] Skipping frame {frame_number}, next capture in {time_until_next:.1f}s")
 
                 except Exception as frame_error:
                     logger.error(f"[VideoCapture] Error receiving frame {frame_number}: {frame_error}")
@@ -117,7 +117,7 @@ class VideoFrameCapture:
             image_bytes = buffer.read()
             base64_image = "data:image/jpeg;base64," + base64.b64encode(image_bytes).decode('utf-8')
 
-            logger.info(f"[VideoCapture] Captured frame: {len(base64_image)} chars")
+            # logger.info(f"[VideoCapture] Captured frame: {len(base64_image)} chars")
 
             # Broadcast frame to WebSocket viewers
             await broadcast_frame(base64_image)
@@ -206,11 +206,11 @@ class VideoFrameCapture:
 
 async def broadcast_frame(base64_image):
     """Broadcast frame to all connected WebSocket clients"""
-    logger.info(f"[Broadcast] Called with image size: {len(base64_image)} chars")
-    logger.info(f"[Broadcast] Active WebSocket clients: {len(ws_clients)}")
+    # logger.info(f"[Broadcast] Called with image size: {len(base64_image)} chars")
+    # logger.info(f"[Broadcast] Active WebSocket clients: {len(ws_clients)}")
 
     if not ws_clients:
-        logger.warning("[Broadcast] No WebSocket clients connected, skipping broadcast")
+        # logger.warning("[Broadcast] No WebSocket clients connected, skipping broadcast")
         return
 
     message = json.dumps({
@@ -219,22 +219,22 @@ async def broadcast_frame(base64_image):
         "timestamp": asyncio.get_event_loop().time()
     })
 
-    logger.info(f"[Broadcast] Message JSON size: {len(message)} chars")
+    # logger.info(f"[Broadcast] Message JSON size: {len(message)} chars")
 
     # Send to all connected clients
     disconnected = set()
     for ws in ws_clients:
         try:
-            logger.info(f"[Broadcast] Sending to WebSocket client...")
+            # logger.info(f"[Broadcast] Sending to WebSocket client...")
             await ws.send_str(message)
-            logger.info(f"[Broadcast] Successfully sent to client")
+            # logger.info(f"[Broadcast] Successfully sent to client")
         except Exception as e:
             logger.error(f"[WebSocket] Error sending to client: {e}")
             disconnected.add(ws)
 
     # Remove disconnected clients
     ws_clients.difference_update(disconnected)
-    logger.info(f"[Broadcast] Broadcast complete to {len(ws_clients)} clients")
+    # logger.info(f"[Broadcast] Broadcast complete to {len(ws_clients)} clients")
 
 
 async def broadcast_recognition_result(result_data):
@@ -507,20 +507,20 @@ async def viewer(request):
             };
 
             ws.onmessage = function(event) {
-                console.log('='.repeat(50));
-                console.log('[WebSocket] Message received');
-                console.log('[WebSocket] Raw data length:', event.data.length);
+                // console.log('='.repeat(50));
+                // console.log('[WebSocket] Message received');
+                // console.log('[WebSocket] Raw data length:', event.data.length);
 
                 try {
                     var message = JSON.parse(event.data);
-                    console.log('[WebSocket] Message type:', message.type);
+                    // console.log('[WebSocket] Message type:', message.type);
 
                     if (message.type === 'frame' && message.data) {
                         frameCount++;
-                        console.log('[WebSocket] FRAME MESSAGE RECEIVED!');
-                        console.log('[WebSocket] Frame count:', frameCount);
-                        console.log('[WebSocket] Frame data length:', message.data.length);
-                        console.log('[WebSocket] Frame timestamp:', message.timestamp);
+                        // console.log('[WebSocket] FRAME MESSAGE RECEIVED!');
+                        // console.log('[WebSocket] Frame count:', frameCount);
+                        // console.log('[WebSocket] Frame data length:', message.data.length);
+                        // console.log('[WebSocket] Frame timestamp:', message.timestamp);
 
                         liveImage.src = message.data;
                         liveImage.style.display = 'block';
@@ -547,22 +547,20 @@ async def viewer(request):
                         }
                         lastFrameTime = currentTime;
 
-                        console.log('[WebSocket] Frame', frameCount, 'processed successfully');
+                        // console.log('[WebSocket] Frame', frameCount, 'processed successfully');
                     } else if (message.type === 'connected') {
                         console.log('[WebSocket] Connected:', message.message);
                     } else if (message.type === 'recognition') {
-                        console.log('[WebSocket] RECOGNITION RESULT RECEIVED!');
-                        console.log('[WebSocket] Data:', message.data);
+                        console.log('[Recognition] RESULT RECEIVED!');
+                        console.log('[Recognition] Data:', message.data);
                         handleRecognitionResult(message.data);
                     } else {
-                        console.log('[WebSocket] Unknown message type or missing data');
-                        console.log('[WebSocket] Message:', message);
+                        console.log('[WebSocket] Unknown message type:', message.type);
                     }
                 } catch(e) {
                     console.error('[WebSocket] Failed to parse message:', e);
-                    console.error('[WebSocket] Raw data:', event.data.substring(0, 200));
                 }
-                console.log('='.repeat(50));
+                // console.log('='.repeat(50));
             };
 
             ws.onerror = function(error) {
