@@ -44,7 +44,12 @@ class VideoFrameCapture:
     async def start(self):
         """Start capturing frames from the video track"""
         self.running = True
+        logger.info("=" * 50)
         logger.info("[VideoCapture] Starting frame capture loop")
+        logger.info(f"[VideoCapture] Display ID: {self.display_id}")
+        logger.info(f"[VideoCapture] Location: {self.location}")
+        logger.info(f"[VideoCapture] Capture interval: {FRAME_CAPTURE_INTERVAL}s")
+        logger.info("=" * 50)
 
         try:
             while self.running:
@@ -378,17 +383,21 @@ async def offer(request):
     params = await request.json()
     offer_sdp = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
 
+    logger.info("=" * 50)
     logger.info("[WebRTC] Received offer from client")
+    logger.info(f"[WebRTC] Offer SDP type: {offer_sdp.type}")
+    logger.info("=" * 50)
 
     # Create peer connection
     pc = RTCPeerConnection()
     pcs.add(pc)
+    logger.info(f"[WebRTC] Peer connection created, total connections: {len(pcs)}")
 
     # Store frame capture instance
     frame_capture = None
 
     @pc.on("track")
-    def on_track(track):
+    async def on_track(track):
         nonlocal frame_capture
         logger.info(f"[WebRTC] Track received: {track.kind}")
 
@@ -396,6 +405,13 @@ async def offer(request):
             logger.info("[WebRTC] Video track received, starting frame capture")
             frame_capture = VideoFrameCapture(track, DISPLAY_ID, LOCATION)
             asyncio.create_task(frame_capture.start())
+
+        # Keep track alive - this is critical for aiortc
+        @track.on("ended")
+        async def on_ended():
+            logger.info(f"[WebRTC] Track {track.kind} ended")
+            if frame_capture:
+                frame_capture.stop()
 
     @pc.on("connectionstatechange")
     async def on_connectionstatechange():
@@ -407,11 +423,15 @@ async def offer(request):
                 frame_capture.stop()
 
     # Handle offer
+    logger.info("[WebRTC] Setting remote description...")
     await pc.setRemoteDescription(offer_sdp)
+    logger.info("[WebRTC] Remote description set")
 
     # Create answer
+    logger.info("[WebRTC] Creating answer...")
     answer = await pc.createAnswer()
     await pc.setLocalDescription(answer)
+    logger.info("[WebRTC] Answer created and local description set")
 
     logger.info("[WebRTC] Sending answer to client")
 
