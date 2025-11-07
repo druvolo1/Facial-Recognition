@@ -30,6 +30,7 @@ active_video_tracks = {}  # device_id -> VideoFrameCapture instance
 # Configuration
 # FACIAL_RECOGNITION_URL = "http://localhost:5000/api/displays/recognize"  # COMMENTED OUT FOR TESTING
 CODEPROJECT_AI_URL = "http://172.16.1.150:32168/v1/vision/face/recognize"
+BACKEND_API_URL = "http://172.16.1.102:5000"  # FastAPI backend for name lookup
 DISPLAY_ID = "lobby_display_01"
 LOCATION = "Front Lobby"
 FRAME_CAPTURE_INTERVAL = 1.0  # Capture every 1 second (1 fps)
@@ -131,6 +132,32 @@ class VideoFrameCapture:
         except Exception as e:
             logger.error(f"[VideoCapture] Error processing frame: {e}")
 
+    async def get_person_name(self, userid):
+        """Fetch person name from backend API"""
+        if userid == 'unknown':
+            return 'Unknown Person'
+
+        try:
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(
+                None,
+                lambda: requests.get(
+                    f"{BACKEND_API_URL}/api/people/{userid}",
+                    timeout=2
+                )
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                return data.get('name', userid)
+            else:
+                # API doesn't have this person, return userid
+                return userid
+        except Exception as e:
+            # API error, return userid
+            logger.debug(f"[Recognition] Could not fetch name for {userid}: {e}")
+            return userid
+
     async def send_to_recognition(self, base64_image):
         """Send frame directly to CodeProject.AI for testing"""
         try:
@@ -160,19 +187,29 @@ class VideoFrameCapture:
                 predictions = result.get('predictions', [])
                 success = result.get('success', False)
 
+                # Enrich predictions with person names
+                enriched_predictions = []
                 if predictions:
                     logger.info("[Recognition] ✓ Faces detected:")
                     for i, pred in enumerate(predictions, 1):
                         userid = pred.get('userid', 'unknown')
                         confidence = pred.get('confidence', 0)
-                        logger.info(f"  {i}. {userid} ({confidence:.1%})")
+
+                        # Fetch person name from backend
+                        person_name = await self.get_person_name(userid)
+
+                        # Add person_name to prediction
+                        enriched_pred = {**pred, 'person_name': person_name}
+                        enriched_predictions.append(enriched_pred)
+
+                        logger.info(f"  {i}. {person_name} ({confidence:.1%})")
                 else:
                     logger.info("[Recognition] No faces matched")
 
-                # Broadcast results to WebSocket clients
+                # Broadcast enriched results to WebSocket clients
                 await broadcast_recognition_result({
                     "success": success,
-                    "faces": predictions,
+                    "faces": enriched_predictions,
                     "image_size_kb": image_size_kb,
                     "timestamp": asyncio.get_event_loop().time()
                 })
