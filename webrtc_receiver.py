@@ -447,18 +447,18 @@ async def offer(request):
     pcs.add(pc)
     logger.info(f"[WebRTC] Peer connection created, total connections: {len(pcs)}")
 
-    # Store frame capture instance
+    # Store frame capture instance and video track
     frame_capture = None
+    video_track = None
 
     @pc.on("track")
     async def on_track(track):
-        nonlocal frame_capture
+        nonlocal frame_capture, video_track
         logger.info(f"[WebRTC] Track received: {track.kind}")
 
         if track.kind == "video":
-            logger.info("[WebRTC] Video track received, starting frame capture")
-            frame_capture = VideoFrameCapture(track, DISPLAY_ID, LOCATION)
-            asyncio.create_task(frame_capture.start())
+            logger.info("[WebRTC] Video track received, WAITING for connection to be established")
+            video_track = track
 
         # Keep track alive - this is critical for aiortc
         @track.on("ended")
@@ -469,8 +469,17 @@ async def offer(request):
 
     @pc.on("connectionstatechange")
     async def on_connectionstatechange():
+        nonlocal frame_capture, video_track
         logger.info(f"[WebRTC] Connection state: {pc.connectionState}")
-        if pc.connectionState == "failed" or pc.connectionState == "closed":
+
+        if pc.connectionState == "connected" and video_track and not frame_capture:
+            logger.info("=" * 50)
+            logger.info("[WebRTC] Connection FULLY ESTABLISHED - Now starting frame capture!")
+            logger.info("=" * 50)
+            frame_capture = VideoFrameCapture(video_track, DISPLAY_ID, LOCATION)
+            asyncio.create_task(frame_capture.start())
+
+        elif pc.connectionState == "failed" or pc.connectionState == "closed":
             await pc.close()
             pcs.discard(pc)
             if frame_capture:
