@@ -5,6 +5,7 @@ let currentUser = null;
 let overviewStats = null;
 let allLocations = [];
 let allServers = [];
+let allRelays = []; // Store all WebRTC relays
 let allDevices = []; // Store all devices for editing
 let managedLocationFilter = null; // For location admins to filter by specific location
 let activeTab = null;
@@ -316,6 +317,7 @@ async function loadTabData(tabName) {
         case 'servers':
             if (overviewStats.is_superuser) {
                 await loadServers();
+                await loadRelays();
             }
             break;
     }
@@ -1521,6 +1523,14 @@ async function showEditLocationModal(locationId) {
         serverSelect.value = '';
     }
 
+    // Set the relay dropdown
+    const relaySelect = document.getElementById('edit-location-relay');
+    if (location.webrtc_relay_id) {
+        relaySelect.value = location.webrtc_relay_id;
+    } else {
+        relaySelect.value = '';
+    }
+
     openModal('edit-location-modal');
 }
 
@@ -1528,13 +1538,15 @@ document.getElementById('create-location-form').addEventListener('submit', async
     e.preventDefault();
 
     const serverValue = document.getElementById('location-server').value;
+    const relayValue = document.getElementById('location-relay').value;
     const data = {
         name: document.getElementById('location-name').value,
         address: document.getElementById('location-address').value || null,
         description: document.getElementById('location-description').value || null,
         timezone: document.getElementById('location-timezone').value || 'UTC',
         contact_info: document.getElementById('location-contact').value || null,
-        codeproject_server_id: serverValue ? parseInt(serverValue) : null
+        codeproject_server_id: serverValue ? parseInt(serverValue) : null,
+        webrtc_relay_id: relayValue ? parseInt(relayValue) : null
     };
 
     try {
@@ -1588,13 +1600,15 @@ document.getElementById('edit-location-form').addEventListener('submit', async (
 
     const locationId = document.getElementById('edit-location-id').value;
     const serverValue = document.getElementById('edit-location-server').value;
+    const relayValue = document.getElementById('edit-location-relay').value;
     const data = {
         name: document.getElementById('edit-location-name').value,
         address: document.getElementById('edit-location-address').value || null,
         description: document.getElementById('edit-location-description').value || null,
         timezone: document.getElementById('edit-location-timezone').value || 'UTC',
         contact_info: document.getElementById('edit-location-contact').value || null,
-        codeproject_server_id: serverValue ? parseInt(serverValue) : null
+        codeproject_server_id: serverValue ? parseInt(serverValue) : null,
+        webrtc_relay_id: relayValue ? parseInt(relayValue) : null
     };
 
     try {
@@ -1773,6 +1787,359 @@ async function deleteServer(serverId, name) {
     } catch (error) {
         console.error('Error:', error);
         showAlert('Error deleting server', 'error');
+    }
+}
+
+// ============================================================================
+// WebRTC RELAY MANAGEMENT
+// ============================================================================
+
+async function loadRelays() {
+    try {
+        await loadRelaysData();
+
+        const container = document.getElementById('webrtc-relays-container');
+
+        if (allRelays.length === 0) {
+            container.innerHTML = '<div class="empty-state"><div class="icon">📡</div><p>No WebRTC relays configured</p></div>';
+            return;
+        }
+
+        container.innerHTML = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Endpoints</th>
+                        <th>Description</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${allRelays.map(relay => {
+                        const endpoints = [];
+                        if (relay.public_endpoint_url) endpoints.push(`Public: ${relay.public_endpoint_url}`);
+                        if (relay.lan_endpoint_url) endpoints.push(`LAN: ${relay.lan_endpoint_url}`);
+                        const endpointText = endpoints.join('<br>') || 'No endpoints';
+
+                        return `
+                            <tr>
+                                <td><strong>${escapeHtml(relay.friendly_name)}</strong></td>
+                                <td style="font-size: 12px;">${endpointText}</td>
+                                <td>${escapeHtml(relay.description || 'N/A')}</td>
+                                <td>
+                                    <button class="btn btn-secondary btn-sm" onclick="testRelayConnection(${relay.id})">Test</button>
+                                    <button class="btn btn-secondary btn-sm" onclick="showEditRelayModal(${relay.id})">Edit</button>
+                                    <button class="btn btn-danger btn-sm" onclick="deleteRelay(${relay.id}, '${escapeHtml(relay.friendly_name)}')">Delete</button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (error) {
+        console.error('Error loading relays:', error);
+        showAlert('Failed to load WebRTC relays', 'error');
+    }
+}
+
+async function loadRelaysData() {
+    const response = await fetch('/api/webrtc-relays', { credentials: 'include' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    allRelays = await response.json();
+    updateRelayDropdowns();
+}
+
+function updateRelayDropdowns() {
+    const selects = [
+        document.getElementById('location-relay'),
+        document.getElementById('edit-location-relay')
+    ];
+
+    selects.forEach(select => {
+        if (!select) return;
+
+        const currentValue = select.value;
+        const firstOption = select.options[0]; // Preserve first "None" option
+
+        select.innerHTML = '';
+        if (firstOption) select.appendChild(firstOption.cloneNode(true));
+
+        allRelays.forEach(relay => {
+            const option = document.createElement('option');
+            option.value = relay.id;
+            option.textContent = relay.friendly_name;
+            select.appendChild(option);
+        });
+
+        if (currentValue) select.value = currentValue;
+    });
+}
+
+async function testRelayConnection(relayId) {
+    const relay = allRelays.find(r => r.id === relayId);
+    if (!relay) {
+        showAlert('Relay not found', 'error');
+        return;
+    }
+
+    // Open modal and set title
+    document.getElementById('test-connection-title').textContent = `${relay.friendly_name} - Connection Test`;
+    const resultsDiv = document.getElementById('test-connection-results');
+
+    // Initial status
+    resultsDiv.innerHTML = `
+        <div style="font-size: 16px; font-weight: bold; margin-bottom: 15px; color: #0c5460;">
+            Testing endpoints...
+        </div>
+        <div id="test-progress" style="line-height: 1.8;">
+            <div>⏳ Preparing to test endpoints...</div>
+        </div>
+    `;
+
+    openModal('test-connection-modal');
+
+    const progressDiv = document.getElementById('test-progress');
+
+    try {
+        // Update progress: Starting tests
+        progressDiv.innerHTML = '<div>⏳ Contacting relay and running tests...</div>';
+
+        const response = await fetch(`/api/webrtc-relays/${relayId}/test`, {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        // Determine overall status
+        const configuredTests = Object.values(result.tests).filter(t => !t.not_configured);
+        const anyOnline = configuredTests.some(t => t.online);
+        const hasAuthFailure = Object.values(result.tests).some(t => t.auth_failed);
+
+        // Build results display
+        let statusColor = anyOnline ? '#155724' : (hasAuthFailure ? '#721c24' : '#856404');
+        let statusBg = anyOnline ? '#d4edda' : (hasAuthFailure ? '#f8d7da' : '#fff3cd');
+
+        let html = `
+            <div style="padding: 15px; background: ${statusBg}; border-radius: 6px; margin-bottom: 20px;">
+                <div style="font-size: 16px; font-weight: bold; color: ${statusColor};">
+                    ${result.summary}
+                </div>
+            </div>
+            <div style="line-height: 1.8;">
+        `;
+
+        // Public Endpoint
+        if (result.tests.public) {
+            const test = result.tests.public;
+            if (test.not_configured) {
+                html += `
+                    <div style="margin-bottom: 15px; padding: 12px; background: #f8f9fa; border-left: 4px solid #6c757d; border-radius: 4px;">
+                        <div style="font-weight: bold; margin-bottom: 5px;">○ Public Endpoint</div>
+                        <div style="color: #6c757d; font-style: italic; margin-left: 20px;">Not configured</div>
+                    </div>
+                `;
+            } else {
+                const icon = test.online ? '✓' : '✗';
+                const borderColor = test.online ? '#28a745' : '#dc3545';
+                const bgColor = test.online ? '#f8fff9' : '#fff5f5';
+                html += `
+                    <div style="margin-bottom: 15px; padding: 12px; background: ${bgColor}; border-left: 4px solid ${borderColor}; border-radius: 4px;">
+                        <div style="font-weight: bold; margin-bottom: 5px;">${icon} Public Endpoint</div>
+                        <div style="margin-left: 20px;">${test.message.replace('✓ Public endpoint', '').replace('✗ Public endpoint', '').trim()}</div>
+                        ${test.response_time_ms ? `<div style="margin-left: 20px; font-size: 13px; color: #666;">Response time: ${test.response_time_ms}ms</div>` : ''}
+                    </div>
+                `;
+            }
+        }
+
+        // LAN Endpoint
+        if (result.tests.lan) {
+            const test = result.tests.lan;
+            if (test.not_configured) {
+                html += `
+                    <div style="margin-bottom: 15px; padding: 12px; background: #f8f9fa; border-left: 4px solid #6c757d; border-radius: 4px;">
+                        <div style="font-weight: bold; margin-bottom: 5px;">○ LAN Endpoint</div>
+                        <div style="color: #6c757d; font-style: italic; margin-left: 20px;">Not configured</div>
+                    </div>
+                `;
+            } else {
+                const icon = test.online ? '✓' : '✗';
+                const borderColor = test.online ? '#28a745' : '#dc3545';
+                const bgColor = test.online ? '#f8fff9' : '#fff5f5';
+                html += `
+                    <div style="margin-bottom: 15px; padding: 12px; background: ${bgColor}; border-left: 4px solid ${borderColor}; border-radius: 4px;">
+                        <div style="font-weight: bold; margin-bottom: 5px;">${icon} LAN Endpoint</div>
+                        <div style="margin-left: 20px;">${test.message.replace('✓ LAN endpoint', '').replace('✗ LAN endpoint', '').trim()}</div>
+                        ${test.response_time_ms ? `<div style="margin-left: 20px; font-size: 13px; color: #666;">Response time: ${test.response_time_ms}ms</div>` : ''}
+                    </div>
+                `;
+            }
+        }
+
+        html += '</div>';
+        resultsDiv.innerHTML = html;
+
+    } catch (error) {
+        console.error('Error testing relay:', error);
+        resultsDiv.innerHTML = `
+            <div style="padding: 15px; background: #f8d7da; border-radius: 6px; color: #721c24;">
+                <div style="font-weight: bold; margin-bottom: 10px;">Connection Test Failed</div>
+                <div>${escapeHtml(error.message)}</div>
+            </div>
+        `;
+    }
+}
+
+function showCreateRelayModal() {
+    document.getElementById('create-relay-form').reset();
+    // Reset auth fields visibility
+    document.getElementById('relay-auth-fields').style.display = 'none';
+    document.getElementById('relay-auth-username').required = false;
+    document.getElementById('relay-auth-password').required = false;
+    openModal('create-relay-modal');
+}
+
+function toggleRelayAuthFields(mode) {
+    const checkbox = document.getElementById(mode === 'create' ? 'relay-auth-enabled' : 'edit-relay-auth-enabled');
+    const authFields = document.getElementById(mode === 'create' ? 'relay-auth-fields' : 'edit-relay-auth-fields');
+    authFields.style.display = checkbox.checked ? 'block' : 'none';
+
+    if (mode === 'create') {
+        document.getElementById('relay-auth-username').required = checkbox.checked;
+        document.getElementById('relay-auth-password').required = checkbox.checked;
+    }
+}
+
+document.getElementById('create-relay-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const authEnabled = document.getElementById('relay-auth-enabled').checked;
+    const data = {
+        friendly_name: document.getElementById('relay-name').value,
+        public_endpoint_url: document.getElementById('relay-public-url').value || null,
+        lan_endpoint_url: document.getElementById('relay-lan-url').value || null,
+        server_communication_preference: document.getElementById('relay-comm-preference').value,
+        description: document.getElementById('relay-description').value || null,
+        auth_enabled: authEnabled,
+        auth_username: authEnabled ? document.getElementById('relay-auth-username').value : null,
+        auth_password: authEnabled ? document.getElementById('relay-auth-password').value : null
+    };
+
+    try {
+        const response = await fetch('/api/webrtc-relays', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            showAlert('WebRTC relay added successfully', 'success');
+            closeModal('create-relay-modal');
+            await loadRelays();
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Failed to add relay', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error adding relay', 'error');
+    }
+});
+
+function showEditRelayModal(relayId) {
+    // Find the relay in the allRelays array
+    const relay = allRelays.find(r => r.id === relayId);
+
+    if (!relay) {
+        showAlert('Relay not found', 'error');
+        return;
+    }
+
+    // Populate the form fields
+    document.getElementById('edit-relay-id').value = relay.id;
+    document.getElementById('edit-relay-name').value = relay.friendly_name;
+    document.getElementById('edit-relay-public-url').value = relay.public_endpoint_url || '';
+    document.getElementById('edit-relay-lan-url').value = relay.lan_endpoint_url || '';
+    document.getElementById('edit-relay-comm-preference').value = relay.server_communication_preference || 'lan';
+    document.getElementById('edit-relay-description').value = relay.description || '';
+
+    // Set auth fields
+    document.getElementById('edit-relay-auth-enabled').checked = relay.auth_enabled || false;
+    document.getElementById('edit-relay-auth-username').value = relay.auth_username || '';
+    document.getElementById('edit-relay-auth-password').value = ''; // Always blank for security
+
+    // Show/hide auth fields based on current state
+    document.getElementById('edit-relay-auth-fields').style.display = relay.auth_enabled ? 'block' : 'none';
+
+    openModal('edit-relay-modal');
+}
+
+document.getElementById('edit-relay-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const relayId = document.getElementById('edit-relay-id').value;
+    const authEnabled = document.getElementById('edit-relay-auth-enabled').checked;
+    const password = document.getElementById('edit-relay-auth-password').value;
+
+    const data = {
+        friendly_name: document.getElementById('edit-relay-name').value,
+        public_endpoint_url: document.getElementById('edit-relay-public-url').value || null,
+        lan_endpoint_url: document.getElementById('edit-relay-lan-url').value || null,
+        server_communication_preference: document.getElementById('edit-relay-comm-preference').value,
+        description: document.getElementById('edit-relay-description').value || null,
+        auth_enabled: authEnabled,
+        auth_username: authEnabled ? document.getElementById('edit-relay-auth-username').value : null,
+        auth_password: password || null  // Only send if changed
+    };
+
+    try {
+        const response = await fetch(`/api/webrtc-relays/${relayId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            showAlert('WebRTC relay updated successfully', 'success');
+            closeModal('edit-relay-modal');
+            await loadRelays();
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Failed to update relay', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error updating relay', 'error');
+    }
+});
+
+async function deleteRelay(relayId, name) {
+    if (!confirm(`Delete WebRTC relay "${name}"?`)) return;
+
+    try {
+        const response = await fetch(`/api/webrtc-relays/${relayId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            showAlert('WebRTC relay deleted successfully', 'success');
+            await loadRelays();
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Failed to delete relay', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error deleting relay', 'error');
     }
 }
 

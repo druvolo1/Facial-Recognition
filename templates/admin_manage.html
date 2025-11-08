@@ -758,6 +758,19 @@
                         Loading servers...
                     </div>
                 </div>
+
+                <div style="margin-top: 40px;"></div>
+
+                <div class="section-header">
+                    <h2>📡 WebRTC Relays</h2>
+                    <button class="btn btn-primary" onclick="showCreateRelayModal()">+ Add Relay</button>
+                </div>
+                <div id="webrtc-relays-container">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Loading WebRTC relays...
+                    </div>
+                </div>
             </div>
 
             <!-- Categories & Tags Tab -->
@@ -1032,6 +1045,13 @@
                     </select>
                     <small style="color: #666;">Select which server this location should use for face recognition</small>
                 </div>
+                <div class="form-group">
+                    <label for="location-relay">WebRTC Relay</label>
+                    <select id="location-relay">
+                        <option value="">None (optional)</option>
+                    </select>
+                    <small style="color: #666;">Optional: Select which WebRTC relay this location should use</small>
+                </div>
                 <div style="display: flex; gap: 10px;">
                     <button type="submit" class="btn btn-primary">Create Location</button>
                     <button type="button" class="btn btn-secondary" onclick="closeModal('create-location-modal')">Cancel</button>
@@ -1075,6 +1095,13 @@
                         <option value="">None (will use first available)</option>
                     </select>
                     <small style="color: #666;">Select which server this location should use for face recognition</small>
+                </div>
+                <div class="form-group">
+                    <label for="edit-location-relay">WebRTC Relay</label>
+                    <select id="edit-location-relay">
+                        <option value="">None (optional)</option>
+                    </select>
+                    <small style="color: #666;">Optional: Select which WebRTC relay this location should use</small>
                 </div>
                 <div style="display: flex; gap: 10px;">
                     <button type="submit" class="btn btn-primary">Update Location</button>
@@ -1227,6 +1254,126 @@
             <div style="padding: 0 20px 20px; text-align: right;">
                 <button class="btn btn-primary" onclick="closeModal('test-connection-modal')">Close</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Create WebRTC Relay Modal (Superadmin only) -->
+    <div id="create-relay-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add WebRTC Relay</h2>
+                <button class="close-modal" onclick="closeModal('create-relay-modal')">&times;</button>
+            </div>
+            <form id="create-relay-form">
+                <div class="form-group">
+                    <label for="relay-name">Friendly Name *</label>
+                    <input type="text" id="relay-name" required placeholder="e.g., Main Office Relay">
+                </div>
+                <div class="form-group">
+                    <label for="relay-public-url">Public Endpoint URL</label>
+                    <input type="text" id="relay-public-url" placeholder="https://webrtc.example.com">
+                    <small style="color: #666;">HTTPS endpoint with authentication (e.g., nginx reverse proxy)</small>
+                </div>
+                <div class="form-group">
+                    <label for="relay-lan-url">LAN Endpoint URL</label>
+                    <input type="text" id="relay-lan-url" placeholder="http://192.168.1.100:8080">
+                    <small style="color: #666;">Local LAN IP address, no authentication required</small>
+                </div>
+                <div class="form-group">
+                    <label for="relay-comm-preference">Server Communication Preference *</label>
+                    <select id="relay-comm-preference" required>
+                        <option value="lan">LAN (Local Network)</option>
+                        <option value="public">Public (HTTPS)</option>
+                    </select>
+                    <small style="color: #666;">How devices should communicate with this relay</small>
+                </div>
+                <div class="form-group">
+                    <label for="relay-description">Description</label>
+                    <textarea id="relay-description" placeholder="Optional notes about this relay"></textarea>
+                </div>
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="relay-auth-enabled" style="margin-right: 8px;" onchange="toggleRelayAuthFields('create')">
+                        <span>Requires Authentication (HTTP Basic Auth)</span>
+                    </label>
+                    <small style="color: #666;">Enable if this relay is protected by authentication</small>
+                </div>
+                <div id="relay-auth-fields" style="display: none;">
+                    <div class="form-group">
+                        <label for="relay-auth-username">Username *</label>
+                        <input type="text" id="relay-auth-username" placeholder="e.g., biometrix">
+                    </div>
+                    <div class="form-group">
+                        <label for="relay-auth-password">Password *</label>
+                        <input type="password" id="relay-auth-password" placeholder="Enter password">
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" class="btn btn-primary">Add Relay</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('create-relay-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit WebRTC Relay Modal -->
+    <div id="edit-relay-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit WebRTC Relay</h2>
+                <button class="close-modal" onclick="closeModal('edit-relay-modal')">&times;</button>
+            </div>
+            <form id="edit-relay-form">
+                <input type="hidden" id="edit-relay-id">
+                <div class="form-group">
+                    <label for="edit-relay-name">Friendly Name *</label>
+                    <input type="text" id="edit-relay-name" required placeholder="e.g., Main Office Relay">
+                </div>
+                <div class="form-group">
+                    <label for="edit-relay-public-url">Public Endpoint URL</label>
+                    <input type="text" id="edit-relay-public-url" placeholder="https://webrtc.example.com">
+                    <small style="color: #666;">HTTPS endpoint with authentication (e.g., nginx reverse proxy)</small>
+                </div>
+                <div class="form-group">
+                    <label for="edit-relay-lan-url">LAN Endpoint URL</label>
+                    <input type="text" id="edit-relay-lan-url" placeholder="http://192.168.1.100:8080">
+                    <small style="color: #666;">Local LAN IP address, no authentication required</small>
+                </div>
+                <div class="form-group">
+                    <label for="edit-relay-comm-preference">Server Communication Preference *</label>
+                    <select id="edit-relay-comm-preference" required>
+                        <option value="lan">LAN (Local Network)</option>
+                        <option value="public">Public (HTTPS)</option>
+                    </select>
+                    <small style="color: #666;">How devices should communicate with this relay</small>
+                </div>
+                <div class="form-group">
+                    <label for="edit-relay-description">Description</label>
+                    <textarea id="edit-relay-description" placeholder="Optional notes about this relay"></textarea>
+                </div>
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="edit-relay-auth-enabled" style="margin-right: 8px;" onchange="toggleRelayAuthFields('edit')">
+                        <span>Requires Authentication (HTTP Basic Auth)</span>
+                    </label>
+                    <small style="color: #666;">Enable if this relay is protected by authentication</small>
+                </div>
+                <div id="edit-relay-auth-fields" style="display: none;">
+                    <div class="form-group">
+                        <label for="edit-relay-auth-username">Username</label>
+                        <input type="text" id="edit-relay-auth-username" placeholder="e.g., biometrix">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-relay-auth-password">Password</label>
+                        <input type="password" id="edit-relay-auth-password" placeholder="Leave blank to keep current password">
+                        <small style="color: #666;">Only enter a new password if you want to change it</small>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" class="btn btn-primary">Update Relay</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('edit-relay-modal')">Cancel</button>
+                </div>
+            </form>
         </div>
     </div>
 
