@@ -205,9 +205,9 @@ class VideoFrameCapture:
             img = frame.to_ndarray(format="rgb24")
             pil_image = Image.fromarray(img)
 
-            # Convert to JPEG base64
+            # Convert to JPEG base64 with high quality for facial recognition
             buffer = BytesIO()
-            pil_image.save(buffer, format="JPEG", quality=80)
+            pil_image.save(buffer, format="JPEG", quality=95)
             buffer.seek(0)
 
             image_bytes = buffer.read()
