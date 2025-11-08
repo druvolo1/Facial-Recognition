@@ -362,9 +362,9 @@ class VideoFrameCapture:
             img = frame.to_ndarray(format="rgb24")
             pil_image = Image.fromarray(img)
 
-            # Convert to JPEG base64
+            # Convert to JPEG base64 with maximum quality for kiosk registration
             buffer = BytesIO()
-            pil_image.save(buffer, format="JPEG", quality=90)
+            pil_image.save(buffer, format="JPEG", quality=98)
             buffer.seek(0)
 
             image_bytes = buffer.read()
