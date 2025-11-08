@@ -1271,6 +1271,22 @@
         </div>
     </div>
 
+    <!-- Manage Faces Modal -->
+    <div id="manage-faces-modal" class="modal">
+        <div class="modal-content" style="max-width: 1000px;">
+            <div class="modal-header">
+                <h2 id="manage-faces-title">Manage Faces</h2>
+                <button class="close-modal" onclick="closeModal('manage-faces-modal')">&times;</button>
+            </div>
+            <div id="manage-faces-container" style="padding: 20px;">
+                <!-- Faces list will be inserted here -->
+            </div>
+            <div style="padding: 0 20px 20px; text-align: right;">
+                <button class="btn btn-primary" onclick="closeModal('manage-faces-modal')">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Create WebRTC Relay Modal (Superadmin only) -->
     <div id="create-relay-modal" class="modal">
         <div class="modal-content">

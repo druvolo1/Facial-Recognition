@@ -718,6 +718,7 @@ async function loadServers() {
                             <td>${escapeHtml(server.description || 'N/A')}</td>
                             <td>
                                 <button class="btn btn-secondary btn-sm" onclick="testServerConnection(${server.id})">Test</button>
+                                <button class="btn btn-secondary btn-sm" onclick="showManageFacesModal(${server.id})">Manage</button>
                                 <button class="btn btn-secondary btn-sm" onclick="showEditServerModal(${server.id})">Edit</button>
                                 <button class="btn btn-danger btn-sm" onclick="deleteServer(${server.id}, '${escapeHtml(server.friendly_name)}')">Delete</button>
                             </td>
@@ -1809,6 +1810,141 @@ async function deleteServer(serverId, name) {
     } catch (error) {
         console.error('Error:', error);
         showAlert('Error deleting server', 'error');
+    }
+}
+
+async function showManageFacesModal(serverId) {
+    const server = allServers.find(s => s.id === serverId);
+    if (!server) {
+        showAlert('Server not found', 'error');
+        return;
+    }
+
+    // Set modal title
+    document.getElementById('manage-faces-title').textContent = `${server.friendly_name} - Manage Faces`;
+
+    // Show loading state
+    const facesContainer = document.getElementById('manage-faces-container');
+    facesContainer.innerHTML = '<div style="text-align: center; padding: 40px;"><div class="spinner"></div><p>Loading faces...</p></div>';
+
+    // Open modal
+    openModal('manage-faces-modal');
+
+    // Load faces
+    await loadServerFaces(serverId);
+}
+
+async function loadServerFaces(serverId) {
+    try {
+        const response = await fetch(`/api/codeproject-servers/${serverId}/faces`, {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+        const facesContainer = document.getElementById('manage-faces-container');
+
+        if (result.faces.length === 0) {
+            facesContainer.innerHTML = `
+                <div class="empty-state">
+                    <div class="icon">👤</div>
+                    <p>No faces registered on this server</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Sort: Database entries first, then Unknown
+        result.faces.sort((a, b) => {
+            if (a.in_database && !b.in_database) return -1;
+            if (!a.in_database && b.in_database) return 1;
+            return a.person_name.localeCompare(b.person_name);
+        });
+
+        // Build table
+        facesContainer.innerHTML = `
+            <div style="margin-bottom: 15px; padding: 10px; background: #e7f3ff; border-radius: 6px;">
+                <strong>Total Faces:</strong> ${result.faces.length}
+                <span style="margin-left: 20px;"><strong>In Database:</strong> ${result.faces.filter(f => f.in_database).length}</span>
+                <span style="margin-left: 20px;"><strong>Unknown:</strong> ${result.faces.filter(f => !f.in_database).length}</span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Person Name</th>
+                        <th>User ID</th>
+                        <th>Photos</th>
+                        <th>Locations</th>
+                        <th>Registered</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${result.faces.map(face => {
+                        const isUnknown = face.person_name === 'Unknown';
+                        const locationText = face.locations && face.locations.length > 0
+                            ? face.locations.join(', ')
+                            : 'N/A';
+                        const registeredText = face.registered_at
+                            ? new Date(face.registered_at).toLocaleString()
+                            : 'N/A';
+
+                        return `
+                            <tr style="${isUnknown ? 'background: #fff3cd;' : ''}">
+                                <td><strong>${escapeHtml(face.person_name)}</strong></td>
+                                <td><code style="font-size: 11px;">${escapeHtml(face.userid)}</code></td>
+                                <td>${face.photo_count}</td>
+                                <td>${escapeHtml(locationText)}</td>
+                                <td>${escapeHtml(registeredText)}</td>
+                                <td>
+                                    <button
+                                        class="btn btn-danger btn-sm"
+                                        onclick="deleteFaceFromServer(${serverId}, '${escapeHtml(face.userid)}', '${escapeHtml(face.person_name)}')"
+                                    >Delete</button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (error) {
+        console.error('Error loading faces:', error);
+        const facesContainer = document.getElementById('manage-faces-container');
+        facesContainer.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #721c24; background: #f8d7da; border-radius: 6px;">
+                <p><strong>Error loading faces</strong></p>
+                <p>${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+async function deleteFaceFromServer(serverId, userid, personName) {
+    if (!confirm(`Delete face "${personName}" (${userid})?\n\nThis will:\n- Remove the face from CodeProject.AI server\n- Delete all photo files\n- Remove all database records\n\nThis cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/codeproject-servers/${serverId}/faces/${encodeURIComponent(userid)}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            showAlert(`Deleted "${personName}" successfully`, 'success');
+            // Reload the faces list
+            await loadServerFaces(serverId);
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Failed to delete face', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error deleting face', 'error');
     }
 }
 

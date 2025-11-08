@@ -4081,7 +4081,7 @@ async def get_server_faces(
         for cp_face in codeproject_faces:
             userid = cp_face if isinstance(cp_face, str) else cp_face.get('userid')
 
-            # Look up in our database
+            # Look up in our database across ALL locations using this server
             db_result = await session.execute(
                 select(RegisteredFace).where(
                     RegisteredFace.codeproject_user_id == userid,
@@ -4090,10 +4090,28 @@ async def get_server_faces(
             )
             db_records = db_result.scalars().all()
 
+            # Get person name and location info from database records
+            person_name = "Unknown"
+            location_names = []
+            if db_records:
+                # Use the person_name from the first record
+                person_name = db_records[0].person_name
+
+                # Get location names for all records
+                location_ids = set(r.location_id for r in db_records if r.location_id)
+                if location_ids:
+                    location_result = await session.execute(
+                        select(Location).where(Location.id.in_(location_ids))
+                    )
+                    locations = location_result.scalars().all()
+                    location_names = [loc.name for loc in locations]
+
             faces_with_info.append({
                 "userid": userid,
+                "person_name": person_name,
                 "photo_count": len(db_records),
                 "in_database": len(db_records) > 0,
+                "locations": location_names,
                 "registered_at": db_records[0].registered_at.isoformat() if db_records else None
             })
 
