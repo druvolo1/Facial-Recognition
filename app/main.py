@@ -193,6 +193,46 @@ def make_codeproject_request(path: str, server, **kwargs):
         return requests.get(url, **kwargs)
 
 # ============================================================================
+# WEBRTC RELAY CREDENTIALS CACHE
+# ============================================================================
+
+# In-memory cache for decrypted WebRTC relay credentials
+# Structure: { relay_id: { 'username': str, 'password': str, 'cached_at': datetime } }
+WEBRTC_RELAY_CREDENTIALS_CACHE = {}
+
+def get_relay_credentials(relay_id: int, relay) -> tuple:
+    """
+    Get decrypted credentials for a WebRTC relay from cache or decrypt from DB.
+    Returns: (username, password) tuple or (None, None) if auth is disabled
+    """
+    if not relay.auth_enabled:
+        return (None, None)
+
+    # Check cache first
+    if relay_id in WEBRTC_RELAY_CREDENTIALS_CACHE:
+        cached = WEBRTC_RELAY_CREDENTIALS_CACHE[relay_id]
+        return (cached['username'], cached['password'])
+
+    # Decrypt and cache
+    username = relay.auth_username
+    password = decrypt_password(relay.auth_password_encrypted) if relay.auth_password_encrypted else None
+
+    # Store in cache
+    WEBRTC_RELAY_CREDENTIALS_CACHE[relay_id] = {
+        'username': username,
+        'password': password,
+        'cached_at': datetime.utcnow()
+    }
+
+    return (username, password)
+
+def invalidate_relay_credentials_cache(relay_id: int):
+    """Invalidate cached credentials when relay is updated"""
+    if relay_id in WEBRTC_RELAY_CREDENTIALS_CACHE:
+        del WEBRTC_RELAY_CREDENTIALS_CACHE[relay_id]
+        print(f"[CACHE] Invalidated credentials cache for WebRTC relay {relay_id}")
+
+# ============================================================================
 # TOKEN CACHE
 # ============================================================================
 
@@ -275,6 +315,7 @@ class Location(Base):
     timezone: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, default='UTC')
     contact_info: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     codeproject_server_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("codeproject_server.id"), nullable=True)
+    webrtc_relay_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("webrtc_relay.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     created_by_user_id: Mapped[int] = mapped_column(Integer, ForeignKey("user.id"), nullable=False)
 
@@ -361,6 +402,23 @@ class CodeProjectServer(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     friendly_name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     endpoint_url: Mapped[str] = mapped_column(String(512), nullable=False)  # Kept for backward compatibility
+    public_endpoint_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)  # HTTPS with auth
+    lan_endpoint_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)  # Local LAN IP, no auth
+    server_communication_preference: Mapped[str] = mapped_column(String(20), nullable=False, default='lan')  # 'lan' or 'public'
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    auth_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    auth_username: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    auth_password_encrypted: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_by_user_id: Mapped[int] = mapped_column(Integer, ForeignKey("user.id"), nullable=False)
+
+
+class WebRTCRelay(Base):
+    """WebRTC relay servers for Tizen displays to connect to"""
+    __tablename__ = "webrtc_relay"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    friendly_name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     public_endpoint_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)  # HTTPS with auth
     lan_endpoint_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)  # Local LAN IP, no auth
     server_communication_preference: Mapped[str] = mapped_column(String(20), nullable=False, default='lan')  # 'lan' or 'public'
@@ -823,6 +881,28 @@ class CreateCodeProjectServerRequest(BaseModel):
 class UpdateCodeProjectServerRequest(BaseModel):
     friendly_name: Optional[str] = None
     endpoint_url: Optional[str] = None  # Kept for backward compatibility
+    public_endpoint_url: Optional[str] = None  # HTTPS with auth
+    lan_endpoint_url: Optional[str] = None  # Local LAN IP, no auth
+    server_communication_preference: Optional[str] = None  # 'lan' or 'public'
+    description: Optional[str] = None
+    auth_enabled: Optional[bool] = None
+    auth_username: Optional[str] = None
+    auth_password: Optional[str] = None  # Will be encrypted before storing; if None, existing password is kept
+
+
+class CreateWebRTCRelayRequest(BaseModel):
+    friendly_name: str
+    public_endpoint_url: Optional[str] = None  # HTTPS with auth
+    lan_endpoint_url: Optional[str] = None  # Local LAN IP, no auth
+    server_communication_preference: str = 'lan'  # 'lan' or 'public'
+    description: Optional[str] = None
+    auth_enabled: bool = False
+    auth_username: Optional[str] = None
+    auth_password: Optional[str] = None  # Will be encrypted before storing
+
+
+class UpdateWebRTCRelayRequest(BaseModel):
+    friendly_name: Optional[str] = None
     public_endpoint_url: Optional[str] = None  # HTTPS with auth
     lan_endpoint_url: Optional[str] = None  # Local LAN IP, no auth
     server_communication_preference: Optional[str] = None  # 'lan' or 'public'
@@ -4095,6 +4175,345 @@ async def delete_server_face(
         "files_deleted": deleted_files,
         "records_deleted": len(face_records)
     }
+
+
+# ============================================================================
+# WEBRTC RELAY MANAGEMENT API ROUTES
+# ============================================================================
+
+@app.get("/api/webrtc-relays")
+async def get_webrtc_relays(
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Get all WebRTC relay servers"""
+    result = await session.execute(select(WebRTCRelay))
+    relays = result.scalars().all()
+
+    return [
+        {
+            "id": relay.id,
+            "friendly_name": relay.friendly_name,
+            "public_endpoint_url": relay.public_endpoint_url,
+            "lan_endpoint_url": relay.lan_endpoint_url,
+            "server_communication_preference": relay.server_communication_preference,
+            "description": relay.description,
+            "auth_enabled": relay.auth_enabled,
+            "auth_username": relay.auth_username,
+            # Do NOT return auth_password_encrypted for security
+            "created_at": relay.created_at.isoformat()
+        }
+        for relay in relays
+    ]
+
+
+@app.post("/api/webrtc-relays")
+async def create_webrtc_relay(
+    data: CreateWebRTCRelayRequest,
+    user: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Create a new WebRTC relay server (superadmin only)"""
+    # Check if friendly name already exists
+    result = await session.execute(
+        select(WebRTCRelay).where(WebRTCRelay.friendly_name == data.friendly_name)
+    )
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Relay with this name already exists")
+
+    # Validate at least one endpoint is provided
+    if not data.public_endpoint_url and not data.lan_endpoint_url:
+        raise HTTPException(
+            status_code=400,
+            detail="At least one endpoint (public or LAN) must be provided"
+        )
+
+    # Encrypt password if authentication is enabled
+    encrypted_password = None
+    if data.auth_enabled and data.auth_password:
+        encrypted_password = encrypt_password(data.auth_password)
+
+    relay = WebRTCRelay(
+        friendly_name=data.friendly_name,
+        public_endpoint_url=data.public_endpoint_url.rstrip('/') if data.public_endpoint_url else None,
+        lan_endpoint_url=data.lan_endpoint_url.rstrip('/') if data.lan_endpoint_url else None,
+        server_communication_preference=data.server_communication_preference,
+        description=data.description,
+        auth_enabled=data.auth_enabled,
+        auth_username=data.auth_username if data.auth_enabled else None,
+        auth_password_encrypted=encrypted_password,
+        created_by_user_id=user.id
+    )
+    session.add(relay)
+    await session.commit()
+
+    auth_status = "with auth" if data.auth_enabled else "no auth"
+    print(f"[WEBRTC-RELAY] Created by {user.email}: {data.friendly_name} ({auth_status})")
+
+    return {
+        "success": True,
+        "id": relay.id,
+        "friendly_name": relay.friendly_name
+    }
+
+
+@app.put("/api/webrtc-relays/{relay_id}")
+async def update_webrtc_relay(
+    relay_id: int,
+    data: UpdateWebRTCRelayRequest,
+    user: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Update a WebRTC relay server (superadmin only)"""
+    result = await session.execute(
+        select(WebRTCRelay).where(WebRTCRelay.id == relay_id)
+    )
+    relay = result.scalar_one_or_none()
+
+    if not relay:
+        raise HTTPException(status_code=404, detail="Relay not found")
+
+    if data.friendly_name is not None:
+        # Check if new name already exists
+        result = await session.execute(
+            select(WebRTCRelay).where(
+                WebRTCRelay.friendly_name == data.friendly_name,
+                WebRTCRelay.id != relay_id
+            )
+        )
+        if result.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Relay with this name already exists")
+        relay.friendly_name = data.friendly_name
+
+    if data.public_endpoint_url is not None:
+        relay.public_endpoint_url = data.public_endpoint_url.rstrip('/') if data.public_endpoint_url else None
+
+    if data.lan_endpoint_url is not None:
+        relay.lan_endpoint_url = data.lan_endpoint_url.rstrip('/') if data.lan_endpoint_url else None
+
+    if data.server_communication_preference is not None:
+        relay.server_communication_preference = data.server_communication_preference
+
+    if data.description is not None:
+        relay.description = data.description
+
+    # Update auth settings
+    if data.auth_enabled is not None:
+        relay.auth_enabled = data.auth_enabled
+
+    if data.auth_username is not None:
+        relay.auth_username = data.auth_username
+
+    # Update password if provided (encrypt it)
+    if data.auth_password is not None:
+        relay.auth_password_encrypted = encrypt_password(data.auth_password)
+        # Invalidate cache when password changes
+        invalidate_relay_credentials_cache(relay_id)
+
+    # If auth is disabled, clear credentials
+    if data.auth_enabled is False:
+        relay.auth_username = None
+        relay.auth_password_encrypted = None
+        invalidate_relay_credentials_cache(relay_id)
+
+    await session.commit()
+
+    # Invalidate cache on any update to be safe
+    invalidate_relay_credentials_cache(relay_id)
+
+    auth_status = "with auth" if relay.auth_enabled else "no auth"
+    print(f"[WEBRTC-RELAY] Updated by {user.email}: {relay.friendly_name} ({auth_status})")
+
+    return {
+        "success": True,
+        "id": relay.id,
+        "friendly_name": relay.friendly_name
+    }
+
+
+@app.delete("/api/webrtc-relays/{relay_id}")
+async def delete_webrtc_relay(
+    relay_id: int,
+    user: User = Depends(current_superuser),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Delete a WebRTC relay server (superadmin only)"""
+    result = await session.execute(
+        select(WebRTCRelay).where(WebRTCRelay.id == relay_id)
+    )
+    relay = result.scalar_one_or_none()
+
+    if not relay:
+        raise HTTPException(status_code=404, detail="Relay not found")
+
+    # Check if any locations are using this relay
+    locations_result = await session.execute(
+        select(Location).where(Location.webrtc_relay_id == relay_id)
+    )
+    locations = locations_result.scalars().all()
+
+    if locations:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete relay: {len(locations)} location(s) are using it"
+        )
+
+    friendly_name = relay.friendly_name
+    await session.delete(relay)
+    await session.commit()
+
+    print(f"[WEBRTC-RELAY] Deleted by {user.email}: {friendly_name}")
+
+    return {"success": True, "message": f"Deleted relay: {friendly_name}"}
+
+
+@app.get("/api/webrtc-relays/{relay_id}/test")
+async def test_webrtc_relay(
+    relay_id: int,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Test connection to a WebRTC relay server (tests both public and LAN endpoints)"""
+    result = await session.execute(
+        select(WebRTCRelay).where(WebRTCRelay.id == relay_id)
+    )
+    relay = result.scalar_one_or_none()
+
+    if not relay:
+        raise HTTPException(status_code=404, detail="Relay not found")
+
+    results = {
+        "success": True,
+        "relay_name": relay.friendly_name,
+        "tests": {}
+    }
+
+    # Helper function to test an endpoint
+    def test_endpoint(endpoint_url: str, use_auth: bool, endpoint_type: str):
+        try:
+            import time
+            start_time = time.time()
+
+            # Test the /health endpoint (or / if no health endpoint)
+            url = f"{endpoint_url}/health"
+            kwargs = {"timeout": 5}
+
+            # Add authentication if needed
+            if use_auth and relay.auth_enabled:
+                username, password = get_relay_credentials(relay.id, relay)
+                if username and password:
+                    kwargs['auth'] = (username, password)
+
+            response = requests.get(url, **kwargs)
+            elapsed = time.time() - start_time
+
+            if response.status_code == 200:
+                return {
+                    "online": True,
+                    "status_code": response.status_code,
+                    "response_time_ms": int(elapsed * 1000),
+                    "message": f"✓ {endpoint_type} endpoint is online and responding"
+                }
+            elif response.status_code == 401:
+                return {
+                    "online": False,
+                    "status_code": response.status_code,
+                    "response_time_ms": int(elapsed * 1000),
+                    "message": f"✗ {endpoint_type} endpoint authentication failed (401 Unauthorized)",
+                    "auth_failed": True
+                }
+            elif response.status_code == 404:
+                # Try root endpoint if /health doesn't exist
+                try:
+                    url = endpoint_url
+                    response = requests.get(url, **kwargs)
+                    elapsed = time.time() - start_time
+                    if response.status_code == 200:
+                        return {
+                            "online": True,
+                            "status_code": response.status_code,
+                            "response_time_ms": int(elapsed * 1000),
+                            "message": f"✓ {endpoint_type} endpoint is online (no /health endpoint)"
+                        }
+                except:
+                    pass
+                return {
+                    "online": False,
+                    "status_code": response.status_code,
+                    "response_time_ms": int(elapsed * 1000),
+                    "message": f"✗ {endpoint_type} endpoint responded with status {response.status_code}"
+                }
+            else:
+                return {
+                    "online": False,
+                    "status_code": response.status_code,
+                    "response_time_ms": int(elapsed * 1000),
+                    "message": f"✗ {endpoint_type} endpoint responded with status {response.status_code}"
+                }
+
+        except requests.Timeout:
+            return {
+                "online": False,
+                "status_code": None,
+                "response_time_ms": None,
+                "message": f"✗ {endpoint_type} endpoint timeout (not responding)"
+            }
+        except requests.ConnectionError:
+            return {
+                "online": False,
+                "status_code": None,
+                "response_time_ms": None,
+                "message": f"✗ {endpoint_type} endpoint unreachable (connection error)"
+            }
+        except Exception as e:
+            return {
+                "online": False,
+                "status_code": None,
+                "response_time_ms": None,
+                "message": f"✗ {endpoint_type} endpoint error: {str(e)}"
+            }
+
+    # Test public endpoint if configured, otherwise mark as not configured
+    if relay.public_endpoint_url:
+        results["tests"]["public"] = test_endpoint(
+            relay.public_endpoint_url,
+            use_auth=True,
+            endpoint_type="Public"
+        )
+    else:
+        results["tests"]["public"] = {
+            "online": False,
+            "status_code": None,
+            "response_time_ms": None,
+            "message": "Not configured",
+            "not_configured": True
+        }
+
+    # Test LAN endpoint if configured, otherwise mark as not configured
+    if relay.lan_endpoint_url:
+        results["tests"]["lan"] = test_endpoint(
+            relay.lan_endpoint_url,
+            use_auth=False,
+            endpoint_type="LAN"
+        )
+    else:
+        results["tests"]["lan"] = {
+            "online": False,
+            "status_code": None,
+            "response_time_ms": None,
+            "message": "Not configured",
+            "not_configured": True
+        }
+
+    # Add summary
+    configured_tests = [t for t in results["tests"].values() if not t.get("not_configured")]
+    if configured_tests:
+        online_count = sum(1 for t in configured_tests if t["online"])
+        results["summary"] = f"{online_count}/{len(configured_tests)} endpoint(s) online"
+    else:
+        results["summary"] = "No endpoints configured"
+
+    return results
 
 
 # ============================================================================
