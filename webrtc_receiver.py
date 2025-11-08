@@ -8,7 +8,7 @@ import json
 import logging
 from io import BytesIO
 
-from aiohttp import web, ClientSession, ClientTimeout
+from aiohttp import web, ClientSession, ClientTimeout, FormData
 from aiortc import RTCPeerConnection, RTCSessionDescription, MediaStreamTrack
 from aiortc.contrib.media import MediaRecorder, MediaPlayer
 from av import VideoFrame
@@ -246,7 +246,7 @@ class VideoFrameCapture:
                 timeout = ClientTimeout(total=10)
                 async with ClientSession(timeout=timeout) as session:
                     # Prepare multipart form data
-                    data = web.FormData()
+                    data = FormData()
                     data.add_field('image',
                                   BytesIO(image_bytes),
                                   filename='frame.jpg',
