@@ -1084,6 +1084,16 @@ manager = ConnectionManager()
 
 app = FastAPI(title="Facial Recognition App")
 
+# Middleware to handle HTTPS from reverse proxy
+@app.middleware("http")
+async def https_redirect_middleware(request: Request, call_next):
+    # Check if request came through HTTPS proxy
+    forwarded_proto = request.headers.get("x-forwarded-proto")
+    if forwarded_proto == "https":
+        request.scope["scheme"] = "https"
+    response = await call_next(request)
+    return response
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -4791,7 +4801,8 @@ async def log_scan(
         person_ids = []
         for det in detections:
             person_id = det.get("person_name")  # Scanner sends person_id here
-            if person_id:
+            # Filter out unknown faces (various forms)
+            if person_id and person_id.lower() != 'unknown' and 'unknown' not in person_id.lower():
                 person_ids.append(person_id)
 
         if not person_ids:
