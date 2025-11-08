@@ -4687,6 +4687,37 @@ async def device_heartbeat(
             # Send LAN endpoint for direct mode (no authentication)
             codeproject_endpoint = server.lan_endpoint_url
 
+    # Get WebRTC relay (device-level first, then location-level fallback)
+    webrtc_relay_url = None
+    webrtc_relay_name = None
+    relay_id = device.webrtc_relay_id
+
+    # If device doesn't have a relay, check location
+    if not relay_id and device.location_id:
+        location_result = await session.execute(
+            select(Location).where(Location.id == device.location_id)
+        )
+        location = location_result.scalar_one_or_none()
+        if location:
+            relay_id = location.webrtc_relay_id
+
+    # Fetch relay info if we have an ID
+    if relay_id:
+        relay_result = await session.execute(
+            select(WebRTCRelay).where(WebRTCRelay.id == relay_id)
+        )
+        relay = relay_result.scalar_one_or_none()
+        if relay:
+            webrtc_relay_name = relay.friendly_name
+            # Use the preferred endpoint based on server_communication_preference
+            if relay.server_communication_preference == 'public' and relay.public_endpoint_url:
+                webrtc_relay_url = relay.public_endpoint_url
+            elif relay.lan_endpoint_url:
+                webrtc_relay_url = relay.lan_endpoint_url
+            elif relay.public_endpoint_url:
+                # Fallback to public if LAN not available
+                webrtc_relay_url = relay.public_endpoint_url
+
     # Return current device configuration
     response_data = {
         "status": "ok",
@@ -4697,6 +4728,8 @@ async def device_heartbeat(
         "area_id": device.area_id,
         "area_name": area_name,
         "codeproject_endpoint": codeproject_endpoint,
+        "webrtc_relay_url": webrtc_relay_url,
+        "webrtc_relay_name": webrtc_relay_name,
         "is_approved": device.is_approved,
         # Processing mode (default to 'server' if not set)
         "processing_mode": processing_mode,
