@@ -6617,6 +6617,79 @@ async def replace_photos(
 
         print(f"[REPLACE-PHOTOS] Saved {len(saved_photos)} new photos to disk")
 
+        # Delete from CodeProject.AI FIRST before changing database
+        try:
+            print(f"[REPLACE-PHOTOS] Deleting old registration from CodeProject.AI...")
+            response = make_codeproject_request(
+                "/vision/face/delete",
+                server,
+                data={'userid': person_id},
+                timeout=30
+            )
+            if response.status_code == 200:
+                print(f"[REPLACE-PHOTOS]   ✓ Deleted old registration")
+            else:
+                print(f"[REPLACE-PHOTOS]   ⚠ Delete returned {response.status_code}")
+        except Exception as e:
+            print(f"[REPLACE-PHOTOS]   ⚠ Error deleting old registration: {e}")
+
+        # Re-register with new photos BEFORE committing to database
+        print(f"[REPLACE-PHOTOS] Re-registering with new photos...")
+        files = []
+        for idx, photo in enumerate(saved_photos):
+            files.append(('images', (photo['filename'], photo['data'], 'image/jpeg')))
+
+        params = {'userid': person_id}
+
+        try:
+            response = make_codeproject_request(
+                "/vision/face/register",
+                server,
+                files=files,
+                data=params,
+                timeout=60
+            )
+            if response.status_code == 200:
+                result_data = response.json()
+                if result_data.get('success'):
+                    print(f"[REPLACE-PHOTOS]   ✓ Re-registered successfully with CodeProject.AI")
+                else:
+                    error_msg = result_data.get('error', 'Unknown error from CodeProject.AI')
+                    print(f"[REPLACE-PHOTOS]   ✗ Re-register failed: {error_msg}")
+                    # Clean up saved photo files since we're failing
+                    for photo in saved_photos:
+                        if os.path.exists(photo['filepath']):
+                            os.remove(photo['filepath'])
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Failed to re-register face with CodeProject.AI: {error_msg}"
+                    )
+            else:
+                print(f"[REPLACE-PHOTOS]   ✗ Re-register returned {response.status_code}")
+                # Clean up saved photo files since we're failing
+                for photo in saved_photos:
+                    if os.path.exists(photo['filepath']):
+                        os.remove(photo['filepath'])
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"CodeProject.AI returned status {response.status_code} during re-registration"
+                )
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"[REPLACE-PHOTOS]   ✗ Error re-registering: {e}")
+            # Clean up saved photo files since we're failing
+            for photo in saved_photos:
+                if os.path.exists(photo['filepath']):
+                    os.remove(photo['filepath'])
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error communicating with CodeProject.AI: {str(e)}"
+            )
+
+        # NOW that CodeProject.AI re-registration succeeded, update the database
+        print(f"[REPLACE-PHOTOS] Updating database...")
+
         # Create new database records
         profile_photo_path = None
         for idx, photo in enumerate(saved_photos):
@@ -6640,51 +6713,7 @@ async def replace_photos(
             )
             session.add(registered_face)
 
-        await session.commit()
-
-        print(f"[REPLACE-PHOTOS] ✓ Created {len(saved_photos)} new database records")
-
-        # NOW delete old records and files (only after new ones are successfully created)
-        print(f"[REPLACE-PHOTOS] Deleting old records and files...")
-
-        # Delete from CodeProject.AI
-        try:
-            print(f"[REPLACE-PHOTOS]   Deleting old registration from CodeProject.AI...")
-            response = make_codeproject_request(
-                "/vision/face/delete",
-                server,
-                data={'userid': person_id},
-                timeout=30
-            )
-            if response.status_code == 200:
-                print(f"[REPLACE-PHOTOS]   ✓ Deleted old registration")
-            else:
-                print(f"[REPLACE-PHOTOS]   ⚠ Delete returned {response.status_code}")
-        except Exception as e:
-            print(f"[REPLACE-PHOTOS]   ⚠ Error deleting old registration: {e}")
-
-        # Re-register with new photos
-        print(f"[REPLACE-PHOTOS]   Re-registering with new photos...")
-        files = []
-        for idx, photo in enumerate(saved_photos):
-            files.append(('images', (photo['filename'], photo['data'], 'image/jpeg')))
-
-        params = {'userid': person_id}
-
-        try:
-            response = make_codeproject_request(
-                "/vision/face/register",
-                server,
-                files=files,
-                data=params,
-                timeout=60
-            )
-            if response.status_code == 200:
-                print(f"[REPLACE-PHOTOS]   ✓ Re-registered successfully")
-            else:
-                print(f"[REPLACE-PHOTOS]   ⚠ Re-register returned {response.status_code}")
-        except Exception as e:
-            print(f"[REPLACE-PHOTOS]   ⚠ Error re-registering: {e}")
+        print(f"[REPLACE-PHOTOS]   Created {len(saved_photos)} new database records")
 
         # Delete old database records
         for record in face_records:

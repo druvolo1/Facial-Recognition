@@ -1889,7 +1889,7 @@ async function loadServerFaces(serverId) {
                             ? face.locations.join(', ')
                             : 'N/A';
                         const registeredText = face.registered_at
-                            ? new Date(face.registered_at).toLocaleString()
+                            ? formatDateLocal(face.registered_at)
                             : 'N/A';
 
                         return `
