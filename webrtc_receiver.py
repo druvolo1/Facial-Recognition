@@ -8,13 +8,12 @@ import json
 import logging
 from io import BytesIO
 
-from aiohttp import web
+from aiohttp import web, ClientSession, ClientTimeout
 from aiortc import RTCPeerConnection, RTCSessionDescription, MediaStreamTrack
 from aiortc.contrib.media import MediaRecorder, MediaPlayer
 from av import VideoFrame
 import numpy as np
 from PIL import Image
-import requests
 
 # Optional database imports for person name lookups
 try:
@@ -46,9 +45,16 @@ DISPLAY_ID = "lobby_display_01"
 LOCATION = "Front Lobby"
 FRAME_CAPTURE_INTERVAL = 1.0  # Capture every 1 second (1 fps)
 
+# Scalability limits
+MAX_CONNECTIONS = 100  # Maximum WebRTC peer connections
+MAX_CONCURRENT_RECOGNITION = 10  # Maximum concurrent facial recognition API requests
+
 # Database engine and cache (lazy initialization)
 db_engine = None
 person_name_cache = {}
+
+# Semaphore to limit concurrent facial recognition API requests
+recognition_semaphore = None  # Initialized in create_app()
 
 def get_db_engine():
     """Lazy initialization of database engine"""
@@ -213,64 +219,77 @@ class VideoFrameCapture:
             return person_id
 
     async def send_to_recognition(self, base64_image):
-        """Send frame directly to CodeProject.AI for testing"""
+        """Send frame directly to CodeProject.AI using async HTTP with concurrency limit"""
+        global recognition_semaphore
+
+        # Check queue depth before acquiring semaphore
+        if recognition_semaphore is not None:
+            waiting = recognition_semaphore._waiters
+            if waiting and len(waiting) > 20:
+                logger.warning(f"[Recognition] ⚠ Queue depth high: {len(waiting)} requests waiting, dropping frame")
+                return  # Drop frame if queue is too deep
+
         try:
-            # Extract base64 data (remove data URL prefix if present)
-            if ',' in base64_image:
-                base64_data = base64_image.split(',')[1]
-            else:
-                base64_data = base64_image
-
-            # Decode base64 to bytes
-            image_bytes = base64.b64decode(base64_data)
-            image_size_kb = len(image_bytes) / 1024
-
-            # Use requests in thread executor to avoid blocking
-            loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(
-                None,
-                lambda: requests.post(
-                    CODEPROJECT_AI_URL,
-                    files={'image': ('frame.jpg', BytesIO(image_bytes), 'image/jpeg')},
-                    timeout=10
-                )
-            )
-
-            if response.status_code == 200:
-                result = response.json()
-                predictions = result.get('predictions', [])
-                success = result.get('success', False)
-
-                # Enrich predictions with person names
-                enriched_predictions = []
-                if predictions:
-                    logger.info("[Recognition] ✓ Faces detected:")
-                    for i, pred in enumerate(predictions, 1):
-                        userid = pred.get('userid', 'unknown')
-                        confidence = pred.get('confidence', 0)
-
-                        # Fetch person name from backend
-                        person_name = await self.get_person_name(userid)
-
-                        # Add person_name to prediction
-                        enriched_pred = {**pred, 'person_name': person_name}
-                        enriched_predictions.append(enriched_pred)
-
-                        logger.info(f"  {i}. {person_name} ({confidence:.1%})")
+            # Acquire semaphore to limit concurrent recognition requests
+            async with recognition_semaphore if recognition_semaphore else asyncio.Lock():
+                # Extract base64 data (remove data URL prefix if present)
+                if ',' in base64_image:
+                    base64_data = base64_image.split(',')[1]
                 else:
-                    logger.info("[Recognition] No faces matched")
+                    base64_data = base64_image
 
-                # Broadcast enriched results to WebSocket clients
-                await broadcast_recognition_result({
-                    "success": success,
-                    "faces": enriched_predictions,
-                    "image_size_kb": image_size_kb,
-                    "timestamp": asyncio.get_event_loop().time()
-                })
+                # Decode base64 to bytes
+                image_bytes = base64.b64decode(base64_data)
+                image_size_kb = len(image_bytes) / 1024
 
-            else:
-                logger.error(f"[Recognition] ✗ API error: {response.status_code}")
+                # Use async aiohttp client instead of blocking requests
+                timeout = ClientTimeout(total=10)
+                async with ClientSession(timeout=timeout) as session:
+                    # Prepare multipart form data
+                    data = web.FormData()
+                    data.add_field('image',
+                                  BytesIO(image_bytes),
+                                  filename='frame.jpg',
+                                  content_type='image/jpeg')
 
+                    async with session.post(CODEPROJECT_AI_URL, data=data) as response:
+                        if response.status == 200:
+                            result = await response.json()
+                            predictions = result.get('predictions', [])
+                            success = result.get('success', False)
+
+                            # Enrich predictions with person names
+                            enriched_predictions = []
+                            if predictions:
+                                logger.info("[Recognition] ✓ Faces detected:")
+                                for i, pred in enumerate(predictions, 1):
+                                    userid = pred.get('userid', 'unknown')
+                                    confidence = pred.get('confidence', 0)
+
+                                    # Fetch person name from backend
+                                    person_name = await self.get_person_name(userid)
+
+                                    # Add person_name to prediction
+                                    enriched_pred = {**pred, 'person_name': person_name}
+                                    enriched_predictions.append(enriched_pred)
+
+                                    logger.info(f"  {i}. {person_name} ({confidence:.1%})")
+                            else:
+                                logger.info("[Recognition] No faces matched")
+
+                            # Broadcast enriched results to WebSocket clients
+                            await broadcast_recognition_result({
+                                "success": success,
+                                "faces": enriched_predictions,
+                                "image_size_kb": image_size_kb,
+                                "timestamp": asyncio.get_event_loop().time()
+                            })
+
+                        else:
+                            logger.error(f"[Recognition] ✗ API error: {response.status}")
+
+        except asyncio.TimeoutError:
+            logger.error("[Recognition] ✗ Request timeout (10s)")
         except Exception as e:
             logger.error(f"[Recognition] ✗ Request failed: {e}")
 
@@ -956,6 +975,19 @@ async def viewer(request):
 
 async def offer(request):
     """Handle WebRTC offer from client"""
+    # Check connection limit
+    if len(pcs) >= MAX_CONNECTIONS:
+        logger.error(f"[WebRTC] ✗ Connection limit reached ({MAX_CONNECTIONS}), rejecting new connection")
+        return web.Response(
+            status=503,
+            content_type="application/json",
+            text=json.dumps({
+                "error": "Connection limit reached",
+                "max_connections": MAX_CONNECTIONS,
+                "current_connections": len(pcs)
+            })
+        )
+
     params = await request.json()
     offer_sdp = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
     device_id = params.get("device_id", "unknown")  # Get device_id from offer
@@ -971,7 +1003,7 @@ async def offer(request):
     # Create peer connection
     pc = RTCPeerConnection()
     pcs.add(pc)
-    logger.info(f"[WebRTC] Peer connection created, total connections: {len(pcs)}")
+    logger.info(f"[WebRTC] Peer connection created, total connections: {len(pcs)}/{MAX_CONNECTIONS}")
 
     # Store frame capture instance and video track
     frame_capture = None
@@ -1060,6 +1092,13 @@ async def on_shutdown(app):
 
 def create_app():
     """Create aiohttp application"""
+    global recognition_semaphore
+
+    # Initialize semaphore for limiting concurrent recognition requests
+    recognition_semaphore = asyncio.Semaphore(MAX_CONCURRENT_RECOGNITION)
+    logger.info(f"[Scalability] Connection limit: {MAX_CONNECTIONS}")
+    logger.info(f"[Scalability] Max concurrent recognition requests: {MAX_CONCURRENT_RECOGNITION}")
+
     app = web.Application()
     app.add_routes([
         web.get("/", viewer),               # HTML viewer page
