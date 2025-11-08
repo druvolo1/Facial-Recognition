@@ -37,6 +37,9 @@ ws_clients = set()
 # Store active video tracks by device_id for on-demand capture
 active_video_tracks = {}  # device_id -> VideoFrameCapture instance
 
+# Store active peer connections by device_id for one-connection-per-device enforcement
+active_device_connections = {}  # device_id -> RTCPeerConnection
+
 # Configuration
 # FACIAL_RECOGNITION_URL = "http://localhost:5000/api/displays/recognize"  # COMMENTED OUT FOR TESTING
 CODEPROJECT_AI_URL = "http://172.16.1.150:32168/v1/vision/face/recognize"
@@ -72,6 +75,57 @@ def get_db_engine():
             logger.error("[Database] Person name lookups will be disabled")
             db_engine = False  # Mark as failed to avoid retrying
     return db_engine if db_engine is not False else None
+
+
+def validate_device_credentials(device_id, device_token):
+    """
+    Validate device credentials against database.
+
+    Returns:
+        tuple: (is_valid: bool, error_message: str or None, device_type: str or None)
+    """
+    engine = get_db_engine()
+    if engine is None:
+        logger.warning("[Auth] Database not available - authentication disabled")
+        return (True, None, None)  # Allow connection if DB unavailable (failsafe)
+
+    try:
+        with Session(engine) as session:
+            # Query device table
+            query = text("""
+                SELECT device_token, is_approved, device_type
+                FROM device
+                WHERE device_id = :device_id
+                LIMIT 1
+            """)
+            result = session.execute(query, {"device_id": device_id})
+            row = result.first()
+
+            if not row:
+                logger.warning(f"[Auth] Device not found: {device_id}")
+                return (False, "Device not registered", None)
+
+            stored_token, is_approved, device_type = row
+
+            if not is_approved:
+                logger.warning(f"[Auth] Device not approved: {device_id}")
+                return (False, "Device not approved", None)
+
+            if stored_token != device_token:
+                logger.warning(f"[Auth] Invalid token for device: {device_id}")
+                return (False, "Invalid device token", None)
+
+            # Check device type is scanner or kiosk (only these should connect to WebRTC)
+            if device_type not in ['people_scanner', 'registration_kiosk']:
+                logger.warning(f"[Auth] Invalid device type for WebRTC: {device_type}")
+                return (False, f"Device type '{device_type}' cannot connect to WebRTC relay", None)
+
+            logger.info(f"[Auth] ✓ Device authenticated: {device_id} (type: {device_type})")
+            return (True, None, device_type)
+
+    except Exception as e:
+        logger.error(f"[Auth] Database query error: {e}")
+        return (False, "Authentication error", None)
 
 
 class VideoFrameCapture:
@@ -975,6 +1029,41 @@ async def viewer(request):
 
 async def offer(request):
     """Handle WebRTC offer from client"""
+    # Get authentication credentials from headers
+    device_id = request.headers.get("X-Device-ID")
+    device_token = request.headers.get("X-Device-Token")
+
+    if not device_id or not device_token:
+        logger.warning("[WebRTC] ✗ Missing authentication credentials")
+        return web.Response(
+            status=401,
+            content_type="application/json",
+            text=json.dumps({"error": "Missing device credentials"})
+        )
+
+    # Validate device credentials
+    is_valid, error_message, device_type = validate_device_credentials(device_id, device_token)
+    if not is_valid:
+        logger.warning(f"[WebRTC] ✗ Authentication failed for {device_id}: {error_message}")
+        return web.Response(
+            status=403,
+            content_type="application/json",
+            text=json.dumps({"error": error_message})
+        )
+
+    logger.info(f"[WebRTC] ✓ Device authenticated: {device_id} (type: {device_type})")
+
+    # Check if device already has an active connection
+    if device_id in active_device_connections:
+        old_pc = active_device_connections[device_id]
+        logger.info(f"[WebRTC] Device {device_id} already connected - closing old connection")
+        try:
+            await old_pc.close()
+            if old_pc in pcs:
+                pcs.remove(old_pc)
+        except Exception as e:
+            logger.warning(f"[WebRTC] Error closing old connection: {e}")
+
     # Check connection limit
     if len(pcs) >= MAX_CONNECTIONS:
         logger.error(f"[WebRTC] ✗ Connection limit reached ({MAX_CONNECTIONS}), rejecting new connection")
@@ -990,7 +1079,6 @@ async def offer(request):
 
     params = await request.json()
     offer_sdp = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
-    device_id = params.get("device_id", "unknown")  # Get device_id from offer
 
     logger.info("=" * 50)
     logger.info("[WebRTC] Received offer from client")
@@ -1003,6 +1091,7 @@ async def offer(request):
     # Create peer connection
     pc = RTCPeerConnection()
     pcs.add(pc)
+    active_device_connections[device_id] = pc  # Track connection by device_id
     logger.info(f"[WebRTC] Peer connection created, total connections: {len(pcs)}/{MAX_CONNECTIONS}")
 
     # Store frame capture instance and video track
@@ -1056,6 +1145,10 @@ async def offer(request):
             if device_id in active_video_tracks:
                 del active_video_tracks[device_id]
                 logger.info(f"[WebRTC] Removed device {device_id} from active tracks")
+            # Remove from active device connections
+            if device_id in active_device_connections and active_device_connections[device_id] == pc:
+                del active_device_connections[device_id]
+                logger.info(f"[WebRTC] Removed device {device_id} from active connections")
 
     # Handle offer
     logger.info("[WebRTC] Setting remote description...")
@@ -1099,7 +1192,22 @@ def create_app():
     logger.info(f"[Scalability] Connection limit: {MAX_CONNECTIONS}")
     logger.info(f"[Scalability] Max concurrent recognition requests: {MAX_CONCURRENT_RECOGNITION}")
 
-    app = web.Application()
+    # CORS middleware to allow test page access
+    @web.middleware
+    async def cors_middleware(request, handler):
+        # Handle preflight OPTIONS request
+        if request.method == 'OPTIONS':
+            response = web.Response()
+        else:
+            response = await handler(request)
+
+        # Add CORS headers
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, X-Device-ID, X-Device-Token'
+        return response
+
+    app = web.Application(middlewares=[cors_middleware])
     app.add_routes([
         web.get("/", viewer),               # HTML viewer page
         web.get("/ws", websocket_handler),  # WebSocket for live frames
