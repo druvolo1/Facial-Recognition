@@ -259,14 +259,14 @@ class VideoFrameCapture:
 
         try:
             with Session(engine) as session:
-                # Query registered_face table for this person_id
-                query = text("SELECT person_name FROM registered_face WHERE person_id = :person_id LIMIT 1")
-                result = session.execute(query, {"person_id": person_id})
+                # Query registered_face table using codeproject_user_id (matches CodeProject.AI's userid)
+                query = text("SELECT person_name FROM registered_face WHERE codeproject_user_id = :codeproject_user_id LIMIT 1")
+                result = session.execute(query, {"codeproject_user_id": person_id})
                 row = result.first()
                 if row:
                     return row[0]
                 else:
-                    logger.debug(f"[Recognition] No person found with person_id: {person_id}")
+                    logger.debug(f"[Recognition] No person found with codeproject_user_id: {person_id}")
                     return person_id
         except Exception as e:
             logger.error(f"[Recognition] Database query error: {e}")
