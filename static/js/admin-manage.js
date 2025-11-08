@@ -970,6 +970,7 @@ document.getElementById('approve-device-location').addEventListener('change', as
 document.getElementById('approve-device-type').addEventListener('change', (e) => {
     const serverGroup = document.getElementById('approve-device-server-group');
     const serverSelect = document.getElementById('approve-device-server');
+    const relayGroup = document.getElementById('approve-device-relay-group');
     const processingMode = document.getElementById('approve-device-processing-mode');
     const scannerSettings = document.getElementById('approve-device-scanner-settings');
     const dashboardSettings = document.getElementById('approve-device-dashboard-settings');
@@ -982,6 +983,7 @@ document.getElementById('approve-device-type').addEventListener('change', (e) =>
         processingMode.style.display = 'none';
         scannerSettings.style.display = 'none';
         dashboardSettings.style.display = 'block';
+        relayGroup.style.display = 'none';
     } else {
         dashboardSettings.style.display = 'none';
 
@@ -992,11 +994,13 @@ document.getElementById('approve-device-type').addEventListener('change', (e) =>
             processingMode.style.display = 'none';
         }
 
-        // Show scanner settings only for people_scanner
+        // Show scanner settings and relay only for people_scanner
         if (e.target.value === 'people_scanner') {
             scannerSettings.style.display = 'block';
+            relayGroup.style.display = 'block';
         } else {
             scannerSettings.style.display = 'none';
+            relayGroup.style.display = 'none';
         }
     }
 });
@@ -1029,10 +1033,12 @@ document.getElementById('approve-device-form').addEventListener('submit', async 
         const confidence = document.getElementById('approve-device-confidence').value;
         const presence = document.getElementById('approve-device-presence').value;
         const cooldown = document.getElementById('approve-device-cooldown').value;
+        const relayId = document.getElementById('approve-device-relay').value;
 
         if (confidence) data.confidence_threshold = parseFloat(confidence);
         if (presence) data.presence_timeout_minutes = parseInt(presence);
         if (cooldown) data.detection_cooldown_seconds = parseInt(cooldown);
+        if (relayId) data.webrtc_relay_id = parseInt(relayId);
     }
 
     // Add dashboard settings if device is a location_dashboard
@@ -1100,6 +1106,7 @@ async function editDeviceById(deviceId) {
 
     await loadLocationsData();
     await loadServersData();
+    await loadRelaysData();
 
     document.getElementById('edit-device-id').value = device.device_id;
     document.getElementById('edit-device-name').value = device.device_name;
@@ -1137,9 +1144,15 @@ async function editDeviceById(deviceId) {
         document.getElementById('edit-device-server').value = device.codeproject_server_id;
     }
 
+    // Select the relay if device has one
+    if (device.webrtc_relay_id) {
+        document.getElementById('edit-device-relay').value = device.webrtc_relay_id;
+    }
+
     // Show/hide server dropdown and processing mode based on device type
     const serverGroup = document.getElementById('edit-device-server-group');
     const serverSelect = document.getElementById('edit-device-server');
+    const relayGroup = document.getElementById('edit-device-relay-group');
     const processingMode = document.getElementById('edit-device-processing-mode');
     const scannerSettings = document.getElementById('edit-device-scanner-settings');
     const dashboardSettings = document.getElementById('edit-device-dashboard-settings');
@@ -1147,6 +1160,7 @@ async function editDeviceById(deviceId) {
     if (device.device_type === 'location_dashboard') {
         serverGroup.style.display = 'none';
         serverSelect.removeAttribute('required');
+        relayGroup.style.display = 'none';
         processingMode.style.display = 'none';
         scannerSettings.style.display = 'none';
         dashboardSettings.style.display = 'block';
@@ -1170,15 +1184,17 @@ async function editDeviceById(deviceId) {
             processingMode.style.display = 'none';
         }
 
-        // Show scanner settings only for people_scanner
+        // Show scanner settings and relay only for people_scanner
         if (device.device_type === 'people_scanner') {
             scannerSettings.style.display = 'block';
+            relayGroup.style.display = 'block';
             // Populate scanner settings
             document.getElementById('edit-device-confidence').value = device.confidence_threshold || '';
             document.getElementById('edit-device-presence').value = device.presence_timeout_minutes || '';
             document.getElementById('edit-device-cooldown').value = device.detection_cooldown_seconds || '';
         } else {
             scannerSettings.style.display = 'none';
+            relayGroup.style.display = 'none';
         }
     }
 
@@ -1189,6 +1205,7 @@ async function editDeviceById(deviceId) {
 document.getElementById('edit-device-type').addEventListener('change', (e) => {
     const serverGroup = document.getElementById('edit-device-server-group');
     const serverSelect = document.getElementById('edit-device-server');
+    const relayGroup = document.getElementById('edit-device-relay-group');
     const processingMode = document.getElementById('edit-device-processing-mode');
     const scannerSettings = document.getElementById('edit-device-scanner-settings');
     const dashboardSettings = document.getElementById('edit-device-dashboard-settings');
@@ -1196,6 +1213,7 @@ document.getElementById('edit-device-type').addEventListener('change', (e) => {
     if (e.target.value === 'location_dashboard') {
         serverGroup.style.display = 'none';
         serverSelect.removeAttribute('required');
+        relayGroup.style.display = 'none';
         processingMode.style.display = 'none';
         scannerSettings.style.display = 'none';
         dashboardSettings.style.display = 'block';
@@ -1211,11 +1229,13 @@ document.getElementById('edit-device-type').addEventListener('change', (e) => {
             processingMode.style.display = 'none';
         }
 
-        // Show scanner settings only for people_scanner
+        // Show scanner settings and relay only for people_scanner
         if (e.target.value === 'people_scanner') {
             scannerSettings.style.display = 'block';
+            relayGroup.style.display = 'block';
         } else {
             scannerSettings.style.display = 'none';
+            relayGroup.style.display = 'none';
         }
     }
 });
@@ -1257,6 +1277,7 @@ document.getElementById('edit-device-form').addEventListener('submit', async (e)
     const deviceId = document.getElementById('edit-device-id').value;
     const deviceType = document.getElementById('edit-device-type').value;
     const serverId = document.getElementById('edit-device-server').value;
+    const relayId = document.getElementById('edit-device-relay').value;
     const areaId = document.getElementById('edit-device-area').value;
 
     const data = {
@@ -1264,7 +1285,8 @@ document.getElementById('edit-device-form').addEventListener('submit', async (e)
         location_id: parseInt(document.getElementById('edit-device-location').value),
         area_id: areaId ? parseInt(areaId) : null,
         device_type: deviceType,
-        codeproject_server_id: deviceType === 'location_dashboard' ? null : (serverId ? parseInt(serverId) : null)
+        codeproject_server_id: deviceType === 'location_dashboard' ? null : (serverId ? parseInt(serverId) : null),
+        webrtc_relay_id: relayId ? parseInt(relayId) : null
     };
 
     // Add processing mode for devices that process images
@@ -1795,10 +1817,10 @@ async function deleteServer(serverId, name) {
 // ============================================================================
 
 async function loadRelays() {
+    const container = document.getElementById('webrtc-relays-container');
+
     try {
         await loadRelaysData();
-
-        const container = document.getElementById('webrtc-relays-container');
 
         if (allRelays.length === 0) {
             container.innerHTML = '<div class="empty-state"><div class="icon">📡</div><p>No WebRTC relays configured</p></div>';
@@ -1840,7 +1862,8 @@ async function loadRelays() {
         `;
     } catch (error) {
         console.error('Error loading relays:', error);
-        showAlert('Failed to load WebRTC relays', 'error');
+        container.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>Failed to load WebRTC relays</p><p style="color: #999; font-size: 12px;">Check console for details</p></div>';
+        showAlert('Failed to load WebRTC relays: ' + error.message, 'error');
     }
 }
 
@@ -1854,7 +1877,9 @@ async function loadRelaysData() {
 function updateRelayDropdowns() {
     const selects = [
         document.getElementById('location-relay'),
-        document.getElementById('edit-location-relay')
+        document.getElementById('edit-location-relay'),
+        document.getElementById('approve-device-relay'),
+        document.getElementById('edit-device-relay')
     ];
 
     selects.forEach(select => {

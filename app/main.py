@@ -443,6 +443,7 @@ class Device(Base):
     # Device type: 'registration_kiosk' or 'people_scanner'
     device_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     codeproject_server_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("codeproject_server.id"), nullable=True)
+    webrtc_relay_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("webrtc_relay.id"), nullable=True)
     is_approved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     registered_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
