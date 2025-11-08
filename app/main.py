@@ -4696,6 +4696,14 @@ async def device_heartbeat(
     # Check if a new token was rotated (set by get_current_device)
     new_token = getattr(request.state, 'new_device_token', None)
 
+    # Get location name if device has a location assigned
+    location_name = None
+    if device.location_id:
+        location_result = await session.execute(select(Location).where(Location.id == device.location_id))
+        location = location_result.scalar_one_or_none()
+        if location:
+            location_name = location.name
+
     # Get area information if device has an area assigned
     area_name = None
     if device.area_id:
@@ -4755,6 +4763,7 @@ async def device_heartbeat(
         "device_name": device.device_name,
         "device_type": device.device_type,
         "location_id": device.location_id,
+        "location_name": location_name,
         "area_id": device.area_id,
         "area_name": area_name,
         "codeproject_endpoint": codeproject_endpoint,
