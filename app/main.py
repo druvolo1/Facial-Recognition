@@ -777,6 +777,7 @@ class ApproveDeviceRequest(BaseModel):
     area_id: Optional[int] = None
     device_type: str  # 'registration_kiosk', 'people_scanner', or 'location_dashboard'
     codeproject_server_id: Optional[int] = None  # Not required for location_dashboard
+    webrtc_relay_id: Optional[int] = None  # Optional WebRTC relay for people_scanner
     # Processing mode: 'direct' (device -> CodeProject.AI) or 'server' (device -> flask -> CodeProject.AI)
     processing_mode: Optional[str] = 'server'  # Default to 'server'
     # Scanner detection settings (optional, defaults to .env values)
@@ -793,6 +794,7 @@ class UpdateDeviceRequest(BaseModel):
     area_id: Optional[int] = None
     device_type: Optional[str] = None
     codeproject_server_id: Optional[int] = None
+    webrtc_relay_id: Optional[int] = None
     # Processing mode: 'direct' or 'server'
     processing_mode: Optional[str] = None
     # Scanner detection settings
@@ -5163,6 +5165,7 @@ async def approve_device(
     device.area_id = data.area_id
     device.device_type = data.device_type
     device.codeproject_server_id = data.codeproject_server_id
+    device.webrtc_relay_id = data.webrtc_relay_id
     device.approved_at = datetime.utcnow()
     device.approved_by_user_id = user.id
     device.device_token = device_token
@@ -5196,6 +5199,7 @@ async def approve_device(
         device.area_id = data.area_id
         device.device_type = data.device_type
         device.codeproject_server_id = data.codeproject_server_id
+        device.webrtc_relay_id = data.webrtc_relay_id
         device.is_approved = True
         device.approved_at = datetime.utcnow()
         device.approved_by_user_id = user.id
@@ -5465,6 +5469,10 @@ async def update_device(
     elif data.device_type == 'location_dashboard':
         # Explicitly clear codeproject_server_id when switching to dashboard
         device.codeproject_server_id = None
+
+    # Update WebRTC relay
+    if data.webrtc_relay_id is not None:
+        device.webrtc_relay_id = data.webrtc_relay_id
 
     # Update scanner detection settings
     if data.confidence_threshold is not None:
