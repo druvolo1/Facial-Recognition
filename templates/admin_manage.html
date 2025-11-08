@@ -997,19 +997,19 @@
             <form id="create-user-form">
                 <div class="form-group">
                     <label for="user-email">Email *</label>
-                    <input type="email" id="user-email" required>
+                    <input type="email" id="user-email" required autocomplete="email">
                 </div>
                 <div class="form-group">
                     <label for="user-password">Password *</label>
-                    <input type="password" id="user-password" required minlength="6">
+                    <input type="password" id="user-password" required minlength="6" autocomplete="new-password">
                 </div>
                 <div class="form-group">
                     <label for="user-first-name">First Name</label>
-                    <input type="text" id="user-first-name">
+                    <input type="text" id="user-first-name" autocomplete="given-name">
                 </div>
                 <div class="form-group">
                     <label for="user-last-name">Last Name</label>
-                    <input type="text" id="user-last-name">
+                    <input type="text" id="user-last-name" autocomplete="family-name">
                 </div>
                 <div class="form-group">
                     <label>
@@ -1174,11 +1174,11 @@
                 <div id="server-auth-fields" style="display: none;">
                     <div class="form-group">
                         <label for="server-auth-username">Username *</label>
-                        <input type="text" id="server-auth-username" placeholder="e.g., biometrix">
+                        <input type="text" id="server-auth-username" placeholder="e.g., biometrix" autocomplete="username">
                     </div>
                     <div class="form-group">
                         <label for="server-auth-password">Password *</label>
-                        <input type="password" id="server-auth-password" placeholder="Enter password">
+                        <input type="password" id="server-auth-password" placeholder="Enter password" autocomplete="new-password">
                     </div>
                 </div>
                 <div style="display: flex; gap: 10px;">
@@ -1239,11 +1239,11 @@
                 <div id="edit-server-auth-fields" style="display: none;">
                     <div class="form-group">
                         <label for="edit-server-auth-username">Username</label>
-                        <input type="text" id="edit-server-auth-username" placeholder="e.g., biometrix">
+                        <input type="text" id="edit-server-auth-username" placeholder="e.g., biometrix" autocomplete="username">
                     </div>
                     <div class="form-group">
                         <label for="edit-server-auth-password">Password</label>
-                        <input type="password" id="edit-server-auth-password" placeholder="Leave blank to keep current password">
+                        <input type="password" id="edit-server-auth-password" placeholder="Leave blank to keep current password" autocomplete="new-password">
                         <small style="color: #666;">Only enter a new password if you want to change it</small>
                     </div>
                 </div>
@@ -1315,11 +1315,11 @@
                 <div id="relay-auth-fields" style="display: none;">
                     <div class="form-group">
                         <label for="relay-auth-username">Username *</label>
-                        <input type="text" id="relay-auth-username" placeholder="e.g., biometrix">
+                        <input type="text" id="relay-auth-username" placeholder="e.g., biometrix" autocomplete="username">
                     </div>
                     <div class="form-group">
                         <label for="relay-auth-password">Password *</label>
-                        <input type="password" id="relay-auth-password" placeholder="Enter password">
+                        <input type="password" id="relay-auth-password" placeholder="Enter password" autocomplete="new-password">
                     </div>
                 </div>
                 <div style="display: flex; gap: 10px;">
@@ -1375,11 +1375,11 @@
                 <div id="edit-relay-auth-fields" style="display: none;">
                     <div class="form-group">
                         <label for="edit-relay-auth-username">Username</label>
-                        <input type="text" id="edit-relay-auth-username" placeholder="e.g., biometrix">
+                        <input type="text" id="edit-relay-auth-username" placeholder="e.g., biometrix" autocomplete="username">
                     </div>
                     <div class="form-group">
                         <label for="edit-relay-auth-password">Password</label>
-                        <input type="password" id="edit-relay-auth-password" placeholder="Leave blank to keep current password">
+                        <input type="password" id="edit-relay-auth-password" placeholder="Leave blank to keep current password" autocomplete="new-password">
                         <small style="color: #666;">Only enter a new password if you want to change it</small>
                     </div>
                 </div>
