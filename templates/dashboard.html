@@ -1397,6 +1397,10 @@
         let currentProducts = [];
         let pendingProductImages = [];
 
+        function showMessage(message, type = 'info') {
+            alert(message);
+        }
+
         function openProductsModal() {
             document.getElementById('products-modal').classList.add('active');
             loadProducts();

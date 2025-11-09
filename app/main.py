@@ -21,7 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 
-from sqlalchemy import Boolean, Integer, String, Text, Column, ForeignKey, select, DateTime, func, Numeric, or_, and_, delete
+from sqlalchemy import Boolean, Integer, String, Text, Column, ForeignKey, select, DateTime, func, Numeric, or_, and_, delete, update
 from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
