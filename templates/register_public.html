@@ -893,36 +893,66 @@
         async function startAutoCapture() {
             captureInProgress = true;
             speak('Face detected. Starting capture.');
-            updateStatus('Get ready...');
 
-            // Countdown from 3
-            for (let i = 3; i > 0; i--) {
-                showCountdown(i);
-                await sleep(1000);
-            }
+            // Instructions for each photo
+            const instructions = [
+                { text: 'Face the camera', audio: 'Face the camera directly' },
+                { text: 'Tilt your head to the LEFT', audio: 'Tilt your head to the left' },
+                { text: 'Tilt your head to the RIGHT', audio: 'Tilt your head to the right' },
+                { text: 'Tilt your head UP', audio: 'Tilt your head up' },
+                { text: 'Tilt your head DOWN', audio: 'Tilt your head down' }
+            ];
 
-            // Capture profile photo first
-            updateStatus('Capturing profile photo...');
-            speak('Capturing profile photo');
-            await captureProfilePhoto();
-            await sleep(500);
-
-            // Capture 5 photos
+            // Capture 5 photos with instructions
             for (let i = 0; i < TOTAL_PHOTOS; i++) {
-                updateStatus(`Capturing photo ${i + 1} of ${TOTAL_PHOTOS}...`);
-                speak(`Photo ${i + 1}`);
+                const instruction = instructions[i];
+
+                // Show instruction
+                updateStatus(instruction.text);
+                speak(instruction.audio);
+                await sleep(1500);
+
+                // Countdown from 3
+                updateStatus(`${instruction.text} - Taking photo in...`);
+                speak('Taking photo in 3, 2, 1');
+
+                for (let count = 3; count > 0; count--) {
+                    showCountdown(count);
+                    await sleep(1000);
+                }
+
+                // Capture photo
+                updateStatus('Smile!');
                 await capturePhoto();
                 updatePhotoProgress(i + 1);
 
+                // Brief pause between photos
                 if (i < TOTAL_PHOTOS - 1) {
-                    await sleep(800);
+                    updateStatus('Great!');
+                    await sleep(1000);
                 }
             }
 
+            // Capture profile photo last
+            updateStatus('Perfect! Now for your profile photo');
+            speak('Perfect! Now look directly at the camera for your profile photo');
+            await sleep(1500);
+
+            updateStatus('Face the camera - Taking profile photo in...');
+            speak('Taking profile photo in 3, 2, 1');
+
+            for (let count = 3; count > 0; count--) {
+                showCountdown(count);
+                await sleep(1000);
+            }
+
+            updateStatus('Smile!');
+            await captureProfilePhoto();
+
             // Capture complete
-            updateStatus('Capture complete!');
+            updateStatus('All done!');
             speak('All photos captured successfully');
-            await sleep(1000);
+            await sleep(1500);
 
             // Stop camera and show preview
             stopCamera();
