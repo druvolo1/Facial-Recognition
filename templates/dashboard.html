@@ -1568,6 +1568,10 @@
             document.getElementById('add-product-modal').classList.remove('active');
         }
 
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
         async function editProduct(productId) {
             const product = currentProducts.find(p => p.id === productId);
             if (!product) return;
@@ -1832,7 +1836,8 @@
         async function loadContentDisplayDevices() {
             try {
                 const response = await fetch('/api/devices');
-                const devices = await response.json();
+                const data = await response.json();
+                const devices = data.devices || data; // Handle both formats
 
                 // Filter for content_display devices
                 const contentDisplayDevices = devices.filter(d => d.device_type === 'content_display' && d.is_approved);
