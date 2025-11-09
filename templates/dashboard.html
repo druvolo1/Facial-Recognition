@@ -1437,6 +1437,27 @@
                     </label>
                 </div>
 
+                <!-- Categories & Tags Assignment -->
+                <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: #f9f9f9;">
+                    <h4 style="margin-top: 0; margin-bottom: 15px;">Categories & Tags</h4>
+                    <p style="color: #666; font-size: 13px; margin-bottom: 15px;">Assign categories and tags to this product. Devices with matching categories/tags will display this product.</p>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div>
+                            <label style="font-weight: 600; display: block; margin-bottom: 8px;">Categories:</label>
+                            <div id="product-category-checkboxes" style="max-height: 150px; overflow-y: auto; border: 1px solid #ddd; padding: 8px; border-radius: 4px; background: white;">
+                                <!-- Category checkboxes will be loaded here -->
+                            </div>
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; display: block; margin-bottom: 8px;">Tags:</label>
+                            <div id="product-tag-checkboxes" style="max-height: 150px; overflow-y: auto; border: 1px solid #ddd; padding: 8px; border-radius: 4px; background: white;">
+                                <!-- Tag checkboxes will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label>Images</label>
                     <div id="product-images-preview" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-bottom: 10px;"></div>
@@ -1522,10 +1543,11 @@
             }
         }
 
-        function openAddProductModal() {
+        async function openAddProductModal() {
             document.getElementById('product-modal-title').textContent = 'Add Product';
             document.getElementById('edit-product-id').value = '';
             document.getElementById('product-model-number').value = '';
+            document.getElementById('product-model-number').disabled = false;
             document.getElementById('product-name').value = '';
             document.getElementById('product-description').value = '';
             document.getElementById('product-specification').value = '';
@@ -1535,6 +1557,10 @@
             document.getElementById('product-is-active').checked = true;
             document.getElementById('product-images-preview').innerHTML = '';
             pendingProductImages = [];
+
+            // Load categories and tags
+            await loadProductCategoriesAndTags([]);
+
             document.getElementById('add-product-modal').classList.add('active');
         }
 
@@ -1571,6 +1597,9 @@
                 `;
                 previewContainer.appendChild(imgDiv);
             });
+
+            // Load categories and tags with current assignments
+            await loadProductCategoriesAndTags(product.category_ids || [], product.tag_ids || []);
 
             pendingProductImages = [];
             document.getElementById('add-product-modal').classList.add('active');
@@ -1614,6 +1643,64 @@
             });
         }
 
+        async function loadProductCategoriesAndTags(selectedCategoryIds = [], selectedTagIds = []) {
+            try {
+                // Load all categories and tags
+                const [categoriesResp, tagsResp] = await Promise.all([
+                    fetch('/api/categories'),
+                    fetch('/api/tags')
+                ]);
+
+                const categories = await categoriesResp.json();
+                const tags = await tagsResp.json();
+
+                // Build category checkboxes
+                const categoryContainer = document.getElementById('product-category-checkboxes');
+                categoryContainer.innerHTML = '';
+
+                if (categories.length === 0) {
+                    categoryContainer.innerHTML = '<p style="color: #999; padding: 5px;">No categories available</p>';
+                } else {
+                    categories.forEach(cat => {
+                        const isChecked = selectedCategoryIds.includes(cat.id);
+                        const div = document.createElement('div');
+                        div.style.cssText = 'padding: 4px; margin-bottom: 2px;';
+                        div.innerHTML = `
+                            <label style="cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 13px;">
+                                <input type="checkbox" value="${cat.id}" ${isChecked ? 'checked' : ''}>
+                                <span>${escapeHtml(cat.name)}</span>
+                            </label>
+                        `;
+                        categoryContainer.appendChild(div);
+                    });
+                }
+
+                // Build tag checkboxes
+                const tagContainer = document.getElementById('product-tag-checkboxes');
+                tagContainer.innerHTML = '';
+
+                if (tags.length === 0) {
+                    tagContainer.innerHTML = '<p style="color: #999; padding: 5px;">No tags available</p>';
+                } else {
+                    tags.forEach(tag => {
+                        const isChecked = selectedTagIds.includes(tag.id);
+                        const div = document.createElement('div');
+                        div.style.cssText = 'padding: 4px; margin-bottom: 2px;';
+                        div.innerHTML = `
+                            <label style="cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 13px;">
+                                <input type="checkbox" value="${tag.id}" ${isChecked ? 'checked' : ''}>
+                                <span>${escapeHtml(tag.name)}</span>
+                            </label>
+                        `;
+                        tagContainer.appendChild(div);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading categories and tags:', error);
+                showMessage('Error loading categories and tags', 'error');
+            }
+        }
+
         async function saveProduct() {
             const productId = document.getElementById('edit-product-id').value;
             const modelNumber = document.getElementById('product-model-number').value.trim();
@@ -1624,6 +1711,10 @@
                 return;
             }
 
+            // Get selected categories and tags
+            const selectedCategories = Array.from(document.querySelectorAll('#product-category-checkboxes input[type="checkbox"]:checked')).map(cb => parseInt(cb.value));
+            const selectedTags = Array.from(document.querySelectorAll('#product-tag-checkboxes input[type="checkbox"]:checked')).map(cb => parseInt(cb.value));
+
             const data = {
                 model_number: modelNumber,
                 name: name,
@@ -1633,8 +1724,8 @@
                 rotation_duration: parseInt(document.getElementById('product-rotation-duration').value),
                 display_order: parseInt(document.getElementById('product-display-order').value),
                 is_active: document.getElementById('product-is-active').checked,
-                category_ids: [],
-                tag_ids: []
+                category_ids: selectedCategories,
+                tag_ids: selectedTags
             };
 
             try {
