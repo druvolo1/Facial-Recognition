@@ -566,6 +566,12 @@
                 <p>Create and manage public registration links</p>
             </div>
 
+            <div class="card" onclick="openProductsModal()">
+                <div class="card-icon">📦</div>
+                <h3>Products</h3>
+                <p>Manage product catalog and content displays</p>
+            </div>
+
             {% if user.is_superuser %}
             <div class="card" onclick="goToManage()">
                 <div class="card-icon">⚙️</div>
@@ -1299,5 +1305,364 @@
             </div>
         </div>
     </div>
+
+    <!-- Products Modal -->
+    <div id="products-modal" class="modal">
+        <div class="modal-content" style="max-width: 1000px;">
+            <div class="modal-header">
+                <h2>Products Management</h2>
+                <button class="close-modal" onclick="closeProductsModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 20px;">
+                    <button class="btn btn-primary" onclick="openAddProductModal()">➕ Add Product</button>
+                </div>
+
+                <div id="products-list" style="margin-top: 20px;">
+                    <!-- Products will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Product Modal -->
+    <div id="add-product-modal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2 id="product-modal-title">Add Product</h2>
+                <button class="close-modal" onclick="closeAddProductModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-product-id">
+
+                <div class="form-group">
+                    <label>Model Number *</label>
+                    <input type="text" id="product-model-number" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Product Name *</label>
+                    <input type="text" id="product-name" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="product-description" class="form-control" rows="3"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Specifications</label>
+                    <textarea id="product-specification" class="form-control" rows="4"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Product URL</label>
+                    <input type="url" id="product-url" class="form-control" placeholder="https://...">
+                </div>
+
+                <div class="form-group">
+                    <label>Rotation Duration (seconds)</label>
+                    <input type="number" id="product-rotation-duration" class="form-control" value="15" min="5" max="120">
+                </div>
+
+                <div class="form-group">
+                    <label>Display Order</label>
+                    <input type="number" id="product-display-order" class="form-control" value="0" min="0">
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="product-is-active" checked>
+                        Active
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label>Images</label>
+                    <div id="product-images-preview" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-bottom: 10px;"></div>
+                    <input type="file" id="product-image-upload" accept="image/*" onchange="previewProductImage(this)" style="display: none;">
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('product-image-upload').click()">Upload Image</button>
+                </div>
+
+                <div style="margin-top: 20px; display: flex; gap: 10px;">
+                    <button class="btn btn-primary" onclick="saveProduct()">Save Product</button>
+                    <button class="btn btn-secondary" onclick="closeAddProductModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Products Modal
+        let currentProducts = [];
+        let pendingProductImages = [];
+
+        function openProductsModal() {
+            document.getElementById('products-modal').classList.add('active');
+            loadProducts();
+        }
+
+        function closeProductsModal() {
+            document.getElementById('products-modal').classList.remove('active');
+        }
+
+        async function loadProducts() {
+            try {
+                const response = await fetch('/api/products');
+                currentProducts = await response.json();
+
+                const container = document.getElementById('products-list');
+                if (currentProducts.length === 0) {
+                    container.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">No products yet. Click "Add Product" to create one.</p>';
+                    return;
+                }
+
+                let html = '<div style="display: grid; gap: 20px;">';
+                currentProducts.forEach(product => {
+                    const primaryImage = product.images.find(img => img.is_primary) || product.images[0];
+                    const imageUrl = primaryImage ? primaryImage.file_path : '';
+
+                    html += `
+                        <div style="border: 1px solid #e0e0e0; border-radius: 12px; padding: 20px; background: white;">
+                            <div style="display: grid; grid-template-columns: 150px 1fr auto; gap: 20px; align-items: start;">
+                                <div style="width: 150px; height: 150px; background: #f5f5f5; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                                    ${imageUrl ? `<img src="${imageUrl}" style="width: 100%; height: 100%; object-fit: cover;">` : '<span style="color: #999;">No Image</span>'}
+                                </div>
+                                <div>
+                                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                        <h3 style="margin: 0; color: #333;">${escapeHtml(product.model_number)}</h3>
+                                        ${product.is_active ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-secondary">Inactive</span>'}
+                                    </div>
+                                    <h4 style="margin: 0 0 10px 0; color: #666; font-weight: 500;">${escapeHtml(product.name)}</h4>
+                                    <p style="color: #777; font-size: 14px; margin: 0 0 10px 0;">${escapeHtml(product.description || '')}</p>
+                                    <div style="display: flex; gap: 15px; font-size: 13px; color: #999;">
+                                        <span>⏱ ${product.rotation_duration}s</span>
+                                        <span>📷 ${product.images.length} image(s)</span>
+                                        ${product.categories.length > 0 ? `<span>🏷 ${product.categories.map(c => c.name).join(', ')}</span>` : ''}
+                                    </div>
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 8px;">
+                                    <button class="btn btn-sm btn-primary" onclick="editProduct(${product.id})">Edit</button>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteProduct(${product.id}, '${escapeHtml(product.model_number)}')">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+
+            } catch (error) {
+                console.error('Error loading products:', error);
+                showMessage('Failed to load products', 'error');
+            }
+        }
+
+        function openAddProductModal() {
+            document.getElementById('product-modal-title').textContent = 'Add Product';
+            document.getElementById('edit-product-id').value = '';
+            document.getElementById('product-model-number').value = '';
+            document.getElementById('product-name').value = '';
+            document.getElementById('product-description').value = '';
+            document.getElementById('product-specification').value = '';
+            document.getElementById('product-url').value = '';
+            document.getElementById('product-rotation-duration').value = '15';
+            document.getElementById('product-display-order').value = '0';
+            document.getElementById('product-is-active').checked = true;
+            document.getElementById('product-images-preview').innerHTML = '';
+            pendingProductImages = [];
+            document.getElementById('add-product-modal').classList.add('active');
+        }
+
+        function closeAddProductModal() {
+            document.getElementById('add-product-modal').classList.remove('active');
+        }
+
+        async function editProduct(productId) {
+            const product = currentProducts.find(p => p.id === productId);
+            if (!product) return;
+
+            document.getElementById('product-modal-title').textContent = 'Edit Product';
+            document.getElementById('edit-product-id').value = product.id;
+            document.getElementById('product-model-number').value = product.model_number;
+            document.getElementById('product-model-number').disabled = true; // Can't change model number
+            document.getElementById('product-name').value = product.name;
+            document.getElementById('product-description').value = product.description || '';
+            document.getElementById('product-specification').value = product.specification || '';
+            document.getElementById('product-url').value = product.product_url || '';
+            document.getElementById('product-rotation-duration').value = product.rotation_duration;
+            document.getElementById('product-display-order').value = product.display_order;
+            document.getElementById('product-is-active').checked = product.is_active;
+
+            // Show existing images
+            const previewContainer = document.getElementById('product-images-preview');
+            previewContainer.innerHTML = '';
+            product.images.forEach(img => {
+                const imgDiv = document.createElement('div');
+                imgDiv.style.cssText = 'position: relative; border-radius: 8px; overflow: hidden; border: 2px solid ' + (img.is_primary ? '#667eea' : '#e0e0e0');
+                imgDiv.innerHTML = `
+                    <img src="${img.file_path}" style="width: 100%; height: 120px; object-fit: cover;">
+                    <button onclick="deleteProductImage(${product.id}, ${img.id})" style="position: absolute; top: 4px; right: 4px; background: rgba(255,59,48,0.9); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 16px; line-height: 1;">×</button>
+                    ${img.is_primary ? '<div style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(102,126,234,0.9); color: white; text-align: center; font-size: 10px; padding: 2px;">Primary</div>' : ''}
+                `;
+                previewContainer.appendChild(imgDiv);
+            });
+
+            pendingProductImages = [];
+            document.getElementById('add-product-modal').classList.add('active');
+        }
+
+        function previewProductImage(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    pendingProductImages.push(e.target.result);
+
+                    const previewContainer = document.getElementById('product-images-preview');
+                    const imgDiv = document.createElement('div');
+                    imgDiv.style.cssText = 'position: relative; border-radius: 8px; overflow: hidden; border: 2px solid #e0e0e0';
+                    imgDiv.innerHTML = `
+                        <img src="${e.target.result}" style="width: 100%; height: 120px; object-fit: cover;">
+                        <button onclick="removePendingImage(${pendingProductImages.length - 1})" style="position: absolute; top: 4px; right: 4px; background: rgba(255,59,48,0.9); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 16px; line-height: 1;">×</button>
+                    `;
+                    previewContainer.appendChild(imgDiv);
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+            input.value = ''; // Reset input
+        }
+
+        function removePendingImage(index) {
+            pendingProductImages.splice(index, 1);
+            // Rebuild preview
+            const previewContainer = document.getElementById('product-images-preview');
+            const existingImages = Array.from(previewContainer.children).filter(child => !child.querySelector('[onclick^="removePendingImage"]'));
+            previewContainer.innerHTML = '';
+            existingImages.forEach(img => previewContainer.appendChild(img));
+            pendingProductImages.forEach((imgData, i) => {
+                const imgDiv = document.createElement('div');
+                imgDiv.style.cssText = 'position: relative; border-radius: 8px; overflow: hidden; border: 2px solid #e0e0e0';
+                imgDiv.innerHTML = `
+                    <img src="${imgData}" style="width: 100%; height: 120px; object-fit: cover;">
+                    <button onclick="removePendingImage(${i})" style="position: absolute; top: 4px; right: 4px; background: rgba(255,59,48,0.9); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 16px; line-height: 1;">×</button>
+                `;
+                previewContainer.appendChild(imgDiv);
+            });
+        }
+
+        async function saveProduct() {
+            const productId = document.getElementById('edit-product-id').value;
+            const modelNumber = document.getElementById('product-model-number').value.trim();
+            const name = document.getElementById('product-name').value.trim();
+
+            if (!modelNumber || !name) {
+                showMessage('Model number and name are required', 'error');
+                return;
+            }
+
+            const data = {
+                model_number: modelNumber,
+                name: name,
+                description: document.getElementById('product-description').value.trim(),
+                specification: document.getElementById('product-specification').value.trim(),
+                product_url: document.getElementById('product-url').value.trim(),
+                rotation_duration: parseInt(document.getElementById('product-rotation-duration').value),
+                display_order: parseInt(document.getElementById('product-display-order').value),
+                is_active: document.getElementById('product-is-active').checked,
+                category_ids: [],
+                tag_ids: []
+            };
+
+            try {
+                let response;
+                if (productId) {
+                    // Update existing product
+                    response = await fetch(`/api/products/${productId}`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(data)
+                    });
+                } else {
+                    // Create new product
+                    response = await fetch('/api/products', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(data)
+                    });
+                }
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    const savedProductId = productId || result.product_id;
+
+                    // Upload pending images
+                    for (let i = 0; i < pendingProductImages.length; i++) {
+                        await fetch(`/api/products/${savedProductId}/images`, {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({
+                                image: pendingProductImages[i],
+                                is_primary: i === 0 && !productId, // First image is primary for new products
+                                display_order: i
+                            })
+                        });
+                    }
+
+                    showMessage(productId ? 'Product updated successfully' : 'Product created successfully', 'success');
+                    closeAddProductModal();
+                    loadProducts();
+                } else {
+                    showMessage(result.detail || 'Failed to save product', 'error');
+                }
+            } catch (error) {
+                console.error('Error saving product:', error);
+                showMessage('Error saving product', 'error');
+            }
+        }
+
+        async function deleteProduct(productId, modelNumber) {
+            if (!confirm(`Delete product "${modelNumber}"?`)) return;
+
+            try {
+                const response = await fetch(`/api/products/${productId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    showMessage('Product deleted successfully', 'success');
+                    loadProducts();
+                } else {
+                    showMessage('Failed to delete product', 'error');
+                }
+            } catch (error) {
+                console.error('Error deleting product:', error);
+                showMessage('Error deleting product', 'error');
+            }
+        }
+
+        async function deleteProductImage(productId, imageId) {
+            if (!confirm('Delete this image?')) return;
+
+            try {
+                const response = await fetch(`/api/products/${productId}/images/${imageId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    showMessage('Image deleted successfully', 'success');
+                    // Reload product to refresh images
+                    const productResponse = await fetch('/api/products');
+                    currentProducts = await productResponse.json();
+                    editProduct(productId);
+                } else {
+                    showMessage('Failed to delete image', 'error');
+                }
+            } catch (error) {
+                console.error('Error deleting image:', error);
+                showMessage('Error deleting image', 'error');
+            }
+        }
+    </script>
 </body>
 </html>
