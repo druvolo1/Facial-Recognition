@@ -3510,6 +3510,30 @@ async def create_tag(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/tags")
+async def get_all_tags(
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Get all tags"""
+    try:
+        result = await session.execute(select(Tag))
+        tags = result.scalars().all()
+
+        return [
+            {
+                "id": tag.id,
+                "category_id": tag.category_id,
+                "name": tag.name,
+                "description": tag.description,
+                "created_at": tag.created_at.isoformat()
+            }
+            for tag in tags
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/categories/{category_id}/tags")
 async def get_tags_by_category(
     category_id: int,

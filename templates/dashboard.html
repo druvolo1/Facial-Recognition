@@ -1316,7 +1316,7 @@
             <div class="modal-body">
                 <div style="margin-bottom: 20px; display: flex; gap: 10px;">
                     <button class="btn btn-primary" onclick="openAddProductModal()">➕ Add Product</button>
-                    <button class="btn btn-secondary" onclick="openProductAssignmentModal()">🔗 Assign to Devices</button>
+                    <button class="btn btn-secondary" onclick="openProductAssignmentModal()">🔗 Assign Content to Devices</button>
                 </div>
 
                 <div id="products-list" style="margin-top: 20px;">
@@ -1651,7 +1651,9 @@
                     fetch('/api/tags')
                 ]);
 
-                const categories = await categoriesResp.json();
+                const categoriesData = await categoriesResp.json();
+                const categories = categoriesData.categories || categoriesData; // Handle both formats
+
                 const tags = await tagsResp.json();
 
                 // Build category checkboxes
@@ -1866,7 +1868,9 @@
                     fetch('/api/tags')
                 ]);
 
-                const categories = await categoriesResp.json();
+                const categoriesData = await categoriesResp.json();
+                const categories = categoriesData.categories || categoriesData; // Handle both formats
+
                 const tags = await tagsResp.json();
 
                 // Get current device assignments
