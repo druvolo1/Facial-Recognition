@@ -5160,6 +5160,80 @@ async def websocket_dashboard(
         manager.disconnect(websocket, location_id)
 
 
+@app.websocket("/ws/detections/{device_id}")
+async def websocket_detections(
+    websocket: WebSocket,
+    device_id: str
+):
+    """
+    WebSocket endpoint for content display devices to receive face detections.
+
+    Content displays connect to this endpoint to receive live detection updates
+    for their assigned location.
+    """
+    try:
+        # Get token from query parameter
+        query_params = dict(websocket.query_params)
+        device_token = query_params.get('token')
+
+        if not device_token:
+            print(f"[WEBSOCKET-DETECTIONS] No token provided for device {device_id}")
+            await websocket.close(code=1008, reason="Missing token")
+            return
+
+        # Validate device
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(Device).where(Device.device_id == device_id)
+            )
+            device = result.scalar_one_or_none()
+
+            if not device:
+                print(f"[WEBSOCKET-DETECTIONS] Device not found: {device_id}")
+                await websocket.close(code=1008, reason="Device not found")
+                return
+
+            if not device.is_approved:
+                print(f"[WEBSOCKET-DETECTIONS] Device not approved: {device_id}")
+                await websocket.close(code=1008, reason="Device not approved")
+                return
+
+            if device.device_token != device_token:
+                print(f"[WEBSOCKET-DETECTIONS] Invalid token for device {device_id}")
+                await websocket.close(code=1008, reason="Invalid token")
+                return
+
+            if not device.location_id:
+                print(f"[WEBSOCKET-DETECTIONS] Device has no location: {device_id}")
+                await websocket.close(code=1008, reason="Device has no location")
+                return
+
+            location_id = device.location_id
+
+        print(f"[WEBSOCKET-DETECTIONS] Device {device_id} authenticated for location {location_id}")
+
+        # Connect to the location's WebSocket channel
+        await manager.connect(websocket, location_id)
+        print(f"[WEBSOCKET-DETECTIONS] Device {device_id} connected successfully")
+
+        # Keep connection alive and wait for disconnect
+        while True:
+            try:
+                await websocket.receive_text()
+            except WebSocketDisconnect:
+                break
+
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        print(f"[WEBSOCKET-DETECTIONS] Error: {e}")
+        traceback.print_exc()
+    finally:
+        if 'location_id' in locals():
+            manager.disconnect(websocket, location_id)
+            print(f"[WEBSOCKET-DETECTIONS] Device {device_id} disconnected from location {location_id}")
+
+
 @app.get("/api/devices/pending")
 async def list_pending_devices(
     location_id: Optional[int] = None,

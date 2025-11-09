@@ -1314,12 +1314,45 @@
                 <button class="close-modal" onclick="closeProductsModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <div style="margin-bottom: 20px;">
+                <div style="margin-bottom: 20px; display: flex; gap: 10px;">
                     <button class="btn btn-primary" onclick="openAddProductModal()">➕ Add Product</button>
+                    <button class="btn btn-secondary" onclick="openProductAssignmentModal()">🔗 Assign to Devices</button>
                 </div>
 
                 <div id="products-list" style="margin-top: 20px;">
                     <!-- Products will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Assignment Modal -->
+    <div id="product-assignment-modal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2>Assign Products to Devices</h2>
+                <button class="close-modal" onclick="closeModal('product-assignment-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="assign-device-select">Select Content Display Device</label>
+                    <select id="assign-device-select" onchange="loadDeviceProductAssignments()">
+                        <option value="">Select a device...</option>
+                    </select>
+                </div>
+
+                <div id="device-assignments-container" style="display: none;">
+                    <h3 style="margin-top: 20px;">Assigned Products</h3>
+                    <p style="color: #666; font-size: 14px;">Select products to display on this device:</p>
+
+                    <div id="product-checkboxes" style="margin-top: 15px; max-height: 400px; overflow-y: auto;">
+                        <!-- Product checkboxes will be loaded here -->
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <button class="btn btn-primary" onclick="saveProductAssignments()">Save Assignments</button>
+                        <button class="btn btn-secondary" onclick="closeModal('product-assignment-modal')">Cancel</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1665,6 +1698,116 @@
             } catch (error) {
                 console.error('Error deleting image:', error);
                 showMessage('Error deleting image', 'error');
+            }
+        }
+
+        // Product Assignment Functions
+        async function openProductAssignmentModal() {
+            document.getElementById('product-assignment-modal').classList.add('active');
+            await loadContentDisplayDevices();
+        }
+
+        async function loadContentDisplayDevices() {
+            try {
+                const response = await fetch('/api/devices');
+                const devices = await response.json();
+
+                // Filter for content_display devices
+                const contentDisplayDevices = devices.filter(d => d.device_type === 'content_display' && d.is_approved);
+
+                const select = document.getElementById('assign-device-select');
+                select.innerHTML = '<option value="">Select a device...</option>';
+
+                contentDisplayDevices.forEach(device => {
+                    const option = document.createElement('option');
+                    option.value = device.device_id;
+                    option.textContent = `${device.device_name} (${device.device_id.substr(0, 8)})`;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading devices:', error);
+                showMessage('Error loading devices', 'error');
+            }
+        }
+
+        async function loadDeviceProductAssignments() {
+            const deviceId = document.getElementById('assign-device-select').value;
+            if (!deviceId) {
+                document.getElementById('device-assignments-container').style.display = 'none';
+                return;
+            }
+
+            try {
+                // Get current assignments for this device
+                const assignmentsResponse = await fetch(`/api/devices/${deviceId}/products`);
+                let assignedProductIds = [];
+                if (assignmentsResponse.ok) {
+                    const assignedProducts = await assignmentsResponse.json();
+                    assignedProductIds = assignedProducts.map(p => p.id);
+                }
+
+                // Get all products
+                const productsResponse = await fetch('/api/products');
+                const allProducts = await productsResponse.json();
+
+                // Build checkboxes
+                const container = document.getElementById('product-checkboxes');
+                container.innerHTML = '';
+
+                if (allProducts.length === 0) {
+                    container.innerHTML = '<p style="color: #999;">No products available. Create products first.</p>';
+                } else {
+                    allProducts.forEach(product => {
+                        const isAssigned = assignedProductIds.includes(product.id);
+                        const checkbox = document.createElement('div');
+                        checkbox.style.cssText = 'padding: 10px; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px;';
+                        checkbox.innerHTML = `
+                            <input type="checkbox" id="product-${product.id}" value="${product.id}" ${isAssigned ? 'checked' : ''} style="width: 20px; height: 20px;">
+                            <label for="product-${product.id}" style="flex: 1; cursor: pointer; margin: 0;">
+                                <strong>${escapeHtml(product.model_number)}</strong> - ${escapeHtml(product.name)}
+                            </label>
+                        `;
+                        container.appendChild(checkbox);
+                    });
+                }
+
+                document.getElementById('device-assignments-container').style.display = 'block';
+            } catch (error) {
+                console.error('Error loading assignments:', error);
+                showMessage('Error loading assignments', 'error');
+            }
+        }
+
+        async function saveProductAssignments() {
+            const deviceId = document.getElementById('assign-device-select').value;
+            if (!deviceId) return;
+
+            try {
+                // Get selected product IDs
+                const checkboxes = document.querySelectorAll('#product-checkboxes input[type="checkbox"]:checked');
+                const productIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+                // Save assignments
+                const response = await fetch(`/api/devices/${deviceId}/products/assign`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        product_ids: productIds,
+                        category_ids: [],
+                        tag_ids: []
+                    })
+                });
+
+                if (response.ok) {
+                    showMessage('Product assignments saved successfully', 'success');
+                    closeModal('product-assignment-modal');
+                } else {
+                    const result = await response.json();
+                    showMessage(result.detail || 'Failed to save assignments', 'error');
+                }
+            } catch (error) {
+                console.error('Error saving assignments:', error);
+                showMessage('Error saving assignments', 'error');
             }
         }
     </script>
