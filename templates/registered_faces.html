@@ -578,7 +578,7 @@
                                         <span>Click to view all</span>
                                         <span class="photo-count">${face.photo_count} photo${face.photo_count !== 1 ? 's' : ''}</span>
                                     </div>
-                                    ${face.registered_at ? `<div style="font-size: 12px; color: #666; margin-top: 8px;">Registered: ${formatDateLocal(face.registered_at)}</div>` : ''}
+                                    ${face.registered_at ? `<div style="font-size: 12px; color: #666; margin-top: 8px;">Registered: ${formatUTCDateTimeLocal(face.registered_at)}</div>` : ''}
                                     ${face.user_expiration ? `<div style="font-size: 12px; color: ${face.user_expiration === 'never' ? '#28a745' : '#666'}; margin-top: 3px;">Expires: ${face.user_expiration === 'never' ? 'Never' : formatDateLocal(face.user_expiration)} <button onclick="showEditExpirationModal('${face.person_id}', '${face.person_name}', '${face.user_expiration}', event)" style="background: none; border: none; color: #667eea; cursor: pointer; font-size: 12px; padding: 0; margin-left: 5px;">✏️</button></div>` : ''}
                                 </div>
                             </div>
@@ -757,6 +757,15 @@
             const day = parseInt(parts[2]);
             const date = new Date(year, month, day);
             return date.toLocaleDateString();
+        }
+
+        // Format UTC datetime string to local datetime for display
+        function formatUTCDateTimeLocal(dateString) {
+            if (!dateString) return '';
+            // If the string doesn't have a Z suffix, add it (backend sends UTC without Z)
+            const utcString = dateString.endsWith('Z') ? dateString : dateString + 'Z';
+            const date = new Date(utcString);
+            return date.toLocaleString();
         }
 
         // Logout function

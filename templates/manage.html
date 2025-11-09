@@ -598,7 +598,9 @@
                 const photoPath = user.photo_path || '';
                 const photoSrc = photoPath ? `/uploads/${photoPath.split(/[/\\]/).pop()}` : '';
 
-                const registeredDate = new Date(user.registered_at).toLocaleString();
+                // Handle UTC datetime - add Z suffix if not present
+                const utcString = user.registered_at.endsWith('Z') ? user.registered_at : user.registered_at + 'Z';
+                const registeredDate = new Date(utcString).toLocaleString();
                 let sourceBadge;
                 if (user.source === 'linkedin') {
                     sourceBadge = '<span class="badge badge-linkedin">LinkedIn</span>';

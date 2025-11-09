@@ -387,12 +387,15 @@
             const card = document.createElement('div');
             card.className = `display-card ${display.status}`;
 
-            const lastSeenDate = new Date(display.last_seen);
+            // Handle UTC datetime - add Z suffix if not present
+            const lastSeenUTC = display.last_seen.endsWith('Z') ? display.last_seen : display.last_seen + 'Z';
+            const lastSeenDate = new Date(lastSeenUTC);
             const timeSince = formatTimeSince(lastSeenDate);
 
             let detectionsHtml = '';
             if (display.last_detection && display.last_detection.faces && display.last_detection.faces.length > 0) {
-                const detectionTime = new Date(display.last_detection.timestamp);
+                const timestampUTC = display.last_detection.timestamp.endsWith('Z') ? display.last_detection.timestamp : display.last_detection.timestamp + 'Z';
+                const detectionTime = new Date(timestampUTC);
                 detectionsHtml = `
                     <div class="detection-section">
                         <h3>Last Detection (${formatTime(detectionTime)})</h3>
@@ -426,7 +429,7 @@
                 </div>
                 <div class="display-info">
                     <div><strong>IP Address:</strong> ${ipAddress}</div>
-                    <div>Registered: ${formatDate(new Date(display.registered_at))}</div>
+                    <div>Registered: ${formatDate(new Date(display.registered_at.endsWith('Z') ? display.registered_at : display.registered_at + 'Z'))}</div>
                     <div>Last seen: ${timeSince}</div>
                     <div>Total detections: ${display.detection_count}</div>
                 </div>

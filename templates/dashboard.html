@@ -1167,10 +1167,12 @@
             return date.toLocaleDateString();
         }
 
-        // Format date and time (browser timezone)
+        // Format UTC datetime string to local datetime for display
         function formatDateTime(dateString) {
             if (!dateString) return 'N/A';
-            const date = new Date(dateString);
+            // If the string doesn't have a Z suffix, add it (backend sends UTC without Z)
+            const utcString = dateString.endsWith('Z') ? dateString : dateString + 'Z';
+            const date = new Date(utcString);
             return date.toLocaleString();
         }
 
