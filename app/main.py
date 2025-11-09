@@ -5724,6 +5724,25 @@ async def device_register_face(
         errors = []
         profile_photo_path = None
 
+        # Generate or reuse person_id UUID
+        # Check if this person already exists at this location
+        existing_face_result = await session.execute(
+            select(RegisteredFace).where(
+                RegisteredFace.person_name == data.name,
+                RegisteredFace.location_id == device.location_id
+            ).limit(1)
+        )
+        existing_face = existing_face_result.scalar_one_or_none()
+
+        if existing_face and existing_face.person_id:
+            # Reuse existing person_id
+            person_id = existing_face.person_id
+            print(f"[DEVICE-REGISTER] Reusing existing person_id: {person_id}")
+        else:
+            # Generate new UUID for person
+            person_id = str(uuid.uuid4())
+            print(f"[DEVICE-REGISTER] Generated new person_id: {person_id}")
+
         # Save profile photo to file if provided
         if data.profile_photo:
             try:
@@ -5772,7 +5791,7 @@ async def device_register_face(
                     'image': (filename, BytesIO(image_bytes), 'image/jpeg')
                 }
                 params = {
-                    'userid': data.name
+                    'userid': person_id  # Use UUID instead of name
                 }
 
                 print(f"[DEVICE-REGISTER]   Sending to CodeProject.AI at {codeproject_url}...")
@@ -5795,7 +5814,8 @@ async def device_register_face(
                         # Only set profile_photo on the first database entry
                         registered_face = RegisteredFace(
                             person_name=data.name,
-                            codeproject_user_id=data.name,
+                            person_id=person_id,  # UUID for person
+                            codeproject_user_id=person_id,  # Use UUID instead of name
                             file_path=filepath,
                             codeproject_server_id=device.codeproject_server_id,
                             location_id=device.location_id,  # Tag with device's location
@@ -6207,6 +6227,25 @@ async def register_face(
         successful_registrations = 0
         errors = []
 
+        # Generate or reuse person_id UUID
+        # Check if this person already exists at this location
+        existing_face_result = await session.execute(
+            select(RegisteredFace).where(
+                RegisteredFace.person_name == data.name,
+                RegisteredFace.location_id == location_id
+            ).limit(1)
+        )
+        existing_face = existing_face_result.scalar_one_or_none()
+
+        if existing_face and existing_face.person_id:
+            # Reuse existing person_id
+            person_id = existing_face.person_id
+            print(f"[REGISTER] Reusing existing person_id: {person_id}")
+        else:
+            # Generate new UUID for person
+            person_id = str(uuid.uuid4())
+            print(f"[REGISTER] Generated new person_id: {person_id}")
+
         for idx, photo_data in enumerate(data.photos):
             try:
                 print(f"[REGISTER] Processing photo {idx+1}/{len(data.photos)}")
@@ -6233,7 +6272,7 @@ async def register_face(
                     'image': (filename, BytesIO(image_bytes), 'image/jpeg')
                 }
                 params = {
-                    'userid': data.name
+                    'userid': person_id  # Use UUID instead of name
                 }
 
                 print(f"[REGISTER]   Sending to CodeProject.AI...")
@@ -6255,7 +6294,8 @@ async def register_face(
                         # Save to database
                         registered_face = RegisteredFace(
                             person_name=data.name,
-                            codeproject_user_id=data.name,
+                            person_id=person_id,  # UUID for person
+                            codeproject_user_id=person_id,  # Use UUID instead of name
                             file_path=filepath,
                             codeproject_server_id=location.codeproject_server_id,
                             location_id=location_id,
