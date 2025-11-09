@@ -1328,9 +1328,9 @@
 
     <!-- Product Assignment Modal -->
     <div id="product-assignment-modal" class="modal">
-        <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-content" style="max-width: 900px;">
             <div class="modal-header">
-                <h2>Assign Products to Devices</h2>
+                <h2>Assign Content to Devices</h2>
                 <button class="close-modal" onclick="closeModal('product-assignment-modal')">&times;</button>
             </div>
             <div class="modal-body">
@@ -1342,16 +1342,43 @@
                 </div>
 
                 <div id="device-assignments-container" style="display: none;">
-                    <h3 style="margin-top: 20px;">Assigned Products</h3>
-                    <p style="color: #666; font-size: 14px;">Select products to display on this device:</p>
+                    <!-- Category/Tag Assignment Section -->
+                    <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-top: 20px; background: #f9f9f9;">
+                        <h3 style="margin-top: 0;">Assign Categories & Tags</h3>
+                        <p style="color: #666; font-size: 14px; margin-bottom: 15px;">Products matching these categories or tags will be displayed on this device.</p>
 
-                    <div id="product-checkboxes" style="margin-top: 15px; max-height: 400px; overflow-y: auto;">
-                        <!-- Product checkboxes will be loaded here -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div>
+                                <label style="font-weight: 600; display: block; margin-bottom: 8px;">Categories:</label>
+                                <div id="category-checkboxes" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px; background: white;">
+                                    <!-- Category checkboxes will be loaded here -->
+                                </div>
+                            </div>
+                            <div>
+                                <label style="font-weight: 600; display: block; margin-bottom: 8px;">Tags:</label>
+                                <div id="tag-checkboxes" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px; background: white;">
+                                    <!-- Tag checkboxes will be loaded here -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 15px;">
+                            <button class="btn btn-primary" onclick="saveAssignments()">Save Assignments</button>
+                        </div>
+                    </div>
+
+                    <!-- Matched Products Section -->
+                    <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-top: 20px;">
+                        <h3 style="margin-top: 0;">Matched Products <span id="matched-count" style="color: #666; font-weight: normal; font-size: 14px;"></span></h3>
+                        <p style="color: #666; font-size: 14px; margin-bottom: 15px;">Products below match the assigned categories/tags. Click to temporarily exclude/include them.</p>
+
+                        <div id="matched-products-list" style="max-height: 300px; overflow-y: auto;">
+                            <!-- Matched products will be loaded here -->
+                        </div>
                     </div>
 
                     <div style="margin-top: 20px;">
-                        <button class="btn btn-primary" onclick="saveProductAssignments()">Save Assignments</button>
-                        <button class="btn btn-secondary" onclick="closeModal('product-assignment-modal')">Cancel</button>
+                        <button class="btn btn-secondary" onclick="closeModal('product-assignment-modal')">Close</button>
                     </div>
                 </div>
             </div>
@@ -1702,6 +1729,8 @@
         }
 
         // Product Assignment Functions
+        let currentAssignmentDeviceId = null;
+
         async function openProductAssignmentModal() {
             document.getElementById('product-assignment-modal').classList.add('active');
             await loadContentDisplayDevices();
@@ -1737,39 +1766,66 @@
                 return;
             }
 
+            currentAssignmentDeviceId = deviceId;
+
             try {
-                // Get current assignments for this device
-                const assignmentsResponse = await fetch(`/api/devices/${deviceId}/products`);
-                let assignedProductIds = [];
-                if (assignmentsResponse.ok) {
-                    const assignedProducts = await assignmentsResponse.json();
-                    assignedProductIds = assignedProducts.map(p => p.id);
-                }
+                // Load all categories and tags
+                const [categoriesResp, tagsResp] = await Promise.all([
+                    fetch('/api/categories'),
+                    fetch('/api/tags')
+                ]);
 
-                // Get all products
-                const productsResponse = await fetch('/api/products');
-                const allProducts = await productsResponse.json();
+                const categories = await categoriesResp.json();
+                const tags = await tagsResp.json();
 
-                // Build checkboxes
-                const container = document.getElementById('product-checkboxes');
-                container.innerHTML = '';
+                // Get current device assignments
+                const assignmentsResp = await fetch(`/api/devices/${deviceId}/product-assignments/admin`);
+                const assignmentData = await assignmentsResp.json();
 
-                if (allProducts.length === 0) {
-                    container.innerHTML = '<p style="color: #999;">No products available. Create products first.</p>';
+                // Build category checkboxes
+                const categoryContainer = document.getElementById('category-checkboxes');
+                categoryContainer.innerHTML = '';
+
+                if (categories.length === 0) {
+                    categoryContainer.innerHTML = '<p style="color: #999; padding: 5px;">No categories available</p>';
                 } else {
-                    allProducts.forEach(product => {
-                        const isAssigned = assignedProductIds.includes(product.id);
-                        const checkbox = document.createElement('div');
-                        checkbox.style.cssText = 'padding: 10px; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px;';
-                        checkbox.innerHTML = `
-                            <input type="checkbox" id="product-${product.id}" value="${product.id}" ${isAssigned ? 'checked' : ''} style="width: 20px; height: 20px;">
-                            <label for="product-${product.id}" style="flex: 1; cursor: pointer; margin: 0;">
-                                <strong>${escapeHtml(product.model_number)}</strong> - ${escapeHtml(product.name)}
+                    categories.forEach(cat => {
+                        const isChecked = assignmentData.assigned_category_ids.includes(cat.id);
+                        const div = document.createElement('div');
+                        div.style.cssText = 'padding: 6px; margin-bottom: 4px;';
+                        div.innerHTML = `
+                            <label style="cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" value="${cat.id}" ${isChecked ? 'checked' : ''} onchange="updateMatchedProducts()">
+                                <span>${escapeHtml(cat.name)}</span>
                             </label>
                         `;
-                        container.appendChild(checkbox);
+                        categoryContainer.appendChild(div);
                     });
                 }
+
+                // Build tag checkboxes
+                const tagContainer = document.getElementById('tag-checkboxes');
+                tagContainer.innerHTML = '';
+
+                if (tags.length === 0) {
+                    tagContainer.innerHTML = '<p style="color: #999; padding: 5px;">No tags available</p>';
+                } else {
+                    tags.forEach(tag => {
+                        const isChecked = assignmentData.assigned_tag_ids.includes(tag.id);
+                        const div = document.createElement('div');
+                        div.style.cssText = 'padding: 6px; margin-bottom: 4px;';
+                        div.innerHTML = `
+                            <label style="cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" value="${tag.id}" ${isChecked ? 'checked' : ''} onchange="updateMatchedProducts()">
+                                <span>${escapeHtml(tag.name)}</span>
+                            </label>
+                        `;
+                        tagContainer.appendChild(div);
+                    });
+                }
+
+                // Display matched products
+                displayMatchedProducts(assignmentData.matched_products);
 
                 document.getElementById('device-assignments-container').style.display = 'block';
             } catch (error) {
@@ -1778,29 +1834,87 @@
             }
         }
 
-        async function saveProductAssignments() {
-            const deviceId = document.getElementById('assign-device-select').value;
+        function displayMatchedProducts(products) {
+            const container = document.getElementById('matched-products-list');
+            const countSpan = document.getElementById('matched-count');
+
+            countSpan.textContent = `(${products.length} product${products.length !== 1 ? 's' : ''})`;
+
+            if (products.length === 0) {
+                container.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No products match the selected categories/tags. Assign categories/tags or create products first.</p>';
+                return;
+            }
+
+            container.innerHTML = '';
+            products.forEach(product => {
+                const div = document.createElement('div');
+                div.style.cssText = `padding: 12px; border: 1px solid ${product.is_excluded ? '#ff9800' : '#e0e0e0'}; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; background: ${product.is_excluded ? '#fff3e0' : 'white'}; cursor: pointer;`;
+                div.onclick = () => toggleProductExclusion(product.id, !product.is_excluded);
+
+                div.innerHTML = `
+                    <div>
+                        <strong>${escapeHtml(product.model_number)}</strong> - ${escapeHtml(product.name)}
+                        ${product.is_excluded ? '<span style="color: #e65100; margin-left: 10px; font-size: 12px;">(Excluded)</span>' : '<span style="color: #2e7d32; margin-left: 10px; font-size: 12px;">(Active)</span>'}
+                    </div>
+                    <button class="btn btn-sm ${product.is_excluded ? 'btn-success' : 'btn-warning'}" onclick="event.stopPropagation(); toggleProductExclusion(${product.id}, ${!product.is_excluded});" style="padding: 4px 12px;">
+                        ${product.is_excluded ? 'Include' : 'Exclude'}
+                    </button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        async function updateMatchedProducts() {
+            // This will be called after saving assignments to refresh the list
+            if (!currentAssignmentDeviceId) return;
+
+            try {
+                const assignmentsResp = await fetch(`/api/devices/${currentAssignmentDeviceId}/product-assignments/admin`);
+                const assignmentData = await assignmentsResp.json();
+                displayMatchedProducts(assignmentData.matched_products);
+            } catch (error) {
+                console.error('Error updating matched products:', error);
+            }
+        }
+
+        async function saveAssignments() {
+            const deviceId = currentAssignmentDeviceId;
             if (!deviceId) return;
 
             try {
-                // Get selected product IDs
-                const checkboxes = document.querySelectorAll('#product-checkboxes input[type="checkbox"]:checked');
-                const productIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+                // Get selected categories and tags
+                const categoryCheckboxes = document.querySelectorAll('#category-checkboxes input[type="checkbox"]:checked');
+                const tagCheckboxes = document.querySelectorAll('#tag-checkboxes input[type="checkbox"]:checked');
+
+                const categoryIds = Array.from(categoryCheckboxes).map(cb => parseInt(cb.value));
+                const tagIds = Array.from(tagCheckboxes).map(cb => parseInt(cb.value));
+
+                // Build assignments array
+                const assignments = [];
+                categoryIds.forEach((catId, index) => {
+                    assignments.push({
+                        category_id: catId,
+                        display_order: index
+                    });
+                });
+                tagIds.forEach((tagId, index) => {
+                    assignments.push({
+                        tag_id: tagId,
+                        display_order: categoryIds.length + index
+                    });
+                });
 
                 // Save assignments
                 const response = await fetch(`/api/devices/${deviceId}/products/assign`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        product_ids: productIds,
-                        category_ids: [],
-                        tag_ids: []
-                    })
+                    body: JSON.stringify({ assignments })
                 });
 
                 if (response.ok) {
-                    showMessage('Product assignments saved successfully', 'success');
-                    closeModal('product-assignment-modal');
+                    showMessage('Assignments saved successfully', 'success');
+                    // Refresh matched products
+                    await updateMatchedProducts();
                 } else {
                     const result = await response.json();
                     showMessage(result.detail || 'Failed to save assignments', 'error');
@@ -1808,6 +1922,30 @@
             } catch (error) {
                 console.error('Error saving assignments:', error);
                 showMessage('Error saving assignments', 'error');
+            }
+        }
+
+        async function toggleProductExclusion(productId, shouldExclude) {
+            const deviceId = currentAssignmentDeviceId;
+            if (!deviceId) return;
+
+            try {
+                const response = await fetch(`/api/devices/${deviceId}/products/${productId}/toggle-exclusion`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    showMessage(result.is_excluded ? 'Product excluded' : 'Product included', 'success');
+                    // Refresh the matched products list
+                    await updateMatchedProducts();
+                } else {
+                    showMessage('Failed to toggle exclusion', 'error');
+                }
+            } catch (error) {
+                console.error('Error toggling exclusion:', error);
+                showMessage('Error toggling exclusion', 'error');
             }
         }
     </script>

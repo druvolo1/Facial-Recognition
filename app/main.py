@@ -21,7 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 
-from sqlalchemy import Boolean, Integer, String, Text, Column, ForeignKey, select, DateTime, func, Numeric, or_, and_, delete, update
+from sqlalchemy import Boolean, Integer, String, Text, Column, ForeignKey, select, DateTime, func, Numeric, or_, and_, delete, update, UniqueConstraint
 from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -612,6 +612,21 @@ class ProductInteraction(Base):
     person_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
     interaction_type: Mapped[str] = mapped_column(String(50), nullable=False)  # 'navigate_next', 'navigate_prev', 'qr_view'
     interacted_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+
+class DeviceProductExclusion(Base):
+    """Tracks products that are temporarily excluded from a device"""
+    __tablename__ = "device_product_exclusion"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    device_id: Mapped[str] = mapped_column(String(36), ForeignKey("device.device_id", ondelete="CASCADE"), nullable=False, index=True)
+    product_id: Mapped[int] = mapped_column(Integer, ForeignKey("product.id", ondelete="CASCADE"), nullable=False, index=True)
+    excluded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        # Unique constraint: one exclusion record per device-product pair
+        UniqueConstraint('device_id', 'product_id', name='uix_device_product_exclusion'),
+    )
 
 
 # Database engine and session
@@ -8250,9 +8265,22 @@ async def get_device_products(
         if not products_set:
             return []
 
+        # Get excluded product IDs for this device
+        exclusions_result = await session.execute(
+            select(DeviceProductExclusion.product_id)
+            .where(DeviceProductExclusion.device_id == device_id)
+        )
+        excluded_product_ids = set(row[0] for row in exclusions_result.all())
+
+        # Filter out excluded products
+        active_products_set = products_set - excluded_product_ids
+
+        if not active_products_set:
+            return []
+
         products_result = await session.execute(
             select(Product)
-            .where(Product.id.in_(products_set))
+            .where(Product.id.in_(active_products_set))
             .order_by(Product.display_order, Product.model_number)
         )
         products = products_result.scalars().all()
@@ -8411,6 +8439,131 @@ async def assign_products_to_location(
 
     except Exception as e:
         print(f"[ASSIGN-LOCATION-PRODUCTS] Error: {e}")
+        traceback.print_exc()
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/devices/{device_id}/product-assignments/admin")
+async def get_device_product_assignments_admin(
+    device_id: str,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Get device assignments and matched products WITH exclusion status (for admin UI)"""
+    try:
+        # Get device assignments (categories and tags)
+        assignments_result = await session.execute(
+            select(ProductDeviceAssignment)
+            .where(ProductDeviceAssignment.device_id == device_id)
+        )
+        assignments = assignments_result.scalars().all()
+
+        assigned_category_ids = [a.category_id for a in assignments if a.category_id]
+        assigned_tag_ids = [a.tag_id for a in assignments if a.tag_id]
+
+        # Get matched products (same logic as get_device_products but without exclusion filter)
+        products_set = set()
+
+        # Get products via category assignments
+        if assigned_category_ids:
+            category_result = await session.execute(
+                select(Product)
+                .join(ProductCategory, Product.id == ProductCategory.product_id)
+                .where(
+                    ProductCategory.category_id.in_(assigned_category_ids),
+                    Product.is_active == True
+                )
+            )
+            for product in category_result.scalars().all():
+                products_set.add(product.id)
+
+        # Get products via tag assignments
+        if assigned_tag_ids:
+            tag_result = await session.execute(
+                select(Product)
+                .join(ProductTag, Product.id == ProductTag.product_id)
+                .where(
+                    ProductTag.tag_id.in_(assigned_tag_ids),
+                    Product.is_active == True
+                )
+            )
+            for product in tag_result.scalars().all():
+                products_set.add(product.id)
+
+        # Get exclusions
+        exclusions_result = await session.execute(
+            select(DeviceProductExclusion.product_id)
+            .where(DeviceProductExclusion.device_id == device_id)
+        )
+        excluded_product_ids = set(row[0] for row in exclusions_result.all())
+
+        # Get full product details
+        products_data = []
+        if products_set:
+            products_result = await session.execute(
+                select(Product)
+                .where(Product.id.in_(products_set))
+                .order_by(Product.display_order, Product.model_number)
+            )
+            products = products_result.scalars().all()
+
+            for product in products:
+                products_data.append({
+                    "id": product.id,
+                    "model_number": product.model_number,
+                    "name": product.name,
+                    "is_excluded": product.id in excluded_product_ids
+                })
+
+        return {
+            "assigned_category_ids": assigned_category_ids,
+            "assigned_tag_ids": assigned_tag_ids,
+            "matched_products": products_data
+        }
+
+    except Exception as e:
+        print(f"[GET-DEVICE-ASSIGNMENTS-ADMIN] Error: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/devices/{device_id}/products/{product_id}/toggle-exclusion")
+async def toggle_product_exclusion(
+    device_id: str,
+    product_id: int,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Toggle product exclusion for a device"""
+    try:
+        # Check if exclusion exists
+        result = await session.execute(
+            select(DeviceProductExclusion)
+            .where(
+                DeviceProductExclusion.device_id == device_id,
+                DeviceProductExclusion.product_id == product_id
+            )
+        )
+        exclusion = result.scalar_one_or_none()
+
+        if exclusion:
+            # Remove exclusion (re-enable product)
+            await session.delete(exclusion)
+            await session.commit()
+            return {"success": True, "is_excluded": False}
+        else:
+            # Add exclusion (disable product)
+            new_exclusion = DeviceProductExclusion(
+                device_id=device_id,
+                product_id=product_id
+            )
+            session.add(new_exclusion)
+            await session.commit()
+            return {"success": True, "is_excluded": True}
+
+    except Exception as e:
+        print(f"[TOGGLE-PRODUCT-EXCLUSION] Error: {e}")
         traceback.print_exc()
         await session.rollback()
         raise HTTPException(status_code=500, detail=str(e))
