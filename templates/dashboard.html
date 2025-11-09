@@ -1602,8 +1602,12 @@
                 previewContainer.appendChild(imgDiv);
             });
 
+            // Extract category and tag IDs from the product data
+            const categoryIds = (product.categories || []).map(c => c.id);
+            const tagIds = (product.tags || []).map(t => t.id);
+
             // Load categories and tags with current assignments
-            await loadProductCategoriesAndTags(product.category_ids || [], product.tag_ids || []);
+            await loadProductCategoriesAndTags(categoryIds, tagIds);
 
             pendingProductImages = [];
             document.getElementById('add-product-modal').classList.add('active');
