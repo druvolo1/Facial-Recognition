@@ -1136,9 +1136,6 @@ async def offer(request):
     configuration = RTCConfiguration(iceServers=ice_servers)
     pc = RTCPeerConnection(configuration=configuration)
 
-    # Force use of public IP and port range for ICE candidates
-    pc._RTCPeerConnection__transport._connection.ice_controlling = True
-
     pcs.add(pc)
     active_device_connections[device_id] = pc  # Track connection by device_id
     logger.info(f"[WebRTC] Peer connection created with public IP: {PUBLIC_IP}")
