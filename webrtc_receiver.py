@@ -6,10 +6,11 @@ import asyncio
 import base64
 import json
 import logging
+import os
 from io import BytesIO
 
 from aiohttp import web, ClientSession, ClientTimeout, FormData
-from aiortc import RTCPeerConnection, RTCSessionDescription, MediaStreamTrack
+from aiortc import RTCPeerConnection, RTCSessionDescription, MediaStreamTrack, RTCConfiguration, RTCIceServer
 from aiortc.contrib.media import MediaRecorder, MediaPlayer
 from av import VideoFrame
 import numpy as np
@@ -47,6 +48,16 @@ DATABASE_URL = "mariadb+pymysql://app_user:testpass123@172.16.1.150:3306/facial_
 DISPLAY_ID = "lobby_display_01"
 LOCATION = "Front Lobby"
 FRAME_CAPTURE_INTERVAL = 1.0  # Capture every 1 second (1 fps)
+
+# WebRTC Network Configuration
+PUBLIC_IP = "ruvolo.loseyourip.com"  # Your public hostname/IP
+PORT_RANGE_MIN = 50000  # UDP port range start
+PORT_RANGE_MAX = 50100  # UDP port range end (forward these UDP ports!)
+
+# Configure aiortc to use public hostname and port range
+os.environ['AIORTC_NAT_IP'] = PUBLIC_IP
+os.environ['AIORTC_PORT_MIN'] = str(PORT_RANGE_MIN)
+os.environ['AIORTC_PORT_MAX'] = str(PORT_RANGE_MAX)
 
 # Scalability limits
 MAX_CONNECTIONS = 100  # Maximum WebRTC peer connections
@@ -1088,11 +1099,19 @@ async def offer(request):
     logger.info(offer_sdp.sdp)
     logger.info("=" * 50)
 
-    # Create peer connection
-    pc = RTCPeerConnection()
+    # Create peer connection with custom ICE configuration
+    ice_servers = [RTCIceServer(urls=["stun:stun.l.google.com:19302"])]
+    configuration = RTCConfiguration(iceServers=ice_servers)
+    pc = RTCPeerConnection(configuration=configuration)
+
+    # Force use of public IP and port range for ICE candidates
+    pc._RTCPeerConnection__transport._connection.ice_controlling = True
+
     pcs.add(pc)
     active_device_connections[device_id] = pc  # Track connection by device_id
-    logger.info(f"[WebRTC] Peer connection created, total connections: {len(pcs)}/{MAX_CONNECTIONS}")
+    logger.info(f"[WebRTC] Peer connection created with public IP: {PUBLIC_IP}")
+    logger.info(f"[WebRTC] Using UDP port range: {PORT_RANGE_MIN}-{PORT_RANGE_MAX}")
+    logger.info(f"[WebRTC] Total connections: {len(pcs)}/{MAX_CONNECTIONS}")
 
     # Store frame capture instance and video track
     frame_capture = None
