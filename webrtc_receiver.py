@@ -1131,8 +1131,20 @@ async def offer(request):
     logger.info(offer_sdp.sdp)
     logger.info("=" * 50)
 
-    # Create peer connection with custom ICE configuration
-    ice_servers = [RTCIceServer(urls=["stun:stun.l.google.com:19302"])]
+    # Create peer connection with STUN and TURN servers
+    ice_servers = [
+        RTCIceServer(urls=["stun:stun.l.google.com:19302"]),
+        RTCIceServer(
+            urls=["turn:openrelay.metered.ca:80"],
+            username="openrelayproject",
+            credential="openrelayproject"
+        ),
+        RTCIceServer(
+            urls=["turn:openrelay.metered.ca:443"],
+            username="openrelayproject",
+            credential="openrelayproject"
+        )
+    ]
     configuration = RTCConfiguration(iceServers=ice_servers)
     pc = RTCPeerConnection(configuration=configuration)
 
