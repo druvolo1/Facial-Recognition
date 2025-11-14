@@ -448,6 +448,24 @@ async def broadcast_recognition_result(result_data):
 
 async def websocket_handler(request):
     """Handle WebSocket connections for live viewer"""
+    # Get authentication from query parameters (WebSocket can't use custom headers in browser)
+    device_id = request.query.get('device_id')
+    device_token = request.query.get('device_token')
+
+    # Validate credentials if provided
+    if device_id and device_token:
+        is_valid, error_message, device_type = validate_device_credentials(device_id, device_token)
+        if not is_valid:
+            logger.warning(f"[WebSocket] ✗ Authentication failed for {device_id}: {error_message}")
+            return web.Response(
+                status=403,
+                content_type="application/json",
+                text=json.dumps({"error": error_message})
+            )
+        logger.info(f"[WebSocket] ✓ Authenticated connection from device: {device_id} (type: {device_type})")
+    else:
+        logger.info(f"[WebSocket] Unauthenticated viewer connected (browser viewer)")
+
     ws = web.WebSocketResponse()
     await ws.prepare(request)
 
@@ -468,7 +486,11 @@ async def websocket_handler(request):
                     data = json.loads(msg.data)
                     msg_type = data.get('type')
 
-                    if msg_type == 'capture_frame':
+                    if msg_type == 'ping':
+                        # Handle keepalive ping
+                        await ws.send_str(json.dumps({"type": "pong"}))
+
+                    elif msg_type == 'capture_frame':
                         # Handle on-demand frame capture for kiosk
                         device_id = data.get('device_id')
                         frame_index = data.get('frame_index', 0)
@@ -521,6 +543,16 @@ async def websocket_handler(request):
             elif msg.type == web.WSMsgType.ERROR:
                 logger.error(f"[WebSocket] Connection error: {ws.exception()}")
 
+            elif msg.type == web.WSMsgType.CLOSE:
+                logger.info(f"[WebSocket] Client requested close")
+                break
+
+    except asyncio.CancelledError:
+        # Don't log cancellation as an error - this is normal during shutdown
+        logger.debug(f"[WebSocket] Connection cancelled (shutdown)")
+        raise
+    except ConnectionResetError:
+        logger.info(f"[WebSocket] Connection reset by client")
     except Exception as e:
         logger.error(f"[WebSocket] Handler error: {e}")
     finally:
