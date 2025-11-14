@@ -1227,6 +1227,7 @@ templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 app.mount("/uploads", StaticFiles(directory=UPLOAD_FOLDER), name="uploads")
 app.mount("/audio", StaticFiles(directory=AUDIO_FOLDER), name="audio")
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+app.mount("/sssp", StaticFiles(directory=os.path.join(BASE_DIR, "SSSP")), name="sssp")
 
 
 # Exception handler to redirect browser requests to login

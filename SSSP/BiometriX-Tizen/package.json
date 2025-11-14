@@ -1,0 +1,13 @@
+{
+  "name": "biometrix-stream-service",
+  "version": "2.0.0",
+  "description": "BiometriX WebRTC Camera Streaming Service - Simplified (No Dependencies)",
+  "main": "server/server-simple.js",
+  "dependencies": {},
+  "scripts": {
+    "start": "node server/server-simple.js"
+  },
+  "keywords": ["tizen", "webrtc", "streaming", "simple"],
+  "author": "",
+  "license": "ISC"
+}

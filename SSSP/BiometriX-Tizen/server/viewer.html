@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BiometriX Camera Stream Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .status-bar {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 10px;
+            padding: 15px 25px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff4444;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #44ff44;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .video-container {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+        }
+
+        #streamImage {
+            width: 100%;
+            height: auto;
+            border-radius: 10px;
+            display: block;
+            background: #000;
+            min-height: 400px;
+            object-fit: contain;
+        }
+
+        .placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .placeholder-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+
+        .info-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .info-panel h3 {
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .info-card {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .info-label {
+            font-size: 0.85em;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: #fff;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .log-container {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            margin-top: 20px;
+        }
+
+        .log-entry {
+            padding: 5px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        footer {
+            margin-top: 30px;
+            text-align: center;
+            opacity: 0.7;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>BiometriX Camera Stream</h1>
+            <p>Live WebRTC Camera Feed from Samsung Tizen TV</p>
+        </header>
+
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-dot" id="connectionStatus"></div>
+                <span id="connectionText">Connecting...</span>
+            </div>
+            <div class="status-item">
+                <span>FPS: <strong id="fpsCounter">0</strong></span>
+            </div>
+            <div class="status-item">
+                <span>Frames Received: <strong id="frameCounter">0</strong></span>
+            </div>
+        </div>
+
+        <div class="video-container">
+            <div id="placeholder" class="placeholder">
+                <div class="placeholder-icon">📹</div>
+                <h2>Waiting for camera stream...</h2>
+                <p>Make sure the camera is started on the TV</p>
+            </div>
+            <img id="streamImage" style="display: none;" alt="Camera Stream">
+        </div>
+
+        <div class="info-panel">
+            <h3>Stream Information</h3>
+            <div class="info-grid">
+                <div class="info-card">
+                    <div class="info-label">Server URL</div>
+                    <div class="info-value" id="serverUrl" style="font-size: 1em;">-</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Last Update</div>
+                    <div class="info-value" id="lastUpdate" style="font-size: 1em;">Never</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Resolution</div>
+                    <div class="info-value" id="resolution" style="font-size: 1em;">-</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Data Size</div>
+                    <div class="info-value" id="dataSize">0 KB</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button onclick="reconnect()">🔄 Reconnect</button>
+            <button onclick="toggleLogs()">📋 Toggle Logs</button>
+            <button onclick="clearStats()">🗑️ Clear Stats</button>
+        </div>
+
+        <div id="logContainer" class="log-container" style="display: none;">
+            <div id="logs"></div>
+        </div>
+
+        <footer>
+            <p>BiometriX Stream Viewer v1.0 | Powered by Socket.IO</p>
+        </footer>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        var socket = io();
+        var frameCount = 0;
+        var lastFrameTime = Date.now();
+        var fps = 0;
+        var fpsInterval;
+
+        // UI Elements
+        var streamImage = document.getElementById('streamImage');
+        var placeholder = document.getElementById('placeholder');
+        var connectionStatus = document.getElementById('connectionStatus');
+        var connectionText = document.getElementById('connectionText');
+        var fpsCounter = document.getElementById('fpsCounter');
+        var frameCounter = document.getElementById('frameCounter');
+        var serverUrl = document.getElementById('serverUrl');
+        var lastUpdate = document.getElementById('lastUpdate');
+        var resolution = document.getElementById('resolution');
+        var dataSize = document.getElementById('dataSize');
+        var logs = document.getElementById('logs');
+
+        // Initialize
+        serverUrl.textContent = window.location.origin;
+
+        // Socket.IO event handlers
+        socket.on('connect', function() {
+            addLog('Connected to server');
+            connectionStatus.classList.add('connected');
+            connectionText.textContent = 'Connected';
+        });
+
+        socket.on('disconnect', function() {
+            addLog('Disconnected from server');
+            connectionStatus.classList.remove('connected');
+            connectionText.textContent = 'Disconnected';
+        });
+
+        socket.on('frame', function(frameData) {
+            frameCount++;
+            frameCounter.textContent = frameCount;
+
+            // Update image
+            streamImage.src = frameData;
+            streamImage.style.display = 'block';
+            placeholder.style.display = 'none';
+
+            // Update timestamp
+            var now = new Date();
+            lastUpdate.textContent = now.toLocaleTimeString();
+
+            // Calculate data size
+            var sizeKB = Math.round((frameData.length * 0.75) / 1024);
+            dataSize.textContent = sizeKB + ' KB';
+
+            // Update resolution when image loads
+            streamImage.onload = function() {
+                resolution.textContent = this.naturalWidth + ' x ' + this.naturalHeight;
+            };
+
+            addLog('Frame ' + frameCount + ' received (' + sizeKB + ' KB)');
+        });
+
+        socket.on('error', function(error) {
+            addLog('Error: ' + error);
+        });
+
+        // FPS calculation
+        fpsInterval = setInterval(function() {
+            var now = Date.now();
+            var timeDiff = (now - lastFrameTime) / 1000;
+            if (timeDiff > 0) {
+                fps = Math.round(frameCount / timeDiff);
+                fpsCounter.textContent = fps;
+            }
+        }, 1000);
+
+        // Utility functions
+        function reconnect() {
+            addLog('Reconnecting...');
+            socket.disconnect();
+            setTimeout(function() {
+                socket.connect();
+            }, 500);
+        }
+
+        function toggleLogs() {
+            var logContainer = document.getElementById('logContainer');
+            logContainer.style.display = logContainer.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function clearStats() {
+            frameCount = 0;
+            lastFrameTime = Date.now();
+            fps = 0;
+            frameCounter.textContent = '0';
+            fpsCounter.textContent = '0';
+            logs.innerHTML = '';
+            addLog('Stats cleared');
+        }
+
+        function addLog(message) {
+            var timestamp = new Date().toLocaleTimeString();
+            var logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.textContent = '[' + timestamp + '] ' + message;
+            logs.insertBefore(logEntry, logs.firstChild);
+
+            // Keep only last 50 log entries
+            while (logs.children.length > 50) {
+                logs.removeChild(logs.lastChild);
+            }
+        }
+
+        // Initial log
+        addLog('Viewer initialized. Waiting for stream...');
+    </script>
+</body>
+</html>

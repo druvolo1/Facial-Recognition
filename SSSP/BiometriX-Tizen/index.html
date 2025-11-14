@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facial Recognition Device</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 800px;
+            padding: 80px 60px;
+            text-align: center;
+        }
+
+        .icon {
+            font-size: 120px;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .message {
+            color: #666;
+            font-size: 24px;
+            line-height: 1.6;
+            margin-bottom: 40px;
+        }
+
+        .registration-code {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 120px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 20px;
+            padding: 60px;
+            border-radius: 20px;
+            margin: 40px 0;
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
+        }
+
+        .info-box {
+            background: #f9f9f9;
+            border-left: 6px solid #667eea;
+            padding: 30px;
+            margin: 30px 0;
+            text-align: left;
+        }
+
+        .info-box h3 {
+            color: #667eea;
+            font-size: 28px;
+            margin-bottom: 15px;
+        }
+
+        .info-box p {
+            color: #666;
+            font-size: 22px;
+            line-height: 1.5;
+        }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 15px;
+            background: #fff3cd;
+            color: #856404;
+            padding: 20px 30px;
+            border-radius: 12px;
+            font-size: 22px;
+            margin-top: 30px;
+        }
+
+        .status.checking {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid currentColor;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fee;
+            border: 2px solid #fcc;
+            color: #c33;
+            padding: 25px;
+            border-radius: 15px;
+            margin: 30px 0;
+            font-size: 22px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #666;
+        }
+
+        .loading p {
+            font-size: 28px;
+            margin-top: 20px;
+        }
+
+        #device-info {
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 2px solid #e0e0e0;
+            font-size: 18px;
+            color: #999;
+        }
+
+        #expiration-timer {
+            margin: 30px 0;
+            padding: 25px;
+            background: #fff3cd;
+            color: #856404;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="loading-screen" style="display: block;">
+            <div class="loading">
+                <div class="spinner" style="display: inline-block; width: 60px; height: 60px; margin-bottom: 30px;"></div>
+                <p>Initializing device...</p>
+            </div>
+        </div>
+
+        <div id="registration-screen" style="display: none;">
+            <div class="icon">🔐</div>
+            <h1>Device Registration</h1>
+            <p class="message">
+                This device needs to be approved by an administrator before it can be used.
+            </p>
+
+            <div class="info-box">
+                <h3>Registration Code</h3>
+                <p>Provide this code to your administrator to approve this device:</p>
+            </div>
+
+            <div class="registration-code" id="registration-code">------</div>
+
+            <div id="expiration-timer">
+                Code expires in: <span id="timer-display">--:--</span>
+            </div>
+
+            <div class="status checking">
+                <div class="spinner"></div>
+                <span>Waiting for administrator approval...</span>
+            </div>
+
+            <div id="device-info"></div>
+        </div>
+
+        <div id="error-screen" style="display: none;">
+            <div class="icon">⚠️</div>
+            <h1>Connection Error</h1>
+            <div class="error" id="error-message"></div>
+            <div class="status" style="margin-top: 30px; background: #e3f2fd; color: #1976d2;">
+                <div class="spinner"></div>
+                <span>Auto-retrying connection...</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
+</body>
+</html>
