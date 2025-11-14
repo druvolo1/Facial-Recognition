@@ -1315,7 +1315,7 @@ async def on_startup():
     print(f"[STARTUP] Facial Recognition App starting...")
 
     # Import database initialization
-    from .init_database import create_database as init_db
+    from init_database import create_database as init_db
 
     # Try to create database if it doesn't exist
     try:
