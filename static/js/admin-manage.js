@@ -1530,6 +1530,10 @@ async function showEditLocationModal(locationId) {
         return;
     }
 
+    // Load servers and relays data to populate dropdowns
+    await loadServersData();
+    await loadRelaysData();
+
     // Populate the form
     document.getElementById('edit-location-id').value = location.id;
     document.getElementById('edit-location-name').value = location.name;
