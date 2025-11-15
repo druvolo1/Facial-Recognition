@@ -7,6 +7,7 @@ import base64
 import json
 import logging
 import os
+import time
 from io import BytesIO
 
 from aiohttp import web, ClientSession, ClientTimeout, FormData
@@ -27,8 +28,12 @@ except ImportError:
     logger.warning("[Database] SQLAlchemy not available - person name lookups will be disabled")
     logger.warning("[Database] Install with: pip install sqlalchemy pymysql")
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure logging with timestamps
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 logger = logging.getLogger(__name__)
 
 # Store active peer connections and WebSocket clients
@@ -148,6 +153,7 @@ class VideoFrameCapture:
         self.location = location
         self.running = False
         self.last_capture_time = 0
+        self.last_no_match_log_time = 0  # Track when we last logged "no faces matched"
 
     async def start(self):
         """Start capturing frames from the video track"""
@@ -340,7 +346,11 @@ class VideoFrameCapture:
 
                                     logger.info(f"  {i}. {person_name} ({confidence:.1%})")
                             else:
-                                logger.info("[Recognition] No faces matched")
+                                # Only log "no faces matched" once every 30 seconds to reduce spam
+                                current_time = time.time()
+                                if current_time - self.last_no_match_log_time >= 30:
+                                    logger.info("[Recognition] No faces matched (suppressing repeats for 30s)")
+                                    self.last_no_match_log_time = current_time
 
                             # Broadcast enriched results to WebSocket clients
                             await broadcast_recognition_result({
