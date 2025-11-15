@@ -4239,9 +4239,29 @@ async def get_server_faces(
             # Get person name and location info from database records
             person_name = "Unknown"
             location_names = []
+            profile_photo = None
+            all_photos = []
+
             if db_records:
                 # Use the person_name from the first record
                 person_name = db_records[0].person_name
+
+                # Get profile photo (first record with profile_photo)
+                for record in db_records:
+                    if record.profile_photo:
+                        profile_photo = record.profile_photo
+                        break
+
+                # If no profile_photo, use first file_path
+                if not profile_photo and db_records[0].file_path:
+                    filename = os.path.basename(db_records[0].file_path)
+                    profile_photo = f"/uploads/{filename}"
+
+                # Get all photo URLs
+                for record in db_records:
+                    if record.file_path:
+                        filename = os.path.basename(record.file_path)
+                        all_photos.append(f"/uploads/{filename}")
 
                 # Get location names for all records
                 location_ids = set(r.location_id for r in db_records if r.location_id)
@@ -4258,7 +4278,9 @@ async def get_server_faces(
                 "photo_count": len(db_records),
                 "in_database": len(db_records) > 0,
                 "locations": location_names,
-                "registered_at": db_records[0].registered_at.isoformat() if db_records else None
+                "registered_at": db_records[0].registered_at.isoformat() if db_records else None,
+                "profile_photo": profile_photo,
+                "all_photos": all_photos
             })
 
         return {

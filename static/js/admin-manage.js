@@ -1896,9 +1896,20 @@ async function loadServerFaces(serverId) {
                             ? formatUTCDateTimeLocal(face.registered_at)
                             : 'N/A';
 
+                        const photoHtml = face.profile_photo
+                            ? `<img src="${face.profile_photo}"
+                                    style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; margin-right: 10px; vertical-align: middle; cursor: pointer; border: 2px solid #667eea;"
+                                    onclick="showServerFacePhotos('${escapeHtml(face.person_name)}', ${JSON.stringify(face.all_photos).replace(/"/g, '&quot;')})"
+                                    title="Click to view all photos"
+                                    onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'40\\' height=\\'40\\'%3E%3Ccircle fill=\\'%23ddd\\' cx=\\'20\\' cy=\\'20\\' r=\\'20\\'/%3E%3Ctext fill=\\'%23666\\' x=\\'50%25\\' y=\\'50%25\\' text-anchor=\\'middle\\' dy=\\'.3em\\' font-size=\\'20\\'%3E?%3C/text%3E%3C/svg%3E'">`
+                            : '';
+
                         return `
                             <tr style="${isUnknown ? 'background: #fff3cd;' : ''}">
-                                <td><strong>${escapeHtml(face.person_name)}</strong></td>
+                                <td>
+                                    ${photoHtml}
+                                    <strong>${escapeHtml(face.person_name)}</strong>
+                                </td>
                                 <td><code style="font-size: 11px;">${escapeHtml(face.userid)}</code></td>
                                 <td>${face.photo_count}</td>
                                 <td>${escapeHtml(locationText)}</td>
@@ -1950,6 +1961,47 @@ async function deleteFaceFromServer(serverId, userid, personName) {
         console.error('Error:', error);
         showAlert('Error deleting face', 'error');
     }
+}
+
+function showServerFacePhotos(personName, allPhotos) {
+    // Create or get modal
+    let modal = document.getElementById('server-face-photos-modal');
+    if (!modal) {
+        // Create modal if it doesn't exist
+        modal = document.createElement('div');
+        modal.id = 'server-face-photos-modal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 1000px;">
+                <div class="modal-header">
+                    <h2 id="server-face-photos-title"></h2>
+                    <button class="close-modal" onclick="closeModal('server-face-photos-modal')">&times;</button>
+                </div>
+                <div id="server-face-photos-grid" style="padding: 20px;"></div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    // Set title
+    document.getElementById('server-face-photos-title').textContent = `All Photos - ${personName}`;
+
+    // Build photo grid
+    const photosGrid = document.getElementById('server-face-photos-grid');
+    photosGrid.innerHTML = `
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px;">
+            ${allPhotos.map(photo => `
+                <div style="text-align: center;">
+                    <img src="${photo}"
+                         style="width: 100%; height: 250px; object-fit: cover; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"
+                         onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'250\\' height=\\'250\\'%3E%3Crect fill=\\'%23f0f0f0\\' width=\\'250\\' height=\\'250\\'/%3E%3Ctext fill=\\'%23999\\' x=\\'50%25\\' y=\\'50%25\\' text-anchor=\\'middle\\' dy=\\'.3em\\' font-size=\\'20\\'%3ENo Photo%3C/text%3E%3C/svg%3E'">
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    // Open modal
+    openModal('server-face-photos-modal');
 }
 
 // ============================================================================
