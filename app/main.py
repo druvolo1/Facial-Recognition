@@ -7818,6 +7818,8 @@ async def register_via_public_link(
         )
 
         if response.status_code != 200:
+            print(f"[PUBLIC-REGISTER] ✗ InsightFace returned {response.status_code}")
+            print(f"[PUBLIC-REGISTER] Response: {response.text}")
             # Cleanup
             for photo in saved_photos:
                 if os.path.exists(photo['filepath']):
