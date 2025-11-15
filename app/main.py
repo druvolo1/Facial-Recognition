@@ -6375,6 +6375,16 @@ async def get_registered_faces(
                 if location:
                     location_name = location.name
 
+            # Get CodeProject server name if available
+            server_name = None
+            if face_record and face_record.codeproject_server_id:
+                server_result = await session.execute(
+                    select(CodeProjectServer).where(CodeProjectServer.id == face_record.codeproject_server_id)
+                )
+                server = server_result.scalar_one_or_none()
+                if server:
+                    server_name = server.friendly_name
+
             registered_faces.append({
                 "person_name": name,  # Display name
                 "person_id": face_record.person_id if face_record else None,  # Unique identifier (UUID)
@@ -6384,6 +6394,8 @@ async def get_registered_faces(
                 "codeproject_user_id": face_record.codeproject_user_id if face_record else name,
                 "location_id": face_record.location_id if face_record else None,
                 "location_name": location_name,
+                "codeproject_server_id": face_record.codeproject_server_id if face_record else None,
+                "codeproject_server_name": server_name,
                 "is_employee": face_record.is_employee if face_record else False,
                 "registered_at": face_record.registered_at.isoformat() if face_record and hasattr(face_record, 'registered_at') and face_record.registered_at else None,
                 "user_expiration": getattr(face_record, 'user_expiration', None) if face_record else None
@@ -7038,13 +7050,50 @@ async def recognize_face(
         print(f"\n{'='*60}")
         print(f"[RECOGNIZE] New recognition request at {datetime.now().strftime('%H:%M:%S')}")
 
-        # Get first available server
+        # Get user's selected location and its server
+        selected_location_id = None
+        if user.dashboard_preferences:
+            try:
+                prefs = json.loads(user.dashboard_preferences)
+                selected_location_id = prefs.get("selected_location_id")
+            except:
+                pass
+
+        if not selected_location_id:
+            raise HTTPException(
+                status_code=400,
+                detail="No location selected. Please select a location first."
+            )
+
+        # Get the location and its assigned CodeProject server
+        location_result = await session.execute(
+            select(Location).where(Location.id == selected_location_id)
+        )
+        location = location_result.scalar_one_or_none()
+
+        if not location:
+            raise HTTPException(status_code=404, detail="Selected location not found")
+
+        if not location.codeproject_server_id:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Location '{location.name}' has no CodeProject server assigned"
+            )
+
+        # Get the CodeProject server for this location
         server_result = await session.execute(
-            select(CodeProjectServer).order_by(CodeProjectServer.id).limit(1)
+            select(CodeProjectServer).where(CodeProjectServer.id == location.codeproject_server_id)
         )
         server = server_result.scalar_one_or_none()
+
         if not server:
-            raise HTTPException(status_code=500, detail="No CodeProject server configured")
+            raise HTTPException(
+                status_code=500,
+                detail="CodeProject server assigned to location not found"
+            )
+
+        print(f"[RECOGNIZE] Using location: {location.name} (ID: {location.id})")
+        print(f"[RECOGNIZE] Using server: {server.friendly_name} (ID: {server.id})")
 
         # Extract base64 data from data URL
         image_data = data.image

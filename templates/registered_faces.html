@@ -588,6 +588,11 @@
                             <div class="codeproject-id">
                                 <strong>CodeProject ID:</strong> ${face.codeproject_user_id}
                             </div>
+                            ${face.codeproject_server_name ? `
+                            <div class="codeproject-id" style="border-top: 1px solid #e0e0e0; margin-top: 5px; padding-top: 10px;">
+                                <strong>Registered Server:</strong> ${face.codeproject_server_name}
+                            </div>
+                            ` : ''}
                         </div>
                     `).join('')}
                 </div>
