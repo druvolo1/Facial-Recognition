@@ -6389,11 +6389,23 @@ async def get_registered_faces(
         # Also get the codeproject_user_id and location info for each person
         registered_faces = []
         for name, photos in sorted(faces_dict.items()):
-            # Get the codeproject_user_id and location_id from the first record for this person
+            # Get ALL records for this person to find profile photo
             result = await session.execute(
-                select(RegisteredFace).where(RegisteredFace.person_name == name).limit(1)
+                select(RegisteredFace).where(RegisteredFace.person_name == name)
             )
-            face_record = result.scalar_one_or_none()
+            all_records = result.scalars().all()
+            face_record = all_records[0] if all_records else None
+
+            # Get profile photo (check all records for one with profile_photo set)
+            profile_photo = None
+            for record in all_records:
+                if record.profile_photo:
+                    profile_photo = record.profile_photo
+                    break
+
+            # If no profile_photo set, use first photo
+            if not profile_photo and photos:
+                profile_photo = photos[0]
 
             # Get location name if available
             location_name = None
@@ -6418,7 +6430,7 @@ async def get_registered_faces(
             registered_faces.append({
                 "person_name": name,  # Display name
                 "person_id": face_record.person_id if face_record else None,  # Unique identifier (UUID)
-                "photo": photos[0] if photos else None,  # Use first photo as profile picture
+                "photo": profile_photo,  # Use profile_photo from database, or first photo
                 "photo_count": len(photos),
                 "all_photos": photos,
                 "codeproject_user_id": face_record.codeproject_user_id if face_record else name,
