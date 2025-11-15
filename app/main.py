@@ -870,6 +870,10 @@ class MoveServerRequest(BaseModel):
     new_server_id: int
 
 
+class SetProfilePhotoRequest(BaseModel):
+    photo_url: str
+
+
 # Device-specific request models
 class DeviceRegisterRequest(BaseModel):
     device_id: str
@@ -7605,6 +7609,68 @@ async def update_user_expiration(
         raise
     except Exception as e:
         print(f"[UPDATE-EXPIRATION] ✗ EXCEPTION: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/registered-faces/{person_id}/profile-photo")
+async def set_profile_photo(
+    person_id: str,
+    data: SetProfilePhotoRequest,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Set profile photo for a registered person"""
+    try:
+        print(f"\n{'='*60}")
+        print(f"[SET-PROFILE-PHOTO] Setting profile photo for person_id {person_id}")
+        print(f"[SET-PROFILE-PHOTO] New photo URL: {data.photo_url}")
+
+        # Get all registered face records for this person
+        result = await session.execute(
+            select(RegisteredFace).where(RegisteredFace.person_id == person_id)
+        )
+        face_records = result.scalars().all()
+
+        if not face_records:
+            raise HTTPException(status_code=404, detail=f"No registered faces found for person_id {person_id}")
+
+        # Find the record that matches this photo URL
+        target_record = None
+        for record in face_records:
+            if record.file_path:
+                filename = os.path.basename(record.file_path)
+                photo_url = f"/uploads/{filename}"
+                if photo_url == data.photo_url:
+                    target_record = record
+                    break
+
+        if not target_record:
+            raise HTTPException(status_code=404, detail="Photo not found for this person")
+
+        # Clear profile_photo from all records for this person first
+        for record in face_records:
+            record.profile_photo = None
+
+        # Set the selected photo as profile_photo on the target record
+        target_record.profile_photo = data.photo_url
+
+        await session.commit()
+
+        person_name = face_records[0].person_name if face_records else "Person"
+        print(f"[SET-PROFILE-PHOTO] ✓ Updated profile photo for {person_name}")
+        print(f"{'='*60}\n")
+
+        return {
+            "success": True,
+            "message": f"Profile photo updated for {person_name}",
+            "profile_photo": data.photo_url
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[SET-PROFILE-PHOTO] ✗ EXCEPTION: {e}")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 

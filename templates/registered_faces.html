@@ -671,12 +671,59 @@
             const face = allFaces.find(f => f.person_name === personName);
             if (!face) return;
 
+            const currentProfilePhoto = face.photo; // The main profile photo
+
             document.getElementById('modalPersonName').textContent = personName;
-            document.getElementById('modalPhotos').innerHTML = face.all_photos.map(photo => `
-                <img src="${photo}" alt="${personName}" class="modal-photo">
-            `).join('');
+            document.getElementById('modalPhotos').innerHTML = face.all_photos.map(photo => {
+                const isProfilePhoto = photo === currentProfilePhoto;
+                return `
+                    <div style="position: relative; display: inline-block;">
+                        <img src="${photo}" alt="${personName}" class="modal-photo">
+                        ${isProfilePhoto ? `
+                            <div style="position: absolute; top: 10px; left: 10px; background: #28a745; color: white; padding: 5px 10px; border-radius: 4px; font-size: 12px; font-weight: bold;">
+                                ✓ Profile Photo
+                            </div>
+                        ` : `
+                            <button
+                                onclick="setProfilePhoto('${face.person_id}', '${photo}')"
+                                style="position: absolute; top: 10px; left: 10px; background: #667eea; color: white; padding: 5px 10px; border: none; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.3s;"
+                                onmouseover="this.style.background='#5568d3'"
+                                onmouseout="this.style.background='#667eea'"
+                            >
+                                Set as Profile
+                            </button>
+                        `}
+                    </div>
+                `;
+            }).join('');
 
             document.getElementById('photoModal').classList.add('active');
+        }
+
+        // Set profile photo
+        async function setProfilePhoto(personId, photoUrl) {
+            try {
+                const response = await fetch(`/api/registered-faces/${encodeURIComponent(personId)}/profile-photo`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ photo_url: photoUrl })
+                });
+
+                if (response.ok) {
+                    alert('Profile photo updated successfully!');
+                    // Reload faces to show updated profile photo
+                    await loadFaces();
+                    // Close modal
+                    closeModal();
+                } else {
+                    const error = await response.json();
+                    alert('Failed to update profile photo: ' + (error.detail || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error updating profile photo: ' + error.message);
+            }
         }
 
         // Close modal
