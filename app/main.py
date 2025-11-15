@@ -7258,8 +7258,9 @@ async def move_person_to_server(
                     'userid': person_id
                 }
 
+                # Use single-image endpoint for better compatibility
                 response = make_codeproject_request(
-                    "/vision/face/register",
+                    "/vision/face/register/single",
                     new_server,
                     files=files,
                     data=params,
