@@ -7236,7 +7236,7 @@ async def move_person_to_server(
                 print(f"[MOVE-SERVER] ⚠ Could not delete from old server (unreachable): {e}")
                 # Continue anyway - this is expected if old server is down
 
-        # Register to new server with all photos
+        # Register to new server with all photos (one at a time, like normal registration)
         print(f"[MOVE-SERVER] Registering to new server with {len(photo_paths)} photos...")
         successful_registrations = 0
 
@@ -7250,11 +7250,11 @@ async def move_person_to_server(
                 with open(photo_path, 'rb') as f:
                     image_bytes = f.read()
 
-                # Send to new CodeProject server
+                # Send to new CodeProject server (same format as working registration)
                 files = {
                     'image': (os.path.basename(photo_path), BytesIO(image_bytes), 'image/jpeg')
                 }
-                register_data = {
+                params = {
                     'userid': person_id
                 }
 
@@ -7262,15 +7262,27 @@ async def move_person_to_server(
                     "/vision/face/register",
                     new_server,
                     files=files,
-                    data=register_data,
-                    timeout=30
+                    data=params,
+                    timeout=60
                 )
 
                 if response.status_code == 200:
-                    successful_registrations += 1
-                    print(f"[MOVE-SERVER] ✓ Registered photo {idx + 1}/{len(photo_paths)}")
+                    result = response.json()
+                    if result.get('success'):
+                        successful_registrations += 1
+                        print(f"[MOVE-SERVER] ✓ Registered photo {idx + 1}/{len(photo_paths)}")
+                    else:
+                        error_msg = result.get('error', 'Unknown error')
+                        print(f"[MOVE-SERVER] ✗ Photo {idx + 1} failed: {error_msg}")
                 else:
+                    error_detail = "Unknown error"
+                    try:
+                        error_response = response.json()
+                        error_detail = error_response.get('message') or error_response.get('error') or str(error_response)
+                    except:
+                        error_detail = response.text[:500] if response.text else "No error message"
                     print(f"[MOVE-SERVER] ✗ Failed to register photo {idx + 1}: status {response.status_code}")
+                    print(f"[MOVE-SERVER]   Error: {error_detail}")
 
             except Exception as e:
                 print(f"[MOVE-SERVER] ✗ Error registering photo {idx + 1}: {e}")
