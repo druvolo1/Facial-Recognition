@@ -38,7 +38,8 @@ logger = logging.getLogger(__name__)
 
 # Store active peer connections and WebSocket clients
 pcs = set()
-ws_clients = set()
+ws_clients = set()  # All WebSocket clients (for backwards compatibility)
+ws_clients_by_device = {}  # device_id -> set of WebSocket clients for that device
 
 # Store active video tracks by device_id for on-demand capture
 active_video_tracks = {}  # device_id -> VideoFrameCapture instance
@@ -402,13 +403,13 @@ class VideoFrameCapture:
                                     logger.info("[Recognition] No faces matched (suppressing repeats for 30s)")
                                     self.last_no_match_log_time = current_time
 
-                            # Broadcast enriched results to WebSocket clients
+                            # Broadcast enriched results to WebSocket clients (only to this device)
                             await broadcast_recognition_result({
                                 "success": success,
                                 "faces": enriched_predictions,
                                 "image_size_kb": image_size_kb,
                                 "timestamp": asyncio.get_event_loop().time()
-                            })
+                            }, device_id=self.device_id)
 
                         else:
                             logger.error(f"[Recognition] ✗ API error: {response.status}")
@@ -485,9 +486,19 @@ async def broadcast_frame(base64_image):
     # logger.info(f"[Broadcast] Broadcast complete to {len(ws_clients)} clients")
 
 
-async def broadcast_recognition_result(result_data):
-    """Broadcast recognition results to all connected WebSocket clients"""
-    if not ws_clients:
+async def broadcast_recognition_result(result_data, device_id=None):
+    """
+    Broadcast recognition results to WebSocket clients
+    If device_id is provided, only send to that device's clients
+    Otherwise, broadcast to all clients (legacy behavior)
+    """
+    # Determine which clients to send to
+    if device_id and device_id in ws_clients_by_device:
+        target_clients = ws_clients_by_device[device_id]
+    else:
+        target_clients = ws_clients
+
+    if not target_clients:
         return
 
     message = json.dumps({
@@ -496,13 +507,16 @@ async def broadcast_recognition_result(result_data):
     })
 
     disconnected = set()
-    for ws in ws_clients:
+    for ws in target_clients:
         try:
             await ws.send_str(message)
         except Exception as e:
             logger.error(f"[WebSocket] Error sending recognition result: {e}")
             disconnected.add(ws)
 
+    # Clean up disconnected clients
+    if device_id and device_id in ws_clients_by_device:
+        ws_clients_by_device[device_id].difference_update(disconnected)
     ws_clients.difference_update(disconnected)
 
 
@@ -530,7 +544,15 @@ async def websocket_handler(request):
     await ws.prepare(request)
 
     ws_clients.add(ws)
-    logger.info(f"[WebSocket] Viewer connected. Total viewers: {len(ws_clients)}")
+
+    # Track device-specific WebSocket connections
+    if device_id:
+        if device_id not in ws_clients_by_device:
+            ws_clients_by_device[device_id] = set()
+        ws_clients_by_device[device_id].add(ws)
+        logger.info(f"[WebSocket] Device {device_id} connected. Total viewers: {len(ws_clients)}")
+    else:
+        logger.info(f"[WebSocket] Unauthenticated viewer connected. Total viewers: {len(ws_clients)}")
 
     try:
         # Send initial message
@@ -632,6 +654,13 @@ async def websocket_handler(request):
         logger.error(f"[WebSocket] Handler error: {e}")
     finally:
         ws_clients.discard(ws)
+
+        # Remove from device-specific tracking
+        if device_id and device_id in ws_clients_by_device:
+            ws_clients_by_device[device_id].discard(ws)
+            if len(ws_clients_by_device[device_id]) == 0:
+                del ws_clients_by_device[device_id]
+
         logger.info(f"[WebSocket] Viewer disconnected. Total viewers: {len(ws_clients)}")
 
     return ws
