@@ -195,6 +195,24 @@
             background: #c82333;
         }
 
+        .move-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            margin-top: 10px;
+            width: 100%;
+            transition: all 0.3s;
+        }
+
+        .move-btn:hover {
+            background: #5568d3;
+        }
+
         .codeproject-id {
             font-size: 11px;
             color: #999;
@@ -440,6 +458,45 @@
         </div>
     </div>
 
+    <!-- Move Server Modal -->
+    <div id="move-server-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Move <span id="move-person-name"></span> to Different Server</h2>
+                <button class="close-btn" onclick="closeMoveServerModal()">Close</button>
+            </div>
+            <div style="padding: 20px;">
+                <div style="background: #e7f3ff; border-left: 4px solid #667eea; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
+                    <strong>What happens:</strong>
+                    <ul style="margin: 10px 0 0 20px; line-height: 1.6;">
+                        <li>Person will be deleted from the current server</li>
+                        <li>All stored photos will be re-registered to the new server</li>
+                        <li>If the old server is unreachable, migration will continue</li>
+                    </ul>
+                </div>
+                <input type="hidden" id="move-person-id">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Current Server</label>
+                    <input type="text" id="move-current-server" readonly style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #f5f5f5; font-size: 14px;">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label for="move-new-server" style="display: block; margin-bottom: 5px; font-weight: 600;">New Server *</label>
+                    <select id="move-new-server" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                        <option value="">Select destination server...</option>
+                    </select>
+                </div>
+                <div id="move-progress" style="display: none; background: #f8f9fa; border-radius: 4px; padding: 15px; margin-top: 15px;">
+                    <div style="font-weight: 600; margin-bottom: 10px;">Migration Progress:</div>
+                    <div id="move-progress-text" style="font-size: 14px; color: #666;"></div>
+                </div>
+            </div>
+            <div style="padding: 15px 20px; border-top: 1px solid #ddd; display: flex; gap: 10px; justify-content: flex-end;">
+                <button onclick="closeMoveServerModal()" id="move-cancel-btn" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">Cancel</button>
+                <button onclick="moveToServer()" id="move-submit-btn" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">Move to New Server</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let allFaces = [];
         let userLocations = [];
@@ -582,8 +639,9 @@
                                     ${face.user_expiration ? `<div style="font-size: 12px; color: ${face.user_expiration === 'never' ? '#28a745' : '#666'}; margin-top: 3px;">Expires: ${face.user_expiration === 'never' ? 'Never' : formatDateLocal(face.user_expiration)} <button onclick="showEditExpirationModal('${face.person_id}', '${face.person_name}', '${face.user_expiration}', event)" style="background: none; border: none; color: #667eea; cursor: pointer; font-size: 12px; padding: 0; margin-left: 5px;">✏️</button></div>` : ''}
                                 </div>
                             </div>
-                            <div style="padding: 0 20px 20px 20px;">
-                                <button class="delete-btn" onclick="deleteFace('${face.person_id}', '${face.person_name}', event)">Delete ${face.person_name}</button>
+                            <div style="padding: 0 20px 20px 20px; display: flex; gap: 10px;">
+                                <button class="move-btn" onclick="showMoveServerModal('${face.person_id}', '${face.person_name}', ${face.codeproject_server_id || 'null'}, '${face.codeproject_server_name || 'No server'}', event)" style="flex: 1;">Move Server</button>
+                                <button class="delete-btn" onclick="deleteFace('${face.person_id}', '${face.person_name}', event)" style="flex: 1;">Delete</button>
                             </div>
                             <div class="codeproject-id">
                                 <strong>CodeProject ID:</strong> ${face.codeproject_user_id}
@@ -750,6 +808,120 @@
 
         function closeExpirationModal() {
             document.getElementById('edit-expiration-modal').style.display = 'none';
+        }
+
+        // Move Server Modal
+        let allServers = [];
+
+        async function loadServers() {
+            try {
+                const response = await fetch('/api/codeproject-servers', {
+                    credentials: 'include'
+                });
+                if (response.ok) {
+                    allServers = await response.json();
+                }
+            } catch (error) {
+                console.error('Error loading servers:', error);
+            }
+        }
+
+        async function showMoveServerModal(personId, personName, currentServerId, currentServerName, event) {
+            event.stopPropagation();
+
+            // Load servers if not already loaded
+            if (allServers.length === 0) {
+                await loadServers();
+            }
+
+            document.getElementById('move-person-id').value = personId;
+            document.getElementById('move-person-name').textContent = personName;
+            document.getElementById('move-current-server').value = currentServerName || 'No server assigned';
+
+            // Populate server dropdown
+            const serverSelect = document.getElementById('move-new-server');
+            serverSelect.innerHTML = '<option value="">Select destination server...</option>';
+
+            allServers.forEach(server => {
+                // Don't show current server in options
+                if (server.id !== currentServerId) {
+                    const option = document.createElement('option');
+                    option.value = server.id;
+                    option.textContent = server.friendly_name;
+                    serverSelect.appendChild(option);
+                }
+            });
+
+            // Reset progress display
+            document.getElementById('move-progress').style.display = 'none';
+            document.getElementById('move-progress-text').textContent = '';
+
+            document.getElementById('move-server-modal').style.display = 'flex';
+        }
+
+        function closeMoveServerModal() {
+            document.getElementById('move-server-modal').style.display = 'none';
+        }
+
+        async function moveToServer() {
+            const personId = document.getElementById('move-person-id').value;
+            const personName = document.getElementById('move-person-name').textContent;
+            const newServerId = document.getElementById('move-new-server').value;
+
+            if (!newServerId) {
+                alert('Please select a destination server');
+                return;
+            }
+
+            // Disable buttons during migration
+            const submitBtn = document.getElementById('move-submit-btn');
+            const cancelBtn = document.getElementById('move-cancel-btn');
+            submitBtn.disabled = true;
+            cancelBtn.disabled = true;
+
+            // Show progress
+            const progressDiv = document.getElementById('move-progress');
+            const progressText = document.getElementById('move-progress-text');
+            progressDiv.style.display = 'block';
+            progressText.innerHTML = '⏳ Starting migration...';
+
+            try {
+                const response = await fetch(`/api/registered-faces/${encodeURIComponent(personId)}/move-server`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ new_server_id: parseInt(newServerId) })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    progressText.innerHTML = `
+                        ✅ <strong>Migration successful!</strong><br>
+                        <div style="margin-top: 10px; font-size: 13px;">
+                            • Deleted from old server: ${result.deleted_from_old ? 'Yes' : 'No (unreachable or not found)'}<br>
+                            • Registered to new server: Yes<br>
+                            • Photos migrated: ${result.photos_count}<br>
+                            • Database records updated: ${result.records_updated}
+                        </div>
+                    `;
+
+                    // Wait a moment then reload
+                    setTimeout(async () => {
+                        closeMoveServerModal();
+                        await loadFaces();
+                    }, 2000);
+                } else {
+                    progressText.innerHTML = `❌ <strong>Migration failed:</strong><br>${result.detail || result.error || 'Unknown error'}`;
+                    submitBtn.disabled = false;
+                    cancelBtn.disabled = false;
+                }
+            } catch (error) {
+                console.error('Move error:', error);
+                progressText.innerHTML = `❌ <strong>Error:</strong><br>${error.message}`;
+                submitBtn.disabled = false;
+                cancelBtn.disabled = false;
+            }
         }
 
         // Format date string without timezone issues

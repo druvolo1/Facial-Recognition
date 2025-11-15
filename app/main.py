@@ -866,6 +866,10 @@ class RecognizeRequest(BaseModel):
     image: str
 
 
+class MoveServerRequest(BaseModel):
+    new_server_id: int
+
+
 # Device-specific request models
 class DeviceRegisterRequest(BaseModel):
     device_id: str
@@ -7160,6 +7164,146 @@ async def recognize_face(
 
     except Exception as e:
         print(f"[RECOGNIZE] ✗ EXCEPTION: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/registered-faces/{person_id}/move-server")
+async def move_person_to_server(
+    person_id: str,
+    data: MoveServerRequest,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Move a registered person from one CodeProject server to another"""
+    try:
+        print(f"\n{'='*60}")
+        print(f"[MOVE-SERVER] Moving person {person_id} to server {data.new_server_id}")
+
+        # Get all face records for this person
+        result = await session.execute(
+            select(RegisteredFace).where(RegisteredFace.person_id == person_id)
+        )
+        face_records = result.scalars().all()
+
+        if not face_records:
+            raise HTTPException(status_code=404, detail="Person not found")
+
+        person_name = face_records[0].person_name
+        old_server_id = face_records[0].codeproject_server_id
+        photo_paths = [record.file_path for record in face_records]
+
+        print(f"[MOVE-SERVER] Person: {person_name}")
+        print(f"[MOVE-SERVER] Old server ID: {old_server_id}")
+        print(f"[MOVE-SERVER] New server ID: {data.new_server_id}")
+        print(f"[MOVE-SERVER] Photos to migrate: {len(photo_paths)}")
+
+        # Get old server (if any)
+        old_server = None
+        if old_server_id:
+            old_result = await session.execute(
+                select(CodeProjectServer).where(CodeProjectServer.id == old_server_id)
+            )
+            old_server = old_result.scalar_one_or_none()
+
+        # Get new server
+        new_result = await session.execute(
+            select(CodeProjectServer).where(CodeProjectServer.id == data.new_server_id)
+        )
+        new_server = new_result.scalar_one_or_none()
+
+        if not new_server:
+            raise HTTPException(status_code=404, detail="New server not found")
+
+        print(f"[MOVE-SERVER] New server: {new_server.friendly_name}")
+
+        # Try to delete from old server (don't fail if unreachable)
+        deleted_from_old = False
+        if old_server:
+            print(f"[MOVE-SERVER] Attempting to delete from old server: {old_server.friendly_name}")
+            try:
+                delete_response = make_codeproject_request(
+                    "/vision/face/delete",
+                    old_server,
+                    data={"userid": person_id},
+                    timeout=10
+                )
+                if delete_response.status_code == 200:
+                    deleted_from_old = True
+                    print(f"[MOVE-SERVER] ✓ Deleted from old server")
+                else:
+                    print(f"[MOVE-SERVER] ⚠ Old server returned status {delete_response.status_code}")
+            except Exception as e:
+                print(f"[MOVE-SERVER] ⚠ Could not delete from old server (unreachable): {e}")
+                # Continue anyway - this is expected if old server is down
+
+        # Register to new server with all photos
+        print(f"[MOVE-SERVER] Registering to new server with {len(photo_paths)} photos...")
+        successful_registrations = 0
+
+        for idx, photo_path in enumerate(photo_paths):
+            if not os.path.exists(photo_path):
+                print(f"[MOVE-SERVER] ⚠ Photo not found: {photo_path}")
+                continue
+
+            try:
+                # Read the photo file
+                with open(photo_path, 'rb') as f:
+                    image_bytes = f.read()
+
+                # Send to new CodeProject server
+                files = {
+                    'image': (os.path.basename(photo_path), BytesIO(image_bytes), 'image/jpeg')
+                }
+                register_data = {
+                    'userid': person_id
+                }
+
+                response = make_codeproject_request(
+                    "/vision/face/register",
+                    new_server,
+                    files=files,
+                    data=register_data,
+                    timeout=30
+                )
+
+                if response.status_code == 200:
+                    successful_registrations += 1
+                    print(f"[MOVE-SERVER] ✓ Registered photo {idx + 1}/{len(photo_paths)}")
+                else:
+                    print(f"[MOVE-SERVER] ✗ Failed to register photo {idx + 1}: status {response.status_code}")
+
+            except Exception as e:
+                print(f"[MOVE-SERVER] ✗ Error registering photo {idx + 1}: {e}")
+
+        if successful_registrations == 0:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to register any photos to new server"
+            )
+
+        # Update all database records with new server ID
+        for record in face_records:
+            record.codeproject_server_id = data.new_server_id
+
+        await session.commit()
+        print(f"[MOVE-SERVER] ✓ Updated {len(face_records)} database records")
+        print(f"[MOVE-SERVER] ✓ MIGRATION COMPLETE")
+        print(f"{'='*60}\n")
+
+        return {
+            "success": True,
+            "message": f"Successfully moved {person_name} to new server",
+            "deleted_from_old": deleted_from_old,
+            "photos_count": successful_registrations,
+            "records_updated": len(face_records)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[MOVE-SERVER] ✗ EXCEPTION: {e}")
+        traceback.print_exc()
+        await session.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 
