@@ -144,16 +144,66 @@ def validate_device_credentials(device_id, device_token):
         return (False, "Authentication error", None)
 
 
+def get_codeproject_url_for_device(device_id):
+    """
+    Get the CodeProject/InsightFace server URL for a device based on its location.
+
+    Returns:
+        str: The endpoint URL with /v1 prefix, or fallback to hardcoded URL
+    """
+    engine = get_db_engine()
+    if engine is None:
+        logger.warning(f"[Config] Database not available - using fallback CodeProject URL")
+        return CODEPROJECT_AI_URL
+
+    try:
+        with Session(engine) as session:
+            # Query device -> location -> codeproject_server -> endpoint_url
+            query = text("""
+                SELECT cs.endpoint_url
+                FROM device d
+                JOIN location l ON d.location_id = l.id
+                JOIN codeproject_server cs ON l.codeproject_server_id = cs.id
+                WHERE d.device_id = :device_id
+                LIMIT 1
+            """)
+            result = session.execute(query, {"device_id": device_id})
+            row = result.first()
+
+            if row and row[0]:
+                endpoint_url = row[0]
+                # Ensure it ends with /v1 for compatibility
+                if not endpoint_url.endswith('/v1'):
+                    endpoint_url = endpoint_url.rstrip('/') + '/v1'
+                logger.info(f"[Config] Using CodeProject server for device {device_id}: {endpoint_url}")
+                return endpoint_url + '/vision/face/recognize'
+            else:
+                logger.warning(f"[Config] No CodeProject server found for device {device_id}, using fallback")
+                return CODEPROJECT_AI_URL
+
+    except Exception as e:
+        logger.error(f"[Config] Error looking up CodeProject server: {e}")
+        return CODEPROJECT_AI_URL
+
+
 class VideoFrameCapture:
     """Captures frames from WebRTC video track"""
 
-    def __init__(self, track, display_id, location):
+    def __init__(self, track, display_id, location, device_id=None):
         self.track = track
         self.display_id = display_id
         self.location = location
+        self.device_id = device_id
         self.running = False
         self.last_capture_time = 0
         self.last_no_match_log_time = 0  # Track when we last logged "no faces matched"
+
+        # Get CodeProject server URL based on device's location
+        if device_id:
+            self.recognition_url = get_codeproject_url_for_device(device_id)
+        else:
+            self.recognition_url = CODEPROJECT_AI_URL
+            logger.warning("[VideoCapture] No device_id provided, using fallback CodeProject URL")
 
     async def start(self):
         """Start capturing frames from the video track"""
@@ -323,7 +373,7 @@ class VideoFrameCapture:
                                   filename='frame.jpg',
                                   content_type='image/jpeg')
 
-                    async with session.post(CODEPROJECT_AI_URL, data=data) as response:
+                    async with session.post(self.recognition_url, data=data) as response:
                         if response.status == 200:
                             result = await response.json()
                             predictions = result.get('predictions', [])
@@ -544,6 +594,21 @@ async def websocket_handler(request):
                                     "error": "No active video connection"
                                 }
                             }))
+
+                    elif msg_type == 'refresh_config':
+                        # Handle CodeProject server config refresh
+                        device_id = data.get('device_id')
+                        logger.info(f"[WebSocket] Config refresh request from device {device_id}")
+
+                        # Get the video track for this device and refresh its recognition URL
+                        if device_id in active_video_tracks:
+                            frame_capture = active_video_tracks[device_id]
+                            old_url = frame_capture.recognition_url
+                            new_url = get_codeproject_url_for_device(device_id)
+                            frame_capture.recognition_url = new_url
+                            logger.info(f"[Config] ✓ Updated recognition URL for {device_id}: {old_url} → {new_url}")
+                        else:
+                            logger.warning(f"[WebSocket] No active video track for device {device_id}, config will update on next connection")
 
                 except json.JSONDecodeError:
                     logger.error(f"[WebSocket] Failed to parse message: {msg.data}")
@@ -1189,7 +1254,7 @@ async def offer(request):
             logger.info("=" * 50)
             logger.info("[WebRTC] Connection FULLY ESTABLISHED - Now starting frame capture!")
             logger.info("=" * 50)
-            frame_capture = VideoFrameCapture(video_track, DISPLAY_ID, LOCATION)
+            frame_capture = VideoFrameCapture(video_track, DISPLAY_ID, LOCATION, device_id)
 
             # Register this device's video track for on-demand capture
             active_video_tracks[device_id] = frame_capture
